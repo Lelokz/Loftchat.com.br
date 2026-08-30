@@ -1,0 +1,44 @@
+/*
+ * Faixa de "respondendo a…", entre a lista e o composer.
+ *
+ * A barra colorida à esquerda é a mesma linguagem da citação dentro do balão:
+ * quem vê uma reconhece a outra.
+ */
+
+.reply-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+}
+
+.reply-bar__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reply-bar__label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Uma linha só: a faixa é uma pista, não a mensagem inteira. */
+.reply-bar__excerpt {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-bar__close {
+  flex: none;
+}

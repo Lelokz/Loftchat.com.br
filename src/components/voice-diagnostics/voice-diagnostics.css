@@ -1,0 +1,103 @@
+/* Painel de diagnóstico das conexões da sala. */
+
+.diag {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.diag__empty {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.diag__peer {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-raised);
+}
+
+.diag__peer.is-failed {
+  border-color: var(--danger);
+}
+
+.diag__name {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.diag__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.diag__label {
+  color: var(--text-muted);
+}
+
+.diag__value {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/*
+ * O total de upload fica em destaque no topo: numa malha, é ele — e não o de
+ * nenhuma conexão isolada — que diz se o gargalo é a sua internet.
+ */
+.diag__total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background-color: var(--accent-soft);
+  font-size: var(--font-size-xs);
+}
+
+.diag__value--strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/*
+ * O aviso de RELAY, no topo e antes de tudo.
+ *
+ * Relay é invisível por natureza — a chamada funciona igual — e é o único
+ * caminho que gasta um plano de terceiro. Sem isto, a pessoa só descobriria que
+ * consumiu o plano quando ele acabasse. Por isso a moldura é de alerta, e não a
+ * neutra dos outros blocos.
+ */
+.diag__relay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+}
+
+.diag__relay-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.diag__relay-note {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+/*
+ * A linha que indica DEFEITO, não informação: direção negociada diferente da
+ * pedida, ou sinal descartado por obsoleto. Some quando está tudo certo — se
+ * está visível, é para chamar atenção.
+ */
+.diag__value--alert {
+  color: var(--danger);
+  font-weight: 600;
+}

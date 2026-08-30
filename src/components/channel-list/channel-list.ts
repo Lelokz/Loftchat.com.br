@@ -1,0 +1,223 @@
+import './channel-list.css';
+
+import { avatarEl, el, iconEl } from '../../lib/dom';
+import { chevronDownIcon, gearIcon, logoutIcon, micIcon, speakerIcon } from '../../lib/icons';
+import { renderCallBar } from '../call-bar/call-bar';
+import type { CallBarProps } from '../call-bar/call-bar';
+import { renderLoading } from '../empty-state/empty-state';
+import type { Channel, ChannelId, Group, Member } from '../../types/models';
+
+export interface ChannelListProps {
+  /** Grupo ativo; `null` enquanto nenhum está selecionado. */
+  group: Group | null;
+  /** Canais do grupo ativo, já ordenados pela camada de dados. */
+  channels: Channel[];
+  channelsLoaded: boolean;
+  /** Canal de TEXTO que estou lendo. */
+  activeChannelId: ChannelId | null;
+  /** Canal de VOZ em que estou conectado. Seleção independente da de texto. */
+  activeVoiceChannelId: ChannelId | null;
+  /** Identidade da sessão (usuário autenticado). */
+  currentMember: Member;
+  onSelectChannel: (channelId: ChannelId) => void;
+  /** Conecta na voz e abre a sala; no canal já conectado, só volta para a sala. */
+  onEnterVoice: (channelId: ChannelId) => void;
+  /** Recebe o próprio botão, para o menu se ancorar nele. */
+  onOpenGroupMenu: (anchor: HTMLElement) => void;
+  onSignOut: () => void;
+  /** Faixa de chamada em andamento; ausente quando a sala está na tela. */
+  callBar?: CallBarProps;
+  /** Quem está em cada canal de voz, por id de canal. */
+  voiceRosters: Map<ChannelId, VoicePresenceView[]>;
+}
+
+/** Uma pessoa na lista indentada sob um canal de voz. */
+export interface VoicePresenceView {
+  uid: string;
+  displayName: string;
+  initials: string;
+  muted: boolean;
+}
+
+/** Botão de encerrar a sessão, no rodapé ao lado da engrenagem. */
+function signOutButton(onSignOut: () => void): HTMLElement {
+  const button = el('button', {
+    class: 'icon-button channels__signout',
+    type: 'button',
+    title: 'Sair da conta',
+  });
+  button.append(iconEl(logoutIcon(17)), el('span', { class: 'sr-only' }, ['Sair da conta']));
+  button.addEventListener('click', onSignOut);
+  return button;
+}
+
+/**
+ * Um item de canal.
+ *
+ * Texto e voz usam estados visuais DIFERENTES de propósito: `is-active` é o
+ * canal que estou lendo, `is-connected` é o canal de voz em que estou. Os dois
+ * podem estar acesos ao mesmo tempo, porque são seleções independentes.
+ */
+function channelButton(
+  channel: Channel,
+  state: 'idle' | 'active' | 'connected',
+  onSelect: (id: ChannelId) => void,
+  roster?: VoicePresenceView[],
+): HTMLElement {
+  const isVoice = channel.kind === 'voice';
+  const stateClass = state === 'active' ? ' is-active' : state === 'connected' ? ' is-connected' : '';
+
+  const button = el(
+    'button',
+    {
+      class: `channel${stateClass}`,
+      type: 'button',
+      'aria-current': state === 'active' ? 'true' : undefined,
+      'aria-pressed': isVoice ? String(state === 'connected') : undefined,
+      title: isVoice
+        ? state === 'connected'
+          ? `Voltar para ${channel.name}`
+          : `Entrar em ${channel.name}`
+        : undefined,
+      // Ganchos do menu de contexto — o alvo é o botão, o id vem junto.
+      'data-context': 'channel',
+      'data-channel-id': channel.id,
+    },
+    [
+      isVoice
+        ? iconEl(speakerIcon(15), 'icon channel__icon')
+        : el('span', { class: 'channel__hash', 'aria-hidden': 'true' }, ['#']),
+      el('span', { class: 'channel__name' }, [channel.name]),
+      state === 'connected' && el('span', { class: 'channel__live' }, ['conectado']),
+    ],
+  );
+  button.addEventListener('click', () => onSelect(channel.id));
+  return el('li', {}, [button, roster !== undefined && roster.length > 0 && voiceRoster(roster)]);
+}
+
+/**
+ * Lista indentada de quem está no canal de voz.
+ *
+ * Voltou na etapa 6, agora com gente de verdade — na etapa 3 ela saiu
+ * justamente por não ter dado real para mostrar. Só aparece quando há alguém:
+ * um rótulo vazio sob cada canal seria ruído.
+ */
+function voiceRoster(people: VoicePresenceView[]): HTMLElement {
+  return el(
+    'ul',
+    { class: 'channel__roster' },
+    people.map((person) =>
+      el('li', { class: 'channel__peer', title: person.displayName }, [
+        avatarEl(person.initials, 'xs'),
+        el('span', { class: 'channel__peer-name' }, [person.displayName]),
+        person.muted &&
+          el('span', { class: 'channel__peer-muted', title: 'Microfone desligado' }, [
+            iconEl(micIcon(11)),
+          ]),
+      ]),
+    ),
+  );
+}
+
+/** Coluna 2 — canais de texto e de voz do grupo ativo. */
+export function renderChannelList(props: ChannelListProps): HTMLElement {
+  const {
+    group,
+    channels,
+    channelsLoaded,
+    activeChannelId,
+    activeVoiceChannelId,
+    currentMember,
+    onSelectChannel,
+    onEnterVoice,
+    onOpenGroupMenu,
+    onSignOut,
+  } = props;
+
+  const menuButton = el(
+    'button',
+    {
+      class: 'icon-button channels__group-menu',
+      type: 'button',
+      title: 'Opções do grupo',
+      'aria-haspopup': 'menu',
+      'aria-expanded': 'false',
+    },
+    [iconEl(chevronDownIcon(16)), el('span', { class: 'sr-only' }, ['Opções do grupo'])],
+  );
+  menuButton.addEventListener('click', () => onOpenGroupMenu(menuButton));
+  menuButton.disabled = group === null;
+
+  const textChannels = channels.filter((channel) => channel.kind === 'text');
+  const voiceChannels = channels.filter((channel) => channel.kind === 'voice');
+
+  const sections: (HTMLElement | false)[] = [
+    textChannels.length > 0 &&
+      el('section', { class: 'channels__section' }, [
+        el('h2', { class: 'section-title' }, ['texto']),
+        el(
+          'ul',
+          {},
+          textChannels.map((channel) =>
+            channelButton(
+              channel,
+              channel.id === activeChannelId ? 'active' : 'idle',
+              onSelectChannel,
+            ),
+          ),
+        ),
+      ]),
+
+    voiceChannels.length > 0 &&
+      el('section', { class: 'channels__section' }, [
+        el('h2', { class: 'section-title' }, ['voz']),
+        el(
+          'ul',
+          {},
+          voiceChannels.map((channel) =>
+            // Canal de voz NÃO troca o canal de texto: ele conecta e abre a sala.
+            channelButton(
+              channel,
+              channel.id === activeVoiceChannelId ? 'connected' : 'idle',
+              onEnterVoice,
+              props.voiceRosters.get(channel.id) ?? [],
+            ),
+          ),
+        ),
+      ]),
+  ];
+
+  // Enquanto os canais não chegam, mostra "carregando" em vez de piscar vazio.
+  const body =
+    !channelsLoaded && group !== null
+      ? [renderLoading()]
+      : channels.length === 0 && group !== null
+        ? [el('p', { class: 'channels__empty' }, ['Nenhum canal ainda.'])]
+        : sections;
+
+  return el('aside', { class: 'channels', 'aria-label': 'Canais' }, [
+    el('header', { class: 'channels__header' }, [
+      el('span', { class: 'channels__group-name', title: group?.name ?? '' }, [
+        group?.name ?? 'Loft',
+      ]),
+      menuButton,
+    ]),
+
+    el('div', { class: 'channels__body column-scroll scroll-area' }, body),
+
+    props.callBar !== undefined && renderCallBar(props.callBar, 'desktop'),
+
+    // Rodapé fixo: eu — nome e iniciais do usuário autenticado.
+    el('footer', { class: 'channels__me' }, [
+      avatarEl(currentMember.initials, 'sm'),
+      el('span', { class: 'channels__me-name', title: currentMember.displayName }, [
+        currentMember.displayName,
+      ]),
+      el('button', { class: 'icon-button', type: 'button', title: 'Configurações' }, [
+        iconEl(gearIcon(17)),
+        el('span', { class: 'sr-only' }, ['Configurações']),
+      ]),
+      signOutButton(onSignOut),
+    ]),
+  ]);
+}

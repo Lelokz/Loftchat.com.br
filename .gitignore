@@ -1,0 +1,28 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+
+# firebase
+.firebase
+firebase-debug.log
+*-debug.log
+.DS_Store
+*.log
+
+# Conta fixa do `npm run check:indexes` (e-mail confirmado a mao)
+.check-indexes.json
+
+# credenciais locais (TURN, etc.) -- ver .env.example para o que preencher
+.env
+
+# saida de teste (Playwright): capturas de falha, traces, screenshots gerados
+# por tests/screenshots.spec.ts a cada execucao -- nao sao fonte, sao output.
+test-results
+playwright-report
+screenshots
+
+# JRE portatil que já existiu aqui num Windows anterior -- se voltar, nao
+# deve ir para o repositorio (ver etapa 16 em PROGRESSO.md).
+.tools

@@ -1,0 +1,100 @@
+/*
+ * Coluna 2 na tela inicial — ocupa o lugar da coluna de canais.
+ *
+ * Mesma largura e mesma superfície da de canais de propósito: trocar de visão
+ * não pode fazer o layout inteiro pular de largura.
+ */
+
+.home-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: var(--surface-side);
+}
+
+.home-column__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 48px; /* mesma altura do cabeçalho da coluna de canais */
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.home-column__title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.home-column__nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+}
+
+.home-column__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  text-align: left;
+}
+
+.home-column__item:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.home-column__item.is-active {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.home-column__icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.home-column__item.is-active .home-column__icon {
+  color: var(--accent);
+}
+
+/*
+ * Espaço RESERVADO das conversas privadas (Entrega 2).
+ *
+ * Fica visível e vazio de propósito: uma seção que aparece do nada na entrega
+ * seguinte muda a coluna de forma debaixo de quem já se acostumou com ela.
+ */
+.home-column__section {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.home-column__section-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.home-column__empty {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+/* A faixa de chamada continua visível aqui — trocar de visão não derruba voz. */
+.home-column__callbar {
+  flex: none;
+}

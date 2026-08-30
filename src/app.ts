@@ -1,0 +1,1328 @@
+import { el } from './lib/dom';
+import { renderChannelList } from './components/channel-list/channel-list';
+import type { VoicePresenceView } from './components/channel-list/channel-list';
+import { renderCallBar } from './components/call-bar/call-bar';
+import type { CallBarProps } from './components/call-bar/call-bar';
+import { renderChat } from './components/chat/chat';
+import type { ChatParts } from './components/chat/chat';
+import { renderMessageList } from './components/chat/message-list/message-list';
+import { renderReplyBar } from './components/chat/reply-bar/reply-bar';
+import {
+  renderLoading,
+  renderMessagesError,
+  renderNoGroups,
+  renderNoMessages,
+} from './components/empty-state/empty-state';
+import { renderGroupBar } from './components/group-bar/group-bar';
+import { renderHomeColumn } from './components/home/home-column';
+import { renderFriendsScreen } from './components/home/friends-screen';
+import type { FriendsScreenParts, FriendsScreenProps, FriendsTab } from './components/home/friends-screen';
+import {
+  acceptFriendRequest,
+  blockUser,
+  removeFriendship,
+  sendFriendRequest,
+  uidOfUsername,
+  unblockUser,
+} from './lib/friends';
+import { renderMemberList } from './components/member-list/member-list';
+import { closeGroupMenu, openGroupMenu } from './components/group-menu/group-menu';
+import type { GroupMenuItem } from './components/group-menu/group-menu';
+import {
+  openConfirmDialog,
+  openCreateChannelDialog,
+  openCreateGroupDialog,
+  openDeleteGroupDialog,
+  openInviteDialog,
+  openLeaveGroupDialog,
+  openRenameGroupDialog,
+} from './components/modal/dialogs';
+import { openVoiceDiagnostics } from './components/voice-diagnostics/voice-diagnostics';
+import { renderVoiceRoom } from './components/voice-room/voice-room';
+import type { VoiceParticipantView } from './components/voice-room/voice-room';
+import { hideToast, showToast } from './components/toast/toast';
+import {
+  createChannel,
+  createGroup,
+  createInvite,
+  deleteChannel,
+  deleteGroupCascade,
+  deleteMessage,
+  leaveGroup,
+  removeMember,
+  renameGroup,
+  buildReplyTo,
+  editMessage,
+  sendMessage,
+} from './lib/firestore';
+import { initials } from './lib/format';
+import { canLeaveGroup, isOwner, OWNER_CANNOT_LEAVE } from './lib/permissions';
+import { isWellFormedInviteCode } from './lib/invite-code';
+import { extractInviteCode, invitePath, inviteUrl, navigate } from './lib/router';
+import { isMobileLayout, onLayoutChange, trackViewportHeight } from './lib/layout';
+import { installContextMenus } from './context-menus';
+import { createStore, screenShareSupported } from './state/store';
+import type { AppState, Store } from './state/store';
+import type { ReplyTo } from './types/models';
+import type { User } from 'firebase/auth';
+import type { Member, MemberId, VoiceParticipant } from './types/models';
+
+export interface AppHandle {
+  element: HTMLElement;
+  /** Seleciona um grupo de fora — usado ao voltar de um convite aceito. */
+  focusGroup(groupId: string): void;
+  destroy(): void;
+}
+
+/** A ~80px do fim ainda conta como "estou no fim". */
+const STICK_TO_BOTTOM_PX = 80;
+
+/** Quanto tempo a mensagem apontada por uma citação fica destacada. */
+const HIGHLIGHT_MS = 1600;
+
+/** Identidade da sessão para o rodapé da coluna de canais. */
+function sessionMember(user: User): Member {
+  const displayName = user.displayName ?? user.email ?? 'Sem nome';
+  return { id: user.uid, displayName, initials: initials(displayName), status: 'online' };
+}
+
+export function mountApp(
+  user: User,
+  onFatalError: (error: unknown) => void,
+  onSignOut: () => void,
+): AppHandle {
+  const me = sessionMember(user);
+  const store: Store = createStore(user, onFatalError);
+
+  const root = document.createElement('div');
+  root.className = 'app';
+
+  let groupBarEl: HTMLElement | null = null;
+  let channelListEl: HTMLElement | null = null;
+  let memberListEl: HTMLElement | null = null;
+
+  /**
+   * Coluna do meio: ou a casca do chat, ou a sala de voz.
+   *
+   * `centerEl` é o que está lá agora; `centerMode` diz qual dos dois é. A casca
+   * do chat é montada uma vez POR CANAL e só o slot de mensagens troca por
+   * dentro — é isso que impede o texto do composer de sumir a cada mensagem que
+   * chega.
+   */
+  let centerEl: HTMLElement | null = null;
+  let centerMode: 'chat' | 'voice' | 'friends' | 'no-groups' | null = null;
+  let chat: ChatParts | null = null;
+  let chatChannelId: string | null = null;
+  let friends: FriendsScreenParts | null = null;
+
+  let previous: AppState | null = null;
+
+  /**
+   * Quem está falando agora.
+   *
+   * Fora do estado de propósito: o motor emite dezenas de vezes por segundo e
+   * isso re-renderizaria a sala inteira. O conjunto vive aqui só para ser
+   * reaplicado quando a sala é reconstruída por outro motivo.
+   */
+  const speaking = new Set<string>();
+
+  /* ------------------------------------------------------------------------ */
+  /* Gavetas do mobile                                                         */
+  /*                                                                           */
+  /* O LAYOUT é feito pela media query; isto aqui é só o estado de aberta ou    */
+  /* fechada, mais a integração com o botão de voltar do Android.              */
+  /* ------------------------------------------------------------------------ */
+
+  let drawer: 'left' | 'right' | null = null;
+  /** Empilhei uma entrada de histórico para esta gaveta? */
+  let drawerInHistory = false;
+
+  function setDrawer(next: 'left' | 'right' | null): void {
+    if (drawer === next) return;
+    drawer = next;
+    root.classList.toggle('drawer-left', next === 'left');
+    root.classList.toggle('drawer-right', next === 'right');
+
+    if (next !== null && !drawerInHistory) {
+      /*
+       * ESTADO NOMEADO, não um pushState anônimo.
+       *
+       * O roteador escuta popstate. Sem o nome, ele não teria como distinguir
+       * "fechei a gaveta" de "naveguei", e a rota seria reinterpretada. O
+       * roteador também ignora popstate na mesma rota — as duas defesas juntas.
+       */
+      history.pushState({ loftDrawer: true }, '', location.href);
+      drawerInHistory = true;
+      return;
+    }
+
+    // Fechou por toque fora ou por botão: desfaz a entrada que eu empilhei.
+    if (next === null && drawerInHistory && !closingFromPopstate) {
+      drawerInHistory = false;
+      history.back();
+    }
+  }
+
+  /** Fechar veio do próprio popstate? Aí não dá para chamar history.back(). */
+  let closingFromPopstate = false;
+
+  const onPopState = (): void => {
+    if (drawer === null) return;
+    closingFromPopstate = true;
+    drawerInHistory = false;
+    setDrawer(null);
+    closingFromPopstate = false;
+  };
+  window.addEventListener('popstate', onPopState);
+
+  /** Toque fora da gaveta fecha. */
+  const onPointerDownOutside = (event: PointerEvent): void => {
+    if (drawer === null) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.channels, .group-bar, .members') !== null && target !== null) return;
+    setDrawer(null);
+  };
+  document.addEventListener('pointerdown', onPointerDownOutside);
+
+  /*
+   * Atravessar o breakpoint com gaveta aberta deixaria uma coluna fixa por cima
+   * do desktop, e uma entrada de histórico órfã comendo um toque no voltar.
+   *
+   * A CHAMADA DE VOZ não precisa de nada aqui: o DOM é o mesmo nos dois modos,
+   * nada desmonta, e as conexões seguem de pé. É a razão de o corte ser por
+   * media query.
+   */
+  const stopLayoutWatch = onLayoutChange(() => {
+    setDrawer(null);
+    /*
+     * Redesenha para a faixa de chamada trocar de lugar (rodapé da coluna no
+     * desktop, acima do composer no mobile).
+     *
+     * Isto reconstrói DOM, e só DOM: o store, o motor de voz e os elementos de
+     * áudio e vídeo são donos deles mesmos e vivem fora da árvore. Uma chamada
+     * atravessa o breakpoint sem sentir.
+     */
+    previous = null;
+    render(store.getState());
+  });
+  const stopViewportWatch = trackViewportHeight(() => {
+    // Teclado abrindo encurta a janela: a lista tem que continuar no fim.
+    const list = centerEl?.querySelector<HTMLElement>('.messages');
+    if (list !== null && list !== undefined) list.scrollTop = list.scrollHeight;
+  });
+
+  /* --- ações ------------------------------------------------------------- */
+
+  const activeGroup = (state: AppState) =>
+    state.groups.find((candidate) => candidate.id === state.activeGroupId);
+
+  /**
+   * As ações de grupo recebem um id.
+   *
+   * O menu de contexto pode ser aberto na bolinha de um grupo que NÃO é o ativo
+   * — renomear ali tem que renomear aquele, não o que está na tela.
+   */
+  const groupById = (groupId: string) =>
+    store.getState().groups.find((candidate) => candidate.id === groupId);
+
+  const handleCreateGroup = (): void => {
+    openCreateGroupDialog(async (name) => {
+      const created = await createGroup(user.uid, name);
+      store.focusGroup(created.groupId, created.generalChannelId);
+    });
+  };
+
+  const handleCreateChannel = (): void => {
+    const state = store.getState();
+    const groupId = state.activeGroupId;
+    if (groupId === null) return;
+    openCreateChannelDialog(async (name, kind) => {
+      await createChannel(groupId, name, kind, state.channels);
+    });
+  };
+
+  const handleInvite = (): void => {
+    const group = activeGroup(store.getState());
+    if (group === undefined) return;
+    // O nome vai junto: as regras só deixam MEMBROS lerem o doc do grupo, e quem
+    // abre o convite ainda não é membro.
+    openInviteDialog(async () => inviteUrl(await createInvite(group.id, group.name, user.uid)));
+  };
+
+  /** Gera um convite novo e joga direto na área de transferência. */
+  const handleCopyInvite = (groupId: string): void => {
+    const group = groupById(groupId);
+    if (group === undefined) return;
+    void createInvite(group.id, group.name, user.uid)
+      .then((code) => navigator.clipboard.writeText(inviteUrl(code)))
+      .then(() => showToast('Link de convite copiado.'))
+      .catch((error: unknown) => {
+        console.error('Não foi possível copiar o convite.', error);
+        showToast('Não foi possível gerar o convite.');
+      });
+  };
+
+  const handleRenameGroup = (groupId?: string): void => {
+    const group = groupId === undefined ? activeGroup(store.getState()) : groupById(groupId);
+    if (group === undefined) return;
+    openRenameGroupDialog(group.name, async (name) => {
+      await renameGroup(group.id, name);
+    });
+  };
+
+  const handleLeaveGroup = (groupId?: string): void => {
+    const group = groupId === undefined ? activeGroup(store.getState()) : groupById(groupId);
+    if (group === undefined) return;
+    openLeaveGroupDialog(group.name, async () => {
+      await leaveGroup(group.id, user.uid);
+    });
+  };
+
+  const handleDeleteGroup = (groupId?: string): void => {
+    const group = groupId === undefined ? activeGroup(store.getState()) : groupById(groupId);
+    if (group === undefined) return;
+    openDeleteGroupDialog(group.name, async (onProgress) => {
+      await deleteGroupCascade(group.id, user.uid, onProgress);
+    });
+  };
+
+  const handleDeleteChannel = (channelId: string): void => {
+    const state = store.getState();
+    const channel = state.channels.find((c) => c.id === channelId);
+    if (channel === undefined || state.activeGroupId === null) return;
+    const groupId = state.activeGroupId;
+
+    openConfirmDialog({
+      title: 'Apagar canal',
+      description: `As mensagens de ${channel.name} vão junto, para todo mundo. Não dá para desfazer.`,
+      confirmLabel: 'Apagar canal',
+      busyLabel: 'Apagando…',
+      failureMessage: 'Não foi possível apagar o canal.',
+      async onConfirm(controller) {
+        await deleteChannel(groupId, channelId);
+        controller.close();
+      },
+    });
+  };
+
+  const handleRemoveMember = (memberId: MemberId): void => {
+    const state = store.getState();
+    const member = state.members.find((m) => m.id === memberId);
+    if (member === undefined || state.activeGroupId === null) return;
+    const groupId = state.activeGroupId;
+
+    openConfirmDialog({
+      title: 'Remover do grupo',
+      description:
+        `${member.displayName} perde o acesso às conversas deste grupo. ` +
+        'As mensagens que já escreveu continuam lá.',
+      confirmLabel: 'Remover',
+      busyLabel: 'Removendo…',
+      failureMessage: 'Não foi possível remover a pessoa.',
+      async onConfirm(controller) {
+        await removeMember(groupId, memberId);
+        controller.close();
+      },
+    });
+  };
+
+  const handleDeleteMessage = (messageId: string): void => {
+    openConfirmDialog({
+      title: 'Apagar mensagem',
+      description: 'Ela some para todo mundo do canal. Não dá para desfazer.',
+      confirmLabel: 'Apagar',
+      busyLabel: 'Apagando…',
+      failureMessage: 'Não foi possível apagar a mensagem.',
+      async onConfirm(controller) {
+        await deleteMessage(messageId);
+        controller.close();
+      },
+    });
+  };
+
+  /**
+   * Monta o menu do grupo pelo papel.
+   *
+   * O que eu não posso fazer SOME — não fica cinza. A única exceção é o dono e o
+   * "Sair do grupo": esconder ali esconderia a explicação de por que não dá.
+   */
+  const handleOpenGroupMenu = (anchor: HTMLElement): void => {
+    const state = store.getState();
+    const group = activeGroup(state) ?? null;
+    if (group === null) return;
+
+    const owner = isOwner(group, user.uid);
+    const items: GroupMenuItem[] = [];
+
+    if (owner) {
+      items.push(
+        { label: 'Criar canal', onSelect: handleCreateChannel },
+        { label: 'Convidar pessoas', onSelect: handleInvite },
+        { label: 'Renomear grupo', onSelect: handleRenameGroup },
+      );
+    }
+
+    items.push({
+      label: 'Sair do grupo',
+      onSelect: handleLeaveGroup,
+      separatorBefore: true,
+      disabled: !canLeaveGroup(group, user.uid),
+      ...(owner ? { reason: OWNER_CANNOT_LEAVE } : {}),
+    });
+
+    if (owner) {
+      items.push({ label: 'Apagar grupo', onSelect: handleDeleteGroup, danger: true });
+    }
+
+    openGroupMenu(anchor, items);
+  };
+
+  /**
+   * Entrar em grupo colando o link ou o código.
+   *
+   * Só o FORMATO é conferido aqui — nada de ida ao servidor. Passando, navega
+   * para a tela de convite que já existe desde a etapa 3, que é quem sabe buscar
+   * o convite, dizer de qual grupo é e tratar código que não corresponde a nada.
+   *
+   * Devolve a mensagem de erro para o campo, ou null quando aceitou.
+   */
+  const handleJoinByCode = (raw: string): string | null => {
+    if (raw.trim() === '') return 'Cole o link ou o código do convite.';
+
+    const code = extractInviteCode(raw);
+    if (!isWellFormedInviteCode(code)) {
+      return 'Isso não parece um convite do Loft. Confira o link ou o código.';
+    }
+
+    navigate(invitePath(code));
+    return null;
+  };
+
+  /**
+   * Entrar num canal de voz pode ser RECUSADO — sala cheia, ou outra aba minha
+   * já conectada. O store devolve o motivo e a recusa aparece na tela; entrar
+   * num canal e não acontecer nada seria o pior desfecho possível.
+   */
+  const handleEnterVoice = (channelId: string): void => {
+    void store.enterVoice(channelId).then((refusal) => {
+      if (refusal !== null) showToast(refusal);
+    });
+  };
+
+  /** Começa a responder a uma mensagem: a faixa aparece acima do composer. */
+  const handleReplyToMessage = (messageId: string): void => {
+    const state = store.getState();
+    const alvo = state.messages.find((m) => m.id === messageId);
+    if (alvo === undefined) return;
+    const autor = state.members.find((m) => m.id === alvo.authorId);
+    replyingTo = buildReplyTo(alvo, autor?.displayName ?? 'Usuário');
+    renderReplySlot();
+  };
+
+  /** Entra em edição no próprio balão. Só o autor chega aqui — ver o menu. */
+  const handleEditMessage = (messageId: string): void => {
+    editingId = messageId;
+    render(store.getState());
+  };
+
+  /**
+   * Manda pedido pela `@` EXATA.
+   *
+   * Busca parcial varreria a coleção de usuários inteira a cada tecla — caro e,
+   * pior, transformaria o Loft num diretório de quem tem conta aqui.
+   */
+  /*
+   * A interpretação do erro mora em `sendFriendRequest` (src/lib/friends.ts),
+   * não aqui: só ela sabe qual chamada falhou (ler o par existente ou criar o
+   * pedido), e é essa distinção que separa "defeito nosso" de "bloqueio de
+   * verdade".
+   */
+  const handleAddFriend = async (username: string): Promise<'sent' | 'accepted'> => {
+    const alvo = await uidOfUsername(username);
+    if (alvo === null) throw new Error('Não encontramos ninguém com esse nome.');
+    if (alvo === user.uid) throw new Error('Você não pode adicionar a si mesmo.');
+    return await sendFriendRequest(user.uid, alvo);
+  };
+
+  const handleSend = async (body: string): Promise<void> => {
+    const state = store.getState();
+    if (state.activeGroupId === null || state.activeChannelId === null) return;
+
+    /*
+     * A citação é LIMPA ANTES do await, não depois.
+     *
+     * Depois, uma segunda mensagem digitada enquanto a primeira ainda estava
+     * gravando sairia citando a mesma coisa sem que a faixa estivesse mais na
+     * tela. Mesmo raciocínio da limpeza otimista do composer na etapa 4.
+     */
+    const citando = replyingTo ?? undefined;
+    if (replyingTo !== null) {
+      replyingTo = null;
+      renderReplySlot();
+    }
+
+    await sendMessage(state.activeGroupId, state.activeChannelId, user.uid, body, citando);
+  };
+
+  /** Põe (ou tira) a faixa de resposta acima do composer. */
+  function renderReplySlot(): void {
+    if (chat === null) return;
+    if (replyingTo === null) {
+      chat.replySlot.replaceChildren();
+      return;
+    }
+    chat.replySlot.replaceChildren(
+      renderReplyBar({
+        replyTo: replyingTo,
+        onCancel: () => {
+          replyingTo = null;
+          renderReplySlot();
+        },
+      }),
+    );
+  }
+
+  /* --- render das colunas ------------------------------------------------ */
+
+  function buildGroupBar(state: AppState): HTMLElement {
+    return renderGroupBar({
+      groups: state.groups,
+      activeGroupId: state.activeGroupId,
+      homeActive: state.view === 'home',
+      onOpenHome: () => {
+        setDrawer(null);
+        store.setView('home');
+      },
+      onSelectGroup: (groupId) => {
+        setDrawer(null);
+        // Clicar num grupo SAI da tela inicial — e isso é só troca de visão:
+        // nada é desmontado, então uma chamada de voz em curso continua.
+        store.setView('group');
+        store.focusGroup(groupId);
+      },
+      onCreateGroup: handleCreateGroup,
+    });
+  }
+
+  /**
+   * Nome do canal da chamada.
+   *
+   * Ao vivo quando o grupo da chamada é o que está aberto — assim renomear
+   * aparece na hora. Fora dele, vale a cópia congelada: os canais daquele grupo
+   * nem estão carregados.
+   */
+  function voiceChannelName(state: AppState): string {
+    const voice = state.voice;
+    if (voice === null) return '';
+    if (voice.groupId !== state.activeGroupId) return voice.channelName;
+    return state.channels.find((c) => c.id === voice.channelId)?.name ?? voice.channelName;
+  }
+
+  /**
+   * A sala está mesmo na tela?
+   *
+   * `centerView` sozinho NÃO BASTA: ele guarda a intenção de voltar para a
+   * sala ao reabrir o grupo (é o que faz `.callbar__back` funcionar depois de
+   * trocar de grupo, e clicar de novo no grupo da chamada cair direto nela) —
+   * de propósito sobrevive à tela inicial, então continua 'voice' por lá. Mas
+   * a tela inicial NUNCA mostra a sala, não importa o que `centerView` diga
+   * (ver o retorno antecipado de `state.view === 'home'` em `render()`). Por
+   * isso esta função pareia os dois: é o único lugar que decide "a sala está
+   * na tela", e `buildCallBar` e `showRoom` (dentro de `render()`) usam os
+   * dois o mesmo resultado — divergir aqui é o defeito que fez a faixa sumir
+   * na tela inicial sem a chamada ter caído.
+   */
+  function isViewingRoom(state: AppState): boolean {
+    const voice = state.voice;
+    return (
+      voice !== null &&
+      state.view !== 'home' &&
+      state.centerView === 'voice' &&
+      voice.groupId === state.activeGroupId
+    );
+  }
+
+  /** A faixa só existe quando estou conectado E não estou olhando a sala. */
+  function buildCallBar(state: AppState): CallBarProps | undefined {
+    const voice = state.voice;
+    if (voice === null) return undefined;
+    if (isViewingRoom(state)) return undefined;
+
+    const otherGroup =
+      voice.groupId === state.activeGroupId
+        ? null
+        : (state.groups.find((g) => g.id === voice.groupId)?.name ?? 'outro grupo');
+
+    return {
+      channelName: voiceChannelName(state),
+      otherGroupName: otherGroup,
+      muted: state.voiceMuted,
+      onOpenRoom: () => store.openVoiceRoom(),
+      onToggleMute: () => store.toggleMute(),
+      onDisconnect: () => store.disconnectVoice(),
+    };
+  }
+
+  /** Coluna 2 na tela inicial. A faixa de chamada continua aqui. */
+  function buildHomeColumn(state: AppState): HTMLElement {
+    const parts = renderHomeColumn();
+    const bar = buildCallBar(state);
+    /*
+     * ESTE mount não tem par: ao contrário do chat (rodapé da coluna no
+     * desktop, acima do composer no mobile — dois elementos, um por CSS), a
+     * tela inicial só tem um lugar para a faixa. Por isso a variante segue o
+     * layout ATUAL em vez de vir fixa em 'mobile' — fixa, `.callbar--mobile`
+     * ficava escondida fora da media query de mobile (ver call-bar.css) e a
+     * faixa desaparecia também no desktop, não só quando a visão era home.
+     */
+    if (bar !== undefined) {
+      parts.callBarSlot.replaceChildren(renderCallBar(bar, isMobileLayout() ? 'mobile' : 'desktop'));
+    }
+    return parts.element;
+  }
+
+  /** Coluna do meio quando não há grupo nenhum: criar ou entrar por convite. */
+  function buildNoGroupsCenter(): HTMLElement {
+    return el('main', { class: 'chat' }, [
+      renderNoGroups({ onCreateGroup: handleCreateGroup, onJoinByCode: handleJoinByCode }),
+    ]);
+  }
+
+  function friendsScreenProps(state: AppState): FriendsScreenProps {
+    return {
+      me: user.uid,
+      tab: friendsTab,
+      onTab: (tab) => {
+        friendsTab = tab;
+        render(store.getState());
+      },
+      friendships: state.friendships,
+      profiles: state.friendProfiles,
+      blockedUids: state.blockedUids,
+      onAdd: handleAddFriend,
+      onAccept: (id) => {
+        void acceptFriendRequest(id).catch(() => showToast('Não foi possível aceitar.'));
+      },
+      onRemove: (id) => {
+        void removeFriendship(id).catch(() => showToast('Não foi possível concluir.'));
+      },
+      onBlock: (uid) => {
+        void blockUser(user.uid, uid).catch(() => showToast('Não foi possível bloquear.'));
+      },
+      onUnblock: (uid) => {
+        void unblockUser(user.uid, uid).catch(() => showToast('Não foi possível desbloquear.'));
+      },
+      onOpenChannels: () => setDrawer('left'),
+    };
+  }
+
+  function buildChannelList(state: AppState): HTMLElement {
+    const callBar = buildCallBar(state);
+    return renderChannelList({
+      group: activeGroup(state) ?? null,
+      channels: state.channels,
+      channelsLoaded: state.channelsLoaded,
+      activeChannelId: state.activeChannelId,
+      activeVoiceChannelId:
+        state.voice !== null && state.voice.groupId === state.activeGroupId
+          ? state.voice.channelId
+          : null,
+      currentMember: me,
+      // Escolher fecha a gaveta: no celular ela cobre a tela, e deixá-la aberta
+      // depois de escolher um canal esconderia justamente o que você foi ver.
+      onSelectChannel: (channelId) => {
+        setDrawer(null);
+        store.setActiveChannel(channelId);
+      },
+      onEnterVoice: (channelId) => {
+        setDrawer(null);
+        handleEnterVoice(channelId);
+      },
+      onOpenGroupMenu: handleOpenGroupMenu,
+      onSignOut,
+      voiceRosters: voiceRosters(state),
+      // No mobile a faixa vai para cima do composer, e SÓ para lá: dois
+      // `.callbar` no DOM ao mesmo tempo mudariam o documento do desktop, que
+      // precisa continuar idêntico.
+      ...(callBar === undefined || isMobileLayout() ? {} : { callBar }),
+    });
+  }
+
+  /**
+   * Quem é cada participante de voz.
+   *
+   * O roster traz uid; o nome vem da lista de membros do grupo, que já está
+   * carregada. Sem perfil correspondente, cai num rótulo neutro em vez de sumir
+   * da sala — alguém sem `users` ainda está ocupando um dos quatro lugares.
+   */
+  function presenceView(state: AppState, participant: VoiceParticipant): VoicePresenceView {
+    const member = state.members.find((m) => m.id === participant.uid);
+    const displayName = member?.displayName ?? 'Usuário';
+    return {
+      uid: participant.uid,
+      displayName,
+      initials: member?.initials ?? initials(displayName),
+      muted: participant.muted,
+    };
+  }
+
+  /** Quem está em cada canal de voz do grupo ativo. */
+  function voiceRosters(state: AppState): Map<string, VoicePresenceView[]> {
+    const byChannel = new Map<string, VoicePresenceView[]>();
+    for (const participant of state.voiceParticipants) {
+      const list = byChannel.get(participant.channelId) ?? [];
+      list.push(presenceView(state, participant));
+      byChannel.set(participant.channelId, list);
+    }
+    return byChannel;
+  }
+
+  /** A sala, com quem está mesmo nela. */
+  function buildVoiceRoom(state: AppState): HTMLElement | null {
+    const voice = state.voice;
+    if (voice === null || voice.groupId !== state.activeGroupId) return null;
+
+    const here = state.voiceParticipants.filter((p) => p.channelId === voice.channelId);
+
+    const participants: VoiceParticipantView[] = here.map((participant) => {
+      const view = presenceView(state, participant);
+      const isSelf = participant.uid === user.uid;
+      return {
+        member: {
+          id: view.uid,
+          displayName: view.displayName,
+          initials: view.initials,
+          status: 'online',
+        },
+        // O meu bloco segue o estado local do botão, não o documento: o botão
+        // tem que responder na hora, sem esperar o round-trip da escrita.
+        muted: isSelf ? state.voiceMuted : participant.muted,
+        isSelf,
+        failed: state.voiceFailedPeers.includes(participant.uid),
+      };
+    });
+
+    /*
+     * Quem transmite vem do roster VIVO — é o que faz a transmissão de um
+     * fantasma sumir do palco sozinha.
+     *
+     * A MINHA transmissão é a exceção: vale o estado local, não o documento.
+     * Esperar o round-trip do Firestore deixaria o meu próprio botão parecendo
+     * travado por um instante depois de eu clicar.
+     */
+    const otherSharer = here.find((p) => p.sharingScreen && p.uid !== user.uid);
+    const sharerIsMe = state.screenSharing;
+
+    const parts = renderVoiceRoom({
+      channelName: voiceChannelName(state),
+      participants,
+      muted: state.voiceMuted,
+      micDenied: state.voiceMicDenied,
+      audioBlocked: state.voiceAudioBlocked,
+      engineError: state.voiceEngineError,
+      screen: {
+        // Vem do roster VIVO: quem fecha o navegador some daqui em até 45s e o
+        // palco volta ao placeholder sozinho, sem transmissão fantasma.
+        sharerName: sharerIsMe
+          ? me.displayName
+          : otherSharer === undefined
+            ? null
+            : presenceView(state, otherSharer).displayName,
+        isMine: sharerIsMe,
+        label: state.screenLabel,
+        audioMissing: state.screenAudioMissing,
+        maximized: state.screenMaximized,
+        supported: screenShareSupported(),
+        ready: state.voiceReady,
+      },
+      onToggleMute: () => store.toggleMute(),
+      onRetryAudio: () => store.retryVoiceAudio(),
+      onOpenChannels: () => setDrawer('left'),
+      onOpenMembers: () => setDrawer('right'),
+      onToggleScreenShare: handleToggleScreenShare,
+      onToggleMaximize: () => setMaximized(!state.screenMaximized),
+      onLeave: () => store.disconnectVoice(),
+    });
+
+    /*
+     * ENCAIXA os elementos de vídeo, que são do motor e vivem fora da árvore de
+     * componentes. Mover preserva a reprodução; recriar reiniciaria a imagem a
+     * cada mudança de estado da sala.
+     */
+    if (parts.stageSlot !== null) {
+      const video = store.screenVideoElement();
+      if (video !== null) {
+        parts.stageSlot.append(video);
+        // Mover um elemento no DOM pode pausá-lo em alguns navegadores.
+        void video.play().catch(() => {});
+      }
+    }
+    if (parts.previewSlot !== null) {
+      const stream = store.localScreenStream();
+      if (stream !== null) parts.previewSlot.append(localPreview(stream));
+    }
+
+    // A sala foi reconstruída: reaplica quem está falando. O anel vive numa
+    // classe posta de fora, e uma reconstrução o apagaria.
+    for (const uid of speaking) {
+      parts.element
+        .querySelector(`.room__person[data-uid="${uid}"]`)
+        ?.classList.add('is-speaking');
+    }
+    return parts.element;
+  }
+
+  /**
+   * O `<video>` da minha própria transmissão.
+   *
+   * MUDO obrigatoriamente: sem isso eu ouviria de volta o som da minha própria
+   * tela, com atraso. `playsinline` para o iOS não abrir em tela cheia sozinho.
+   */
+  let previewEl: HTMLVideoElement | null = null;
+  function localPreview(stream: MediaStream): HTMLVideoElement {
+    if (previewEl === null) {
+      previewEl = document.createElement('video');
+      previewEl.autoplay = true;
+      previewEl.muted = true;
+      previewEl.playsInline = true;
+    }
+    if (previewEl.srcObject !== stream) previewEl.srcObject = stream;
+    return previewEl;
+  }
+
+  function buildMemberList(state: AppState): HTMLElement {
+    return renderMemberList({
+      members: state.members,
+      membersLoaded: state.membersLoaded,
+      ownerId: activeGroup(state)?.ownerId ?? null,
+    });
+  }
+
+  /** Conteúdo do slot de mensagens: erro > carregando > vazio > lista. */
+  function buildMessages(state: AppState): HTMLElement {
+    // Erro primeiro: "índice construindo" e "sem permissão" não podem virar
+    // uma lista vazia, que seria indistinguível de canal realmente sem mensagem.
+    if (state.messagesError !== null) return renderMessagesError(state.messagesError);
+    if (!state.messagesLoaded) return renderLoading('Carregando mensagens…');
+    if (state.messages.length === 0) return renderNoMessages();
+
+    const authors = new Map<MemberId, Member>(state.members.map((member) => [member.id, member]));
+    return renderMessageList({
+      messages: state.messages,
+      authors,
+      currentMemberId: user.uid,
+      loadingOlder: state.messagesLoadingOlder,
+      atStart: state.messagesAtStart,
+      atPageCap: state.messagesAtPageCap,
+      channelName: activeChannelName(state),
+      onReachTop: () => store.loadOlderMessages(),
+      onJumpTo: jumpToMessage,
+      editingId,
+      onEdit: (messageId, body) => {
+        editingId = null;
+        void editMessage(messageId, body).catch((error: unknown) => {
+          console.error('Falha ao editar a mensagem.', error);
+          showToast('Não foi possível salvar a edição.');
+        });
+        render(store.getState());
+      },
+      onCancelEdit: () => {
+        editingId = null;
+        render(store.getState());
+      },
+    });
+  }
+
+  /**
+   * Troca o conteúdo da coluna 3.
+   *
+   * Na primeira montagem ela precisa entrar ANTES da lista de membros: a ordem
+   * das colunas no grid vem da ordem no DOM, e appendar aqui jogaria o chat para
+   * depois dos membros.
+   */
+  function swapCenter(current: HTMLElement | null, next: HTMLElement): HTMLElement {
+    if (current === null) root.insertBefore(next, memberListEl);
+    else current.replaceWith(next);
+    return next;
+  }
+
+  function swap(current: HTMLElement | null, next: HTMLElement): HTMLElement {
+    if (current === null) {
+      root.append(next);
+      return next;
+    }
+    current.replaceWith(next);
+    return next;
+  }
+
+  /**
+   * Troca a lista preservando a leitura.
+   *
+   * Se eu estava no fim, acompanha a mensagem nova. Se eu estava lendo mais
+   * acima, mantém a posição exata — não me arranca de onde eu estava.
+   */
+  /**
+   * Mensagem em edição, e mensagem sendo respondida.
+   *
+   * Estado de INTERAÇÃO, não de dados: não vem do Firestore, não sobrevive a
+   * trocar de canal, e não tem por que passar pelo store — o mesmo critério que
+   * mantém "quem está falando" fora do estado no motor de voz.
+   */
+  /** Aba da tela de amigos. Interação pura: não vai para o store. */
+  let friendsTab: FriendsTab = 'amigos';
+  /** A aba desenhada por último — a aba em si é local e o store não a vê. */
+  let friendsTabRendered: FriendsTab | null = null;
+
+  let editingId: string | null = null;
+  let renderedEditingId: string | null = null;
+  let replyingTo: ReplyTo | null = null;
+
+  /** Nome do canal de TEXTO aberto agora — para o "Início de #geral". */
+  function activeChannelName(state: AppState): string {
+    return state.channels.find((c) => c.id === state.activeChannelId)?.name ?? 'canal';
+  }
+
+  /**
+   * Troca a lista preservando a leitura.
+   *
+   * UMA REGRA SÓ, ancorada numa mensagem: mede quanto conteúdo entrou ACIMA de
+   * uma mensagem que existe nas duas listas, e soma isso ao `scrollTop`.
+   *
+   * Isso cobre de uma vez três coisas que pareciam casos separados:
+   *   - histórico entrando no topo (o motivo da etapa 13);
+   *   - o próprio indicador "Carregando mensagens anteriores…" aparecendo, que
+   *     empurra a lista 52px sem que nenhuma mensagem tenha entrado — foi ele
+   *     que sobrou depois de eu consertar só o primeiro caso;
+   *   - separador de data novo abrindo acima da leitura.
+   *
+   * E mensagem chegando EMBAIXO cai na mesma regra sozinha: o que está acima da
+   * âncora não mudou, o delta dá zero, e a posição fica onde estava.
+   */
+  function swapMessages(slot: HTMLElement, next: HTMLElement, forceBottom: boolean): void {
+    const old = slot.querySelector<HTMLElement>('.messages');
+    const wasAtBottom =
+      old === null ||
+      old.scrollHeight - old.scrollTop - old.clientHeight <= STICK_TO_BOTTOM_PX;
+    const previousScrollTop = old?.scrollTop ?? 0;
+
+    /*
+     * A PRIMEIRA mensagem da lista antiga.
+     *
+     * Ela é a fronteira com o que vai entrar, e é de propósito: fixar a
+     * fronteira fixa tudo o que vem depois dela, que é o texto que a pessoa
+     * está lendo. Medi a alternativa — ancorar na última — e é pior: o erro
+     * subiu de 5px para 16px, porque aí a fronteira flutua livre.
+     *
+     * RESÍDUO CONHECIDO, de uns 5px: a própria âncora muda de forma quando
+     * mensagens do MESMO autor entram logo acima — ela deixa de abrir bloco,
+     * perde a linha do nome e troca a margem (`--space-3` vira 2px). Isso é
+     * mudança de layout NA âncora, não acima dela, e nenhuma compensação de
+     * rolagem pode desfazer: a mensagem realmente tem outro tamanho agora.
+     * Cinco pixels são imperceptíveis; os 457 originais é que inutilizavam.
+     */
+    const anchor = old?.querySelector<HTMLElement>('.message[data-message-id]') ?? null;
+    const anchorId = anchor?.dataset['messageId'] ?? null;
+    const anchorTopBefore = anchor?.offsetTop ?? 0;
+
+    slot.replaceChildren(next);
+
+    const list = slot.querySelector<HTMLElement>('.messages');
+    if (list === null) return;
+
+    if (forceBottom || wasAtBottom) {
+      list.scrollTop = list.scrollHeight;
+      return;
+    }
+
+    /*
+     * O ajuste roda no MESMO turno síncrono da troca do DOM, antes do paint —
+     * dentro de um requestAnimationFrame o salto apareceria por um quadro.
+     */
+    const again =
+      anchorId === null
+        ? null
+        : list.querySelector<HTMLElement>(`.message[data-message-id="${anchorId}"]`);
+
+    list.scrollTop =
+      again === null
+        ? previousScrollTop
+        : previousScrollTop + (again.offsetTop - anchorTopBefore);
+  }
+
+  /**
+   * Rola até uma mensagem e a destaca por um instante.
+   *
+   * A classe é removida no fim da animação... que não existe: o projeto não tem
+   * animação por regra de estilo. Um `setTimeout` faz o mesmo papel e é honesto
+   * sobre o que está acontecendo.
+   */
+  function jumpToMessage(messageId: string): void {
+    const alvo = root.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (alvo === null) return;
+    alvo.scrollIntoView({ block: 'center' });
+    alvo.classList.add('is-highlighted');
+    window.setTimeout(() => alvo.classList.remove('is-highlighted'), HIGHLIGHT_MS);
+  }
+
+  function render(state: AppState): void {
+    // Ainda carregando os grupos: não pinta nada; o splash de fora segue valendo.
+    if (!state.groupsLoaded && groupBarEl === null) {
+      previous = state;
+      return;
+    }
+
+    const prev = groupBarEl === null ? null : previous;
+
+    const groupsChanged =
+      prev === null ||
+      prev.groups !== state.groups ||
+      prev.activeGroupId !== state.activeGroupId;
+
+    // A voz mexe na coluna de canais porque a faixa de chamada mora nela.
+    const voiceChanged =
+      prev === null ||
+      prev.voice !== state.voice ||
+      prev.centerView !== state.centerView ||
+      prev.voiceMuted !== state.voiceMuted ||
+      prev.voiceParticipants !== state.voiceParticipants ||
+      prev.screenSharing !== state.screenSharing ||
+      prev.screenLabel !== state.screenLabel ||
+      prev.screenAudioMissing !== state.screenAudioMissing ||
+      prev.screenMaximized !== state.screenMaximized ||
+      prev.voiceReady !== state.voiceReady ||
+      prev.voiceVideoPeers !== state.voiceVideoPeers ||
+      prev.voiceEngineError !== state.voiceEngineError;
+
+    const viewChanged = prev === null || prev.view !== state.view;
+
+    const friendsChanged =
+      prev === null ||
+      prev.friendships !== state.friendships ||
+      prev.blockedUids !== state.blockedUids ||
+      prev.friendProfiles !== state.friendProfiles ||
+      friendsTabRendered !== friendsTab;
+
+    const channelsChanged =
+      prev === null ||
+      groupsChanged ||
+      voiceChanged ||
+      viewChanged ||
+      prev.channels !== state.channels ||
+      prev.channelsLoaded !== state.channelsLoaded ||
+      prev.activeChannelId !== state.activeChannelId;
+
+    const membersChanged =
+      prev === null ||
+      groupsChanged ||
+      viewChanged ||
+      prev.members !== state.members ||
+      prev.membersLoaded !== state.membersLoaded;
+
+    if (groupsChanged) groupBarEl = swap(groupBarEl, buildGroupBar(state));
+    if (channelsChanged) {
+      channelListEl = swap(
+        channelListEl,
+        state.view === 'home' ? buildHomeColumn(state) : buildChannelList(state),
+      );
+    }
+
+    /*
+     * Coluna 4 fica OCULTA na tela inicial e sem grupo nenhum — não há
+     * membro nenhum para listar em nenhum dos dois casos.
+     *
+     * `hidden` em vez de não montar: o `swapCenter` usa `memberListEl` como
+     * ÂNCORA para inserir a coluna do meio antes dela. Sumindo com o nó, a
+     * coluna do meio perderia a referência de posição e apareceria no lugar
+     * errado ao voltar para um grupo.
+     *
+     * E fica ANTES dos retornos antecipados abaixo — depois deles esta linha
+     * nunca rodaria justamente nos casos em que ela existe para tratar.
+     */
+    if (memberListEl !== null) {
+      memberListEl.hidden = state.view === 'home' || state.groups.length === 0;
+    }
+
+    /* --- coluna do meio: o chat OU a sala de voz ------------------------- */
+
+    /*
+     * A condição é avaliada ANTES de montar, e montar só acontece quando a sala
+     * vai mesmo entrar na tela.
+     *
+     * Montar tem EFEITO COLATERAL: `buildVoiceRoom` move o <video> do motor
+     * para o palco. Construir uma sala que seria descartada arrancava o vídeo da
+     * sala visível — quem entrava no meio de uma transmissão via a legenda
+     * "fulano está transmitindo" sobre um palco vazio.
+     */
+    /*
+     * NA TELA INICIAL a coluna do meio é a de amigos, e pronto.
+     *
+     * Sai antes de qualquer decisão sobre sala de voz ou chat — e sair aqui NÃO
+     * derruba a chamada: o motor de voz vive no store e nos elementos fora da
+     * árvore de componentes, não nesta coluna. É a mesma razão pela qual
+     * atravessar os 720px na etapa 8 não derrubava nada.
+     */
+    if (state.view === 'home') {
+      if (centerMode !== 'friends' || viewChanged) {
+        friends = renderFriendsScreen(friendsScreenProps(state));
+        centerEl = swapCenter(centerEl, friends.element);
+        friendsTabRendered = friendsTab;
+        centerMode = 'friends';
+        chat = null;
+        chatChannelId = null;
+      } else if (friendsChanged) {
+        // A CASCA fica — só o `update()` decide o que repintar. É o que
+        // impede um dado novo de arrancar o formulário de adicionar de
+        // debaixo de um pedido que acabei de mandar (ver friends-screen.ts).
+        friends?.update(friendsScreenProps(state));
+        friendsTabRendered = friendsTab;
+      }
+      previous = state;
+      return;
+    }
+
+    /*
+     * SEM GRUPO NENHUM a coluna do meio é o convite para criar ou entrar num,
+     * e pronto — mesma regra da tela inicial acima: sai antes de qualquer
+     * decisão sobre sala de voz ou chat, e não derruba nada porque o motor de
+     * voz não mora nesta coluna.
+     *
+     * `groupsLoaded` evita piscar este convite antes dos dados chegarem — a
+     * mesma checagem que existia no retorno antecipado que este ramo
+     * substituiu.
+     */
+    if (state.groupsLoaded && state.groups.length === 0) {
+      if (centerMode !== 'no-groups') {
+        centerEl = swapCenter(centerEl, buildNoGroupsCenter());
+        centerMode = 'no-groups';
+        chat = null;
+        chatChannelId = null;
+      }
+      previous = state;
+      return;
+    }
+
+    // Chegar até aqui já garante `state.view !== 'home'` (ver o retorno
+    // antecipado acima) — `isViewingRoom` inclui a checagem mesmo assim, para
+    // que esta condição e a de `buildCallBar` nunca voltem a divergir.
+    const showRoom = isViewingRoom(state);
+
+    if (showRoom) {
+      // Na sala, a casca do chat é descartada. Não há texto de composer para
+      // preservar aqui, então reconstruir a sala inteira é barato e honesto.
+      if (centerMode !== 'voice' || voiceChanged || channelsChanged) {
+        const room = buildVoiceRoom(state);
+        if (room !== null) {
+          centerEl = swapCenter(centerEl, room);
+          centerMode = 'voice';
+          chat = null;
+          chatChannelId = null;
+        }
+      }
+    } else {
+      const channel = state.channels.find((c) => c.id === state.activeChannelId) ?? null;
+      const channelChanged =
+        centerMode !== 'chat' || chat === null || chatChannelId !== state.activeChannelId;
+
+      // `parts` recebe a casca desta passada, seja a recém-montada ou a que já
+      // estava — assim o TypeScript prova que ela não é nula daqui para baixo.
+      let parts: ChatParts;
+      if (channelChanged) {
+        parts = renderChat({
+          channel,
+          onSend: handleSend,
+          onOpenChannels: () => setDrawer('left'),
+          onOpenMembers: () => setDrawer('right'),
+        });
+        centerEl = swapCenter(centerEl, parts.element);
+        chat = parts;
+        chatChannelId = state.activeChannelId;
+        centerMode = 'chat';
+      } else {
+        parts = chat!;
+      }
+
+      // A edição é estado LOCAL: o store não muda quando entro em edição, então
+      // a comparação de `prev` não perceberia — e o balão não viraria campo.
+      const editingChanged = renderedEditingId !== editingId;
+      renderedEditingId = editingId;
+
+      const messagesChanged =
+        channelChanged ||
+        prev === null ||
+        prev.messages !== state.messages ||
+        prev.messagesLoaded !== state.messagesLoaded ||
+        prev.messagesLoadingOlder !== state.messagesLoadingOlder ||
+        prev.messagesAtStart !== state.messagesAtStart ||
+        prev.messagesError !== state.messagesError ||
+        prev.members !== state.members ||
+        editingChanged;
+
+      if (messagesChanged) {
+        swapMessages(parts.messagesSlot, buildMessages(state), channelChanged);
+      }
+
+      /*
+       * A MESMA faixa de chamada, montada acima do composer.
+       *
+       * No desktop ela vive no rodapé da coluna de canais; no mobile essa coluna
+       * é gaveta e a faixa sumiria justamente durante uma chamada. O CSS mostra
+       * exatamente uma das duas.
+       */
+      if (channelChanged || voiceChanged) {
+        const callBar = isMobileLayout() ? buildCallBar(state) : undefined;
+        parts.callBarSlot.replaceChildren(
+          ...(callBar === undefined ? [] : [renderCallBar(callBar, 'mobile')]),
+        );
+      }
+    }
+
+    if (membersChanged) memberListEl = swap(memberListEl, buildMemberList(state));
+
+    previous = state;
+  }
+
+  const handleToggleScreenShare = (): void => {
+    void store.toggleScreenShare().then((refusal) => {
+      if (refusal !== null) showToast(refusal);
+    });
+  };
+
+  /* --- tela cheia ---------------------------------------------------------- */
+
+  let idleTimer = 0;
+
+  /** Mouse parado esconde os controles; mexer traz de volta. */
+  const onPointerMove = (): void => {
+    const room = centerEl?.querySelector('.room');
+    room?.classList.remove('is-idle');
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => room?.classList.add('is-idle'), 2500);
+  };
+
+  function setMaximized(maximized: boolean): void {
+    store.setScreenMaximized(maximized);
+
+    if (maximized) {
+      document.addEventListener('pointermove', onPointerMove);
+      onPointerMove();
+      /*
+       * Fullscreen no elemento RAIZ, que nunca é reconstruído. Pedir no vídeo
+       * ou na sala cairia toda vez que alguém entrasse ou apertasse mudo — o
+       * elemento sairia do documento e o navegador encerraria o fullscreen.
+       * A sobreposição em CSS é que garante o efeito; isto é complemento.
+       */
+      /*
+       * No celular, ver a tela de alguém em retrato é quase inútil. Depois do
+       * fullscreen, tenta girar para paisagem — só funciona COM fullscreen, e o
+       * iOS não tem a API. Degrada em silêncio para só o fullscreen.
+       */
+      void root
+        .requestFullscreen?.()
+        .then(() => {
+          const orientation = screen.orientation as ScreenOrientation & {
+            lock?: (o: string) => Promise<void>;
+          };
+          return orientation.lock?.('landscape');
+        })
+        .catch(() => {});
+      return;
+    }
+
+    document.removeEventListener('pointermove', onPointerMove);
+    window.clearTimeout(idleTimer);
+    centerEl?.querySelector('.room')?.classList.remove('is-idle');
+    const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
+    orientation.unlock?.();
+    if (document.fullscreenElement !== null) void document.exitFullscreen().catch(() => {});
+  }
+
+  // Sair do fullscreen pelo Escape ou pelo navegador precisa desmaximizar junto,
+  // senão a sobreposição continuaria cobrindo a tela.
+  const onFullscreenChange = (): void => {
+    if (document.fullscreenElement === null && store.getState().screenMaximized) {
+      setMaximized(false);
+    }
+  };
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+
+  /** Painel de diagnóstico: atalho escondido e item no menu da sala. */
+  const handleOpenDiagnostics = (): void => {
+    const state = store.getState();
+    if (state.voice === null) return;
+    openVoiceDiagnostics(
+      () => store.voiceDiagnostics(),
+      (uid) => state.members.find((m) => m.id === uid)?.displayName ?? 'Usuário',
+    );
+  };
+
+  const onShortcut = (event: KeyboardEvent): void => {
+    // Ctrl+Alt+V: não colide com nada do navegador, ao contrário de Ctrl+Shift+D.
+    if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 'v') {
+      event.preventDefault();
+      handleOpenDiagnostics();
+      return;
+    }
+    // Escape sai da tela cheia. Com fullscreen de verdade o navegador já trata,
+    // mas a sobreposição em CSS precisa disto quando o fullscreen foi recusado.
+    if (event.key === 'Escape' && store.getState().screenMaximized) {
+      event.preventDefault();
+      setMaximized(false);
+    }
+  };
+  document.addEventListener('keydown', onShortcut);
+
+  /*
+   * O anel de "falando" é ligado DIRETO no bloco.
+   *
+   * Passar por estado significaria re-renderizar a coluna do meio a cada
+   * transição de voz de cada pessoa. Aqui é uma classe num elemento.
+   */
+  const unsubscribeSpeaking = store.onSpeaking((uid, isSpeaking) => {
+    if (isSpeaking) speaking.add(uid);
+    else speaking.delete(uid);
+    centerEl
+      ?.querySelector(`.room__person[data-uid="${uid}"]`)
+      ?.classList.toggle('is-speaking', isSpeaking);
+  });
+
+  const uninstallMenus = installContextMenus({
+    getState: () => store.getState(),
+    uid: user.uid,
+    copyInviteLink: handleCopyInvite,
+    renameGroup: handleRenameGroup,
+    leaveGroup: handleLeaveGroup,
+    deleteGroup: handleDeleteGroup,
+    deleteChannel: handleDeleteChannel,
+    removeMember: handleRemoveMember,
+    deleteMessage: handleDeleteMessage,
+    replyToMessage: handleReplyToMessage,
+    editMessage: handleEditMessage,
+    openVoiceDiagnostics: handleOpenDiagnostics,
+  });
+
+  const unsubscribe = store.subscribe(render);
+  render(store.getState());
+
+  return {
+    element: root,
+    focusGroup(groupId: string): void {
+      store.focusGroup(groupId);
+    },
+    destroy(): void {
+      closeGroupMenu();
+      uninstallMenus();
+      document.removeEventListener('keydown', onShortcut);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      window.removeEventListener('popstate', onPopState);
+      document.removeEventListener('pointerdown', onPointerDownOutside);
+      stopLayoutWatch();
+      stopViewportWatch();
+      document.removeEventListener('pointermove', onPointerMove);
+      window.clearTimeout(idleTimer);
+      unsubscribeSpeaking();
+      hideToast();
+      unsubscribe();
+      store.dispose();
+    },
+  };
+}

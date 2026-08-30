@@ -1,0 +1,26 @@
+{
+  "name": "loft",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:emu": "node scripts/emulator.mjs vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/emulator.mjs playwright test",
+    "test:turn": "node scripts/real.mjs playwright test --grep @externo",
+    "check:indexes": "node scripts/real.mjs playwright test --grep @indices",
+    "test:real": "node scripts/real.mjs playwright test tests/loft.spec.ts tests/mobile.spec.ts tests/screenshots.spec.ts",
+    "deploy": "npm run build && firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  },
+  "dependencies": {
+    "firebase": "^12.17.1"
+  }
+}

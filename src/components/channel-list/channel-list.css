@@ -1,0 +1,208 @@
+/* Coluna 2 — canais (~200px). Cabeçalho, corpo rolável, rodapé fixo. */
+
+/*
+ * Coluna flex, NÃO grid de linhas fixas.
+ *
+ * Era `grid-template-rows: auto minmax(0,1fr) auto` — e virou bug no instante em
+ * que a faixa de chamada apareceu, porque ela é um filho CONDICIONAL: com ela
+ * são 4 filhos para 3 linhas, o auto-placement desloca todo mundo e o rodapé sai
+ * da tela. É a mesma armadilha descrita em layout.css. Em coluna flex, um filho
+ * a mais ou a menos simplesmente não desloca os irmãos.
+ */
+.channels {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: var(--surface-side);
+  border-right: 1px solid var(--border);
+}
+
+.channels__header {
+  flex: none;
+  position: relative; /* âncora de detalhe decorativo, não estrutura */
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.channels__empty {
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.channels__group-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botão sem ação nesta etapa — reservado para editar grupo / criar canal. */
+.channels__group-menu {
+  flex: none;
+}
+
+/* A única parte que cresce — o resto tem a altura do conteúdo. */
+.channels__body {
+  flex: 1 1 auto;
+  padding: var(--space-4) var(--space-2);
+}
+
+.channels__section + .channels__section {
+  margin-top: var(--space-5);
+}
+
+/* --- item de canal -------------------------------------------------------- */
+
+.channel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  text-align: left;
+}
+
+.channel:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Canal de TEXTO que estou lendo. */
+.channel.is-active {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/*
+ * Canal de VOZ em que estou conectado.
+ *
+ * Visual diferente do .is-active de propósito: os dois podem estar acesos ao
+ * mesmo tempo, e confundir "estou lendo" com "estou falando" seria pior do que
+ * não destacar nada.
+ */
+.channel.is-connected {
+  color: var(--text-primary);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.channel.is-connected .channel__icon {
+  color: var(--accent);
+}
+
+.channel__live {
+  margin-left: auto;
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.channel__hash {
+  width: 14px;
+  flex: none;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.channel.is-active .channel__hash {
+  color: var(--accent);
+}
+
+.channel__icon {
+  width: 15px;
+  color: var(--text-muted);
+}
+
+.channel__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * A lista indentada de quem está no canal de voz saiu nesta etapa: nenhuma
+ * coleção do Firestore modela presença de voz ainda, e inventar nomes ali
+ * brigaria com o painel de membros ao lado. Volta com o WebRTC.
+ */
+
+/* --- quem está no canal de voz -------------------------------------------- */
+
+/*
+ * Lista indentada sob o canal. Voltou na etapa 6, com gente de verdade — saiu na
+ * etapa 3 justamente por não ter dado real para mostrar.
+ */
+.channel__roster {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 var(--space-2);
+  padding-left: var(--space-6);
+}
+
+.channel__peer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.channel__peer-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.channel__peer-muted {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+/* --- rodapé: eu ----------------------------------------------------------- */
+
+.channels__me {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.channels__me-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+/* Sair fica em tom de perigo só no hover — no repouso é mais um ícone neutro. */
+.channels__signout:hover {
+  background-color: var(--surface-hover);
+  color: var(--danger);
+}

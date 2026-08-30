@@ -1,0 +1,94 @@
+/* Tela de convite — mesmo cartão centralizado da tela de login. */
+
+.invite {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-chat);
+  text-align: center;
+}
+
+.invite__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--avatar-lg);
+  height: var(--avatar-lg);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.invite__title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.invite__text {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+/* Nome congelado no convite: destacado como rótulo, não como título. */
+.invite__group {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.invite__error {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+}
+
+.invite__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.invite__accept,
+.invite__decline {
+  height: 38px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.invite__decline {
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.invite__decline:hover:not(:disabled) {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.invite__accept {
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.invite__accept:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.invite__accept:disabled,
+.invite__decline:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

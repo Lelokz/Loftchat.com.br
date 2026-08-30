@@ -1,0 +1,155 @@
+/*
+ * TOKENS — o único arquivo do projeto com valor de cor literal.
+ *
+ * Nenhum outro CSS pode escrever um hex: todos consomem var(--...).
+ *
+ * Ordem dos três blocos importa:
+ *   1. :root                     → paleta clara completa (todo token nasce aqui)
+ *   2. @media prefers-color-scheme: dark, guardado por :not([data-theme="light"])
+ *   3. :root[data-theme="dark"]  → mesma redefinição, para o atributo vencer
+ *
+ * Com isso o app segue o tema do sistema por padrão, e o atributo data-theme no
+ * <html> força qualquer um dos dois — nos dois sentidos.
+ */
+
+:root {
+  /* --- superfícies, da mais recuada para a mais à frente ------------------ */
+  --surface-rail: #eaebee; /* barra de grupos */
+  --surface-side: #f3f4f6; /* coluna de canais e painel de membros */
+  --surface-chat: #ffffff; /* área central */
+  --surface-raised: #f0f1f4; /* painel de chamada, input de composição */
+  --surface-bubble: #edeff3; /* balão das mensagens dos outros */
+  --surface-sunken: #e4e6ea; /* moldura da tela compartilhada, trilha do áudio */
+  /*
+   * A tarja atrás do vídeo em `object-fit: contain`.
+   *
+   * Escuro nos DOIS temas de propósito: a barra é moldura de imagem, não
+   * superfície da interface. Clara no tema light ela brilharia ao lado do
+   * vídeo e disputaria a atenção com ele.
+   */
+  --video-letterbox: #16171c;
+  --surface-hover: #e8e9ed;
+
+  /* --- traço -------------------------------------------------------------- */
+  --border: #e3e5e9;
+  --border-strong: #c7cad1;
+
+  /* --- texto -------------------------------------------------------------- */
+  --text-primary: #1a1b1e;
+  --text-secondary: #565a63;
+  --text-muted: #888c95;
+
+  /* --- destaque (a ÚNICA cor da paleta) ----------------------------------- */
+  --accent: #5b5bd6;
+  --accent-hover: #4b4bc6;
+  --accent-on: #ffffff; /* texto/ícone sobre fundo accent */
+  --accent-soft: #e9e9fa; /* fundo de item selecionado */
+
+  /* --- perigo: botão de sair da chamada, sair da conta e erros ------------- */
+  --danger: #d24a4a;
+  --danger-hover: #bf3f3f;
+  --danger-on: #ffffff;
+
+  /* --- véu atrás do modal -------------------------------------------------- */
+  --backdrop: rgb(24 26 30 / 45%);
+
+  /* --- métrica das colunas ------------------------------------------------ */
+  --rail-w: 64px;
+  --channels-w: 260px;
+  --members-w: 240px;
+  --call-stage-h: 210px;
+  --call-peers-w: 264px; /* 2 colunas de bloco 16:9 */
+
+  /* --- espaçamento -------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* --- raio --------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px; /* blocos de participante da chamada */
+  --radius-full: 999px;
+
+  /* --- avatares ----------------------------------------------------------- */
+  --avatar-xs: 20px;
+  --avatar-sm: 26px;
+  --avatar-md: 32px;
+  --avatar-lg: 40px;
+
+  /* --- tipografia (stack do sistema: nenhuma fonte baixada) ---------------- */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12.5px;
+  --font-size-md: 14px;
+  --font-size-lg: 15px;
+  --font-size-xl: 22px; /* inicial grande no bloco de participante */
+  --line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface-rail: #121317;
+    --surface-side: #17181d;
+    --surface-chat: #1c1e23;
+    --surface-raised: #24262c;
+    /* Um degrau acima de --surface-raised: o balão do outro estava quase
+       indistinguível de --surface-chat (#1c1e23) no escuro. */
+    --surface-bubble: #2f323a;
+    --surface-sunken: #101116;
+    --video-letterbox: #16171c;
+    --surface-hover: #2a2d34;
+
+    --border: #292c33;
+    --border-strong: #3b3f48;
+
+    --text-primary: #e9eaee;
+    --text-secondary: #a1a5ae;
+    --text-muted: #71757e;
+
+    --accent: #7b7bea;
+    --accent-hover: #8e8ef2;
+    --accent-on: #14141f;
+    --accent-soft: #26264a;
+
+    --danger: #e06060;
+    --danger-hover: #ea7272;
+    --danger-on: #1a1012;
+
+    --backdrop: rgb(0 0 0 / 60%);
+  }
+}
+
+:root[data-theme='dark'] {
+  --video-letterbox: #16171c;
+  --surface-rail: #121317;
+  --surface-side: #17181d;
+  --surface-chat: #1c1e23;
+  --surface-raised: #24262c;
+  /* Um degrau acima de --surface-raised: o balão do outro estava quase
+     indistinguível de --surface-chat (#1c1e23) no escuro. */
+  --surface-bubble: #2f323a;
+  --surface-sunken: #101116;
+  --surface-hover: #2a2d34;
+
+  --border: #292c33;
+  --border-strong: #3b3f48;
+
+  --text-primary: #e9eaee;
+  --text-secondary: #a1a5ae;
+  --text-muted: #71757e;
+
+  --accent: #7b7bea;
+  --accent-hover: #8e8ef2;
+  --accent-on: #14141f;
+  --accent-soft: #26264a;
+
+  --danger: #e06060;
+  --danger-hover: #ea7272;
+  --danger-on: #1a1012;
+}

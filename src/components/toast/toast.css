@@ -1,0 +1,25 @@
+/*
+ * Aviso passageiro no rodapé.
+ *
+ * `position: fixed` aqui é o caso legítimo do absoluto: o toast não pertence a
+ * nenhuma coluna, é uma camada sobre a tela inteira. Não estrutura nada.
+ */
+
+.toast {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  max-width: min(420px, calc(100vw - var(--space-6)));
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  text-align: center;
+
+  /* Não intercepta clique: é um aviso, não um alvo. */
+  pointer-events: none;
+}

@@ -1,0 +1,446 @@
+/*
+ * Sala de voz — ocupa a coluna 3 inteira.
+ *
+ * Coluna flex, não grid de linhas fixas: é a mesma lição do comentário em
+ * layout.css. Só o palco cresce; cabeçalho, grade e controles têm o tamanho do
+ * conteúdo.
+ */
+
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background-color: var(--surface-chat);
+}
+
+/* --- cabeçalho ------------------------------------------------------------ */
+
+.room__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.room__header-icon {
+  color: var(--accent);
+}
+
+.room__title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.room__count {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+/* --- palco da tela compartilhada ------------------------------------------ */
+
+.room__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  /*
+   * Grid de uma celula so, para o palco ter altura DEFINIDA para quem esta
+   * dentro.
+   *
+   * Antes a altura descia por `height: 100%` encadeado a partir de um item flex
+   * sem altura explicita — e porcentagem contra `auto` nao resolve. O <video>
+   * caia no tamanho INTRINSECO (1080px de altura), a caixa crescia, e o
+   * `overflow: hidden` cortava o que sobrava. Era o "estica, corta e nao
+   * acompanha a area". O `object-fit: contain` ja estava certo desde a etapa 7;
+   * quem estava errado era a caixa.
+   */
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.room__screen {
+  display: grid;
+  place-items: center;
+  /* A altura vem da celula do palco, nao de porcentagem. */
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-sunken);
+}
+
+/* --- transmissão ---------------------------------------------------------- */
+
+.room__screen--live,
+.room__screen--mine {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Transmissao ao vivo: o slot ESTICA na celula em vez de ficar do tamanho do
+   conteudo — e o <video> herda uma caixa com altura de verdade. */
+.room__screen--live {
+  place-items: stretch;
+}
+
+.room__screen--mine {
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+/*
+ * O slot onde o <video> do motor é encaixado. O elemento em si é criado pelo
+ * motor e vive fora da árvore de componentes — ver voice-engine.ts.
+ */
+.room__video-slot {
+  display: grid;
+  /*
+   * `stretch`, não `center`: o <video> é esticado até a célula pelo próprio
+   * grid, sem depender de porcentagem.
+   *
+   * Com `center` + `height: 100%` a altura NÃO resolvia — a do slot ainda era
+   * indefinida —, e o <video> caía na proporção intrínseca a partir da largura:
+   * 666px de largura viravam 375px de altura numa moldura de 372px, e os 3px de
+   * sobra eram cortados pelo `overflow: hidden`. Esticar dá altura definida e
+   * acaba com a porcentagem no caminho.
+   */
+  place-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  background-color: var(--video-letterbox);
+}
+
+.room__video-slot video {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  /* `contain` respeita a proporcao original: as bordas viram tarja, nunca
+     esticam nem cortam. A tarja e escura nos dois temas de proposito. */
+  object-fit: contain;
+  background-color: var(--video-letterbox);
+}
+
+.room__screen-caption {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.room__maximize {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.room__maximize:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/*
+ * Miniatura da MINHA transmissão.
+ *
+ * Pequena de propósito: ela existe para eu conferir que compartilhei a janela
+ * certa, não para eu assistir. Grande criaria efeito de túnel e gastaria CPU.
+ */
+.room__preview {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-raised);
+}
+
+.room__preview-slot {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.room__preview-slot video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.room__preview-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.room__preview-stop {
+  align-self: flex-start;
+  color: var(--danger);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+/*
+ * Tela cheia por sobreposição, e NÃO pela Fullscreen API no vídeo.
+ *
+ * A sala é reconstruída a cada mudança de estado — alguém entrando, alguém
+ * apertando mudo — e um elemento em fullscreen que sai do documento derruba o
+ * fullscreen junto. Por sobreposição, a classe é só reaplicada. (O `app.ts`
+ * pede fullscreen no elemento RAIZ, que é estável, como complemento.)
+ */
+.room.is-maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 0;
+}
+
+.room.is-maximized .room__stage {
+  height: 100%;
+}
+
+.room.is-maximized .room__screen {
+  border: 0;
+  border-radius: 0;
+}
+
+/* Maximizado, o resto da sala sai da frente do vídeo. */
+.room.is-maximized .room__header,
+.room.is-maximized .room__people,
+.room.is-maximized .room__notice {
+  display: none;
+}
+
+.room.is-maximized .room__controls {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-5);
+  transform: translateX(-50%);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-raised);
+}
+
+/* Mouse parado esconde os controles; a classe é trocada direto no DOM. */
+.room.is-maximized.is-idle .room__controls,
+.room.is-maximized.is-idle .room__maximize,
+.room.is-maximized.is-idle .room__screen-caption {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.room__screen-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.room__screen-icon {
+  color: var(--text-muted);
+}
+
+.room__screen-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+/* --- grade de participantes ----------------------------------------------- */
+
+/*
+ * Duas colunas, e é isso.
+ *
+ * `auto-fit` parecia mais esperto, mas com quatro pessoas ele cabia três numa
+ * linha e jogava a quarta sozinha embaixo — desequilibrado justamente no caso
+ * mais comum. Com duas colunas fixas: 2 lado a lado, 3 viram 2+1, 4 viram 2×2,
+ * que é o que qualquer chamada de vídeo faz.
+ */
+.room__people {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /*
+   * `start` e não o `stretch` padrão: item de grid esticado ignora o
+   * aspect-ratio do bloco e cresce até a altura da linha — foi assim que os
+   * blocos passaram por cima dos controles.
+   */
+  align-items: start;
+  gap: var(--space-3);
+  width: 100%;
+  /* O teto de largura é o que mantém os blocos 16:9 num tamanho razoável: sem
+   * ele, duas colunas numa tela larga viram dois painéis enormes. */
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/*
+ * Sozinho na sala, o bloco ocupa a linha inteira em vez de deixar um buraco do
+ * lado. Sem isto, "só você" fica com cara de que alguém deveria estar ali.
+ */
+.room__people:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 360px;
+}
+
+.room__person {
+  position: relative; /* âncora do nome e do ícone de mudo — decoração */
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-sunken);
+  overflow: hidden;
+}
+
+/* Eu ganho a borda de destaque — dá para me achar na grade num relance. */
+.room__person.is-self {
+  border-color: var(--accent);
+}
+
+/*
+ * Falando: anel em volta do bloco.
+ *
+ * A classe é ligada e desligada DIRETO pelo motor de voz, sem passar pelo
+ * estado — o analisador roda a cada quadro e re-renderizar a sala nesse ritmo
+ * seria insustentável.
+ */
+.room__person.is-speaking {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Conexão que não fechou: a pessoa está na sala e você não a ouve. */
+.room__person.is-failed {
+  border-color: var(--danger);
+}
+
+.room__person-failed {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--danger);
+  color: var(--danger-on);
+  font-size: var(--font-size-xs);
+}
+
+/* --- avisos --------------------------------------------------------------- */
+
+.room__notice {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.room__notice-action {
+  color: var(--accent);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.room__person-avatar {
+  display: grid;
+  place-items: center;
+  width: var(--avatar-lg);
+  height: var(--avatar-lg);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  user-select: none;
+}
+
+.room__person-name {
+  position: absolute;
+  left: var(--space-3);
+  right: 26px;
+  bottom: var(--space-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.room__person-muted {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-2);
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+/* --- controles ------------------------------------------------------------ */
+
+.room__controls {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.room__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.room__btn:hover {
+  background-color: var(--surface-hover);
+}
+
+/* Desligado (mudo, câmera fechada): recuado, não colorido. */
+.room__btn.is-off {
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+}
+
+.room__btn--danger {
+  background-color: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger-on);
+}
+
+.room__btn--danger:hover {
+  background-color: var(--danger-hover);
+  border-color: var(--danger-hover);
+}

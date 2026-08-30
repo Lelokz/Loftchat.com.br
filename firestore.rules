@@ -1,0 +1,417 @@
+rules_version = '2';
+
+/*
+ * Regras de segurança do Loft.
+ *
+ * Princípio geral: ninguém deslogado lê ou escreve nada, e pertencimento a
+ * grupo é sempre comprovado por um exists() no documento de membership.
+ *
+ * DUAS COISAS QUE REGRAS NÃO FAZEM, e que moldaram este arquivo:
+ *
+ *  1. Regras não fazem query. Não há como perguntar "existe ALGUM convite para
+ *     este grupo?". Só dá para conferir um convite cujo código o cliente
+ *     informe — por isso a membership guarda `inviteCode`.
+ *
+ *  2. Dentro de um writeBatch, get()/exists() enxergam o estado ANTERIOR à
+ *     transação. Ao criar um grupo, no instante em que a membership de dono e
+ *     os canais iniciais são avaliados, o grupo e a membership ainda não
+ *     existem. Por isso as duas regras aceitam a assinatura de "estou criando
+ *     este grupo agora": o grupo ainda não existe.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ---------------------------- auxiliares ---------------------------- */
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // O id determinístico da membership é o que permite checar pertencimento
+    // com um exists() direto, sem query.
+    function membershipPath(groupId) {
+      return /databases/$(database)/documents/memberships/$(groupId + '_' + uid());
+    }
+
+    function groupPath(groupId) {
+      return /databases/$(database)/documents/groups/$(groupId);
+    }
+
+    function isMember(groupId) {
+      return signedIn() && exists(membershipPath(groupId));
+    }
+
+    function isOwner(groupId) {
+      return signedIn()
+        && exists(groupPath(groupId))
+        && get(groupPath(groupId)).data.ownerId == uid();
+    }
+
+    // "Este grupo ainda não existe" é a assinatura de estar criando ele agora,
+    // dentro do writeBatch. Ver observação 2 no topo.
+    function groupBeingCreated(groupId) {
+      return signedIn() && !exists(groupPath(groupId));
+    }
+
+    /**
+     * O e-mail desta conta foi confirmado?
+     *
+     * Cobrado no BANCO, e não só na tela: quem contorna a interface passa
+     * direto por qualquer verificação que exista só no cliente. É o que impede
+     * alguém de cadastrar com e-mail alheio e tomar um `@` que fica preso numa
+     * conta que ninguém controla.
+     */
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    /** Fui bloqueado por esta pessoa? A regra lê o que o cliente não pode. */
+    function blockedBy(otherUid) {
+      return exists(/databases/$(database)/documents/blocks/$(otherUid + '_' + uid()));
+    }
+
+    // Confere um convite CUJO CÓDIGO o cliente informou.
+    function inviteMatches(groupId, code) {
+      return code is string
+        && exists(/databases/$(database)/documents/invites/$(code))
+        && get(/databases/$(database)/documents/invites/$(code)).data.groupId == groupId;
+    }
+
+    /* ------------------------------- users ------------------------------ */
+    // Qualquer autenticado lê (o painel de membros precisa dos nomes de todos
+    // do grupo); só o dono escreve o próprio documento.
+
+    match /users/{userId} {
+      // PÚBLICO para autenticados de propósito: é o que faz a busca por `@`
+      // funcionar. Por isso este documento não pode conter e-mail nem
+      // configuração — o privado mora em `userPrivate/{uid}`.
+      allow read: if signedIn();
+
+      allow create: if signedIn() && userId == uid();
+
+      /*
+       * O LIMITE DE TROCAS DE `@` É COBRADO AQUI.
+       *
+       * Na tela ele seria decorativo. `usernameChanges` só pode subir de um em
+       * um e nunca passar do teto, então nem gastando todas as trocas alguém
+       * volta ao começo reescrevendo o contador.
+       *
+       * Mexer em `username` sem mexer no contador também é recusado: são a
+       * mesma operação, e separá-las seria a brecha óbvia.
+       */
+      allow update: if signedIn() && userId == uid()
+        && (
+          request.resource.data.get('username', '') == resource.data.get('username', '')
+          || (
+            verified()
+            && request.resource.data.get('usernameChanges', 0)
+                 == resource.data.get('usernameChanges', 0) + 1
+            && request.resource.data.get('usernameChanges', 0) <= 3
+          )
+        );
+
+      allow delete: if signedIn() && userId == uid();
+    }
+
+    /* ---------------------------- userPrivate --------------------------- */
+    // Existe desde já para a Entrega 3 não precisar migrar nada. NADA aqui é
+    // legível por outra pessoa — é o par privado de `users`.
+
+    match /userPrivate/{userId} {
+      allow read, write: if signedIn() && userId == uid();
+    }
+
+    /* ----------------------------- usernames ---------------------------- */
+    /*
+     * A RESERVA DO `@`. O id do documento É o nome.
+     *
+     * O Firestore não tem restrição de unicidade; quem garante é a chave
+     * primária. Duas pessoas tomando o mesmo nome no mesmo instante: a segunda
+     * perde no `create`, porque criar documento que já existe é recusado pelo
+     * SERVIDOR — não por uma checagem do cliente que pode chegar tarde.
+     */
+
+    match /usernames/{name} {
+      // Leitura aberta: é como a busca por `@` encontra alguém, e o documento
+      // só contém um uid — nada mais.
+      allow read: if signedIn();
+
+      allow create: if verified() && request.resource.data.uid == uid();
+
+      // Nunca se altera: trocar de `@` é apagar esta e criar outra, no mesmo
+      // lote. Sem isto, dava para apontar o nome de outra pessoa para si.
+      allow update: if false;
+
+      allow delete: if signedIn() && resource.data.uid == uid();
+    }
+
+    /* ---------------------------- friendships --------------------------- */
+    /*
+     * UM documento por PAR, id `${menorUid}_${maiorUid}`.
+     *
+     * Ninguém lê a amizade alheia: a leitura exige estar em `members`. E
+     * ninguém se adiciona à lista de outro, porque não há lista de outro —
+     * criar exige ser o remetente E estar no par.
+     */
+
+    match /friendships/{pairId} {
+      /*
+       * `get` e `list` PRECISAM de regras diferentes aqui — medido, não
+       * suposto: juntar os dois num `allow read` só com o `pairId` derrubou
+       * `list` com "Null value error", porque o wildcard do caminho só
+       * existe de verdade quando o Firestore resolve UM documento. Numa
+       * consulta não há documento nenhum sendo resolvido ainda, então
+       * `pairId` chega `null` e `.split('_')` estoura.
+       *
+       * `get` precisa do `pairId`: `resource` é `null` quando o documento
+       * ainda não existe, e todo PRIMEIRO pedido de amizade é exatamente
+       * essa leitura. Checar `resource.data.members` contra `null` erra na
+       * avaliação — e o Firestore trata erro de avaliação como recusa —,
+       * então `sendFriendRequest` nunca conseguia nem verificar se o par já
+       * tinha documento. Como `create` já obriga `members` a ser derivado
+       * do próprio `pairId`, e `update` nunca deixa `members` mudar, checar
+       * o `pairId` é a MESMA informação, só que também vale para quando o
+       * documento ainda não existe.
+       *
+       * `list` não tem esse problema — uma consulta nunca "casa" com
+       * documento inexistente —, e continua na forma original, que é a
+       * única que o Firestore consegue provar segura contra o
+       * `where('members', 'array-contains', uid)` do cliente.
+       */
+      allow get: if signedIn() && pairId.split('_').hasAny([uid()]);
+      allow list: if signedIn() && uid() in resource.data.members;
+
+      allow create: if verified()
+        && request.resource.data.from == uid()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.members.hasOnly([
+             request.resource.data.from, request.resource.data.to
+           ])
+        && request.resource.data.from != request.resource.data.to
+        // O id é derivado dos uids ordenados: é isto que garante UM documento
+        // por par e faz pedidos cruzados caírem no mesmo lugar.
+        && pairId == (
+             request.resource.data.from < request.resource.data.to
+               ? request.resource.data.from + '_' + request.resource.data.to
+               : request.resource.data.to + '_' + request.resource.data.from
+           )
+        // Bloqueio cobrado no servidor, sem expor a lista a quem envia.
+        && !blockedBy(request.resource.data.to);
+
+      /*
+       * ACEITAR é só de quem RECEBEU. `A` não aceita pedido endereçado a `B`,
+       * nem o próprio remetente aceita o que mandou.
+       */
+      allow update: if signedIn()
+        && resource.data.status == 'pending'
+        && resource.data.to == uid()
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+      // Recusar, cancelar e desfazer: qualquer um dos dois lados apaga.
+      allow delete: if signedIn() && uid() in resource.data.members;
+    }
+
+    /* ------------------------------ blocks ------------------------------ */
+    // SÓ EU leio e escrevo a minha lista. Assimétrico de propósito: bloquear
+    // alguém não me bloqueia lá.
+
+    match /blocks/{blockId} {
+      allow read, delete: if signedIn() && resource.data.uid == uid();
+      allow create: if signedIn()
+        && request.resource.data.uid == uid()
+        && blockId == uid() + '_' + request.resource.data.blockedUid;
+      allow update: if false;
+    }
+
+    /* ------------------------------ groups ------------------------------ */
+    // Só membros leem. Qualquer autenticado cria, virando dono na mesma
+    // operação. Só o dono altera ou apaga.
+
+    match /groups/{groupId} {
+      allow read: if isMember(groupId);
+      // `verified()` desde a etapa 14: conta com e-mail não confirmado não cria
+      // grupo, nem contornando a tela.
+      allow create: if verified() && request.resource.data.ownerId == uid();
+      allow update, delete: if isOwner(groupId);
+    }
+
+    /* --------------------------- memberships ---------------------------- */
+
+    match /memberships/{membershipId} {
+      // `resource == null` precisa ser permitido: a tela de convite consulta a
+      // MINHA membership num grupo em que provavelmente não estou, e sem isto
+      // o documento inexistente devolveria permission-denied em vez de "não
+      // existe", quebrando o fluxo do convite.
+      allow read: if signedIn()
+        && (resource == null
+            || resource.data.memberId == uid()
+            || isMember(resource.data.groupId));
+
+      // Só crio a MINHA membership, com o id determinístico, e em um de dois
+      // casos: estou criando o grupo agora (viro dono), ou tenho um convite
+      // válido para ele (entro como membro).
+      allow create: if signedIn()
+        && request.resource.data.memberId == uid()
+        && membershipId == request.resource.data.groupId + '_' + uid()
+        && (
+             (request.resource.data.role == 'owner'
+               && groupBeingCreated(request.resource.data.groupId))
+             ||
+             (request.resource.data.role == 'member'
+               && inviteMatches(
+                    request.resource.data.groupId,
+                    request.resource.data.get('inviteCode', '')
+                  ))
+           );
+
+      // Duas formas de uma membership acabar:
+      //   - eu saio do grupo (apago a minha);
+      //   - o dono me remove, ou apaga o grupo inteiro na cascata.
+      allow delete: if signedIn()
+        && (resource.data.memberId == uid() || isOwner(resource.data.groupId));
+
+      // Ninguém promove ninguém por update — o papel é definido na criação e não
+      // muda. É também o que impede alguém se auto-declarar dono depois.
+      // PENDÊNCIA: transferir posse vai precisar mexer aqui.
+      allow update: if false;
+    }
+
+    /* ----------------------------- channels ----------------------------- */
+
+    match /channels/{channelId} {
+      // Ler é de todo membro. MEXER é só do dono.
+      allow read: if isMember(resource.data.groupId);
+
+      // O `groupBeingCreated` cobre os três canais iniciais criados no mesmo
+      // writeBatch do grupo, quando nem o grupo nem a membership existem ainda —
+      // isOwner faria get() num documento que ainda não está lá.
+      // Custo conhecido: um autenticado pode criar canais apontando para um
+      // groupId que não existe. São documentos órfãos, invisíveis para todo
+      // mundo — nenhuma query do app os alcança, e assim que o grupo existe de
+      // verdade só o dono escreve nele.
+      allow create: if isOwner(request.resource.data.groupId)
+        || groupBeingCreated(request.resource.data.groupId);
+
+      // Renomear canal não pode mudá-lo de grupo.
+      allow update: if isOwner(resource.data.groupId)
+        && request.resource.data.groupId == resource.data.groupId;
+
+      allow delete: if isOwner(resource.data.groupId);
+    }
+
+    /* ----------------------------- messages ----------------------------- */
+    // `groupId` é denormalizado na mensagem justamente para esta regra: uma
+    // consulta (exists da membership) em vez de duas (get do canal + exists),
+    // vezes as 50 mensagens de cada lista.
+
+    match /messages/{messageId} {
+      allow read: if isMember(resource.data.groupId);
+
+      allow create: if isMember(request.resource.data.groupId)
+        && request.resource.data.authorId == uid();
+
+      // Editar é só do autor: ninguém põe palavra na boca de ninguém. Nem o
+      // dono do grupo — ele pode APAGAR (moderação), não reescrever.
+      //
+      // E só o TEXTO. Até a etapa 12 esta regra era `authorId == uid()` e mais
+      // nada, o que deixava o autor reescrever o passado: mudar `sentAt` para
+      // reordenar a conversa, ou mover a própria mensagem para outro canal ou
+      // outro grupo trocando `channelId`/`groupId`. O `hasOnly` abaixo é o que
+      // fecha isso — nenhum outro campo pode ser tocado num update.
+      allow update: if signedIn()
+        && resource.data.authorId == uid()
+        && request.resource.data.diff(resource.data)
+             .affectedKeys().hasOnly(['body', 'editedAt']);
+
+      // Apagar é do autor OU do dono do grupo. O dono precisa disso por dois
+      // motivos: moderação (decisão explícita, e o menu vai expor isso) e a
+      // cascata de apagar o grupo — sem ele, as mensagens dos outros membros
+      // ficariam no banco para sempre, sem grupo e sem membership, portanto
+      // ilegíveis e inapagáveis por qualquer pessoa.
+      allow delete: if signedIn()
+        && (resource.data.authorId == uid() || isOwner(resource.data.groupId));
+    }
+
+    /* ------------------------------ invites ----------------------------- */
+
+    match /invites/{code} {
+      // LER pelo código tem que ser liberado a qualquer autenticado: quem foi
+      // convidado ainda não é membro e precisa ver para onde está sendo
+      // chamado. Por isso o convite carrega `groupName` — o documento do grupo
+      // continua fechado a não-membros.
+      allow get: if signedIn();
+
+      // LISTAR continua fora de alcance para quase todo mundo, mas não pode ser
+      // um `false` seco: a cascata de apagar o grupo precisa DESCOBRIR os
+      // convites dele, e regra não faz query.
+      //
+      // `isOwner(resource.data.groupId)` resolve os dois lados de uma vez, pelo
+      // mesmo mecanismo de "as regras não filtram": uma consulta que restringe
+      // groupId a um grupo meu é provável pelas restrições e passa; uma listagem
+      // da coleção inteira não é provável e continua negada. A varredura global
+      // de convites segue impossível.
+      allow list: if isOwner(resource.data.groupId);
+
+      allow create: if isOwner(request.resource.data.groupId)
+        && request.resource.data.createdBy == uid();
+
+      allow update: if false;
+      allow delete: if isOwner(resource.data.groupId);
+    }
+
+    /* ------------------------- voiceParticipants ------------------------ */
+    // Quem está DE FATO num canal de voz. O id é determinístico
+    // ({channelId}_{uid}), o que garante por construção um documento por pessoa
+    // por canal — a regra de criação confere isso.
+    //
+    // `groupId` está no documento por causa DESTA regra: toda consulta precisa
+    // restringir groupId para ser provável, senão é recusada inteira. Ver a
+    // observação sobre "as regras não filtram" no topo deste arquivo.
+
+    match /voiceParticipants/{participantId} {
+      allow read: if isMember(resource.data.groupId);
+
+      allow create: if isMember(request.resource.data.groupId)
+        && request.resource.data.uid == uid()
+        && participantId == request.resource.data.channelId + '_' + uid();
+
+      // Só mexo no meu, e não posso me mudar de canal nem de grupo por update —
+      // isso burlaria a checagem do id determinístico feita na criação.
+      allow update: if resource.data.uid == uid()
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.channelId == resource.data.channelId
+        && request.resource.data.groupId == resource.data.groupId;
+
+      // Eu saio; o dono também pode tirar alguém da sala do próprio grupo.
+      allow delete: if signedIn()
+        && (resource.data.uid == uid() || isOwner(resource.data.groupId));
+    }
+
+    /* ------------------------------ signals ----------------------------- */
+    // Sinalização WebRTC, um documento por PAR e por sentido: {de}_{para}.
+    //
+    // Cada lado escreve só o seu documento — ninguém escreve no do outro. É o
+    // que torna esta regra trivial e o que elimina disputa de escrita entre os
+    // dois pares negociando ao mesmo tempo.
+
+    match /voiceChannels/{channelId}/signals/{signalId} {
+      allow read: if isMember(resource.data.groupId);
+
+      allow create, update: if isMember(request.resource.data.groupId)
+        && request.resource.data.from == uid();
+
+      // As DUAS pontas da conversa podem apagar, e mais ninguém. Quem recebe
+      // precisa poder limpar sozinho: se a outra pessoa fechou o navegador à
+      // força, os documentos dela ficariam para sempre — e sinalização velha não
+      // é lixo inofensivo, é uma oferta antiga sendo consumida como nova.
+      allow delete: if signedIn()
+        && (resource.data.from == uid() || resource.data.to == uid());
+    }
+  }
+}

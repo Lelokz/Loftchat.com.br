@@ -1,0 +1,120 @@
+/* Escolha do `@` — o segundo portão, depois da confirmação de e-mail. */
+
+.username {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 26rem;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+}
+
+.username__title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.username__text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.username__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.username__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/*
+ * O "@" vive FORA do campo, como prefixo fixo.
+ *
+ * Dentro dele viraria texto digitável: a pessoa apagaria, digitaria de novo, e
+ * o valor teria de ser limpo antes de qualquer uso. Como moldura, ele explica o
+ * formato sem nunca fazer parte do que é enviado.
+ */
+.username__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-sunken);
+}
+
+.username__row:focus-within {
+  border-color: var(--accent);
+}
+
+.username__at {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-md);
+}
+
+.username__input {
+  flex: 1 1 auto;
+  height: 38px;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.username__input:focus {
+  outline: none;
+}
+
+.username__hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.username__error:empty {
+  display: none;
+}
+
+.username__error {
+  font-size: var(--font-size-sm);
+  color: var(--danger);
+}
+
+.username__submit {
+  height: 38px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
+  color: var(--accent-on);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.username__submit:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.username__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.username__ghost {
+  align-self: flex-start;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.username__ghost:hover {
+  color: var(--text-primary);
+}

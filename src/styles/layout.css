@@ -1,0 +1,246 @@
+/*
+ * LAYOUT — as quatro colunas e o grid interno da coluna de chat.
+ *
+ * Tudo aqui é CSS Grid. `position: absolute` não estrutura nada nesta folha;
+ * ele só aparece em detalhe decorativo dentro dos componentes (ponto de status
+ * sobre o avatar, indicador do grupo ativo).
+ */
+
+.app {
+  height: 100vh; /* fallback para navegador sem dvh */
+  height: 100dvh;
+  display: grid;
+  grid-template-columns:
+    var(--rail-w)
+    var(--channels-w)
+    minmax(0, 1fr) /* o minmax(0,...) impede mensagem longa de esticar a página */
+    var(--members-w);
+  background-color: var(--surface-chat);
+  color: var(--text-primary);
+}
+
+/*
+ * Coluna 3 — o chat, em coluna flex:
+ *
+ *   cabeçalho do canal    flex: none
+ *   painel de chamada     flex: none  (some por inteiro quando [hidden])
+ *   lista de mensagens    flex: 1     ← ÚNICA região rolável
+ *   barra de composição   flex: none
+ *
+ * O painel de chamada é IRMÃO da lista, nunca filho: por isso ele aparece no
+ * topo da área de chat sem nunca entrar no fluxo das mensagens.
+ *
+ * ERA UM GRID DE 4 LINHAS, e isso era um bug: `[hidden]` aplica display:none, e
+ * um elemento assim não é item de grid — ele não deixa a linha vazia, ele some
+ * da formatação. Com o painel escondido sobravam 3 filhos para 4 linhas, o
+ * auto-placement deslocava todo mundo, a lista caía na linha `auto` (crescendo
+ * sem limite) e o composer herdava o minmax(0,1fr), sendo empurrado para fora
+ * da tela. Em coluna flex um filho com display:none simplesmente não ocupa
+ * espaço e os irmãos não se movem, então a classe inteira de bug não existe.
+ */
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background-color: var(--surface-chat);
+}
+
+/* ========================================================================== *
+ * MOBILE
+ *
+ * O NÚMERO 720 EXISTE AQUI E EM MAIS LUGAR NENHUM. O JS não conhece o
+ * breakpoint: ele lê `--layout`, publicado logo abaixo. Ver lib/layout.ts.
+ *
+ * Nada acima de 720px muda. Todo o mobile vive dentro da media query, e o DOM é
+ * IDÊNTICO nos dois modos — as mesmas quatro colunas, os mesmos componentes
+ * montados. É por isso que atravessar o breakpoint no meio de uma chamada de voz
+ * não derruba nada: não há o que desmontar.
+ *
+ * (O remendo da etapa 7 — rolagem horizontal e min-width — saiu daqui.)
+ * ========================================================================== */
+
+:root {
+  --layout: desktop;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --layout: mobile;
+  }
+
+  /* Só a coluna do meio ocupa a tela; as outras viram gaveta. */
+  .app {
+    display: block;
+    /* --app-height vem da visualViewport: é a altura REAL com o teclado aberto. */
+    height: var(--app-height, 100dvh);
+  }
+
+  .chat,
+  .room {
+    height: 100%;
+  }
+
+  /* --- gavetas ----------------------------------------------------------- */
+
+  /*
+   * Os seletores são prefixados com `.app` de propósito.
+   *
+   * O CSS de cada componente é importado pelo próprio `.ts` e entra na folha
+   * DEPOIS deste arquivo. Com a mesma especificidade, `.channels { display:
+   * flex }` venceria `.channels { display: none }` só pela ordem — e a gaveta
+   * ficaria permanentemente aberta.
+   */
+  .app > .group-bar,
+  .app > .channels,
+  .app > .members {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 20;
+    display: none;
+  }
+
+  .app > .group-bar {
+    left: 0;
+    width: var(--rail-w);
+  }
+
+  .app > .channels {
+    left: var(--rail-w);
+    width: min(var(--channels-w), calc(100vw - var(--rail-w) - var(--space-6)));
+  }
+
+  .app > .members {
+    right: 0;
+    width: min(var(--members-w), calc(100vw - var(--space-6)));
+    border-left: 1px solid var(--border);
+  }
+
+  .app.drawer-left > .group-bar,
+  .app.drawer-left > .channels,
+  .app.drawer-right > .members {
+    display: flex;
+  }
+
+  /*
+   * O véu é um pseudo-elemento do próprio `.app`: nada de elemento novo no DOM,
+   * que precisa continuar idêntico ao do desktop.
+   */
+  .app.drawer-left::before,
+  .app.drawer-right::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    background-color: var(--backdrop);
+  }
+
+  /* --- cabeçalho e áreas seguras ----------------------------------------- */
+
+  .chat .chat__mobile-button,
+  .room .chat__mobile-button {
+    display: inline-flex;
+  }
+
+  .chat__header,
+  .room__header {
+    padding-top: calc(var(--space-2) + env(safe-area-inset-top));
+    padding-left: max(var(--space-2), env(safe-area-inset-left));
+    padding-right: max(var(--space-2), env(safe-area-inset-right));
+  }
+
+  .composer,
+  .callbar--mobile {
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
+  }
+
+  /* A faixa de chamada do rodapé da coluna some; a de cima do composer entra. */
+  .app .callbar--mobile {
+    display: flex;
+  }
+
+  /* --- alvos de toque ----------------------------------------------------- */
+
+  .context-menu__item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .context-menu {
+    min-width: 220px;
+  }
+
+  /* --- sala de voz -------------------------------------------------------- */
+
+  .room {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  /* Sem teto de largura: os blocos ocupam a tela. */
+  .room__people {
+    max-width: none;
+  }
+
+  .room__people:has(> :only-child) {
+    max-width: none;
+  }
+
+  .room__btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* Com o dedo não existe "mouse parado", então os controles não somem. */
+  .room.is-maximized.is-idle .room__controls,
+  .room.is-maximized.is-idle .room__maximize {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/*
+ * O outro modo de layout de topo: tela única centralizada (carregando e login),
+ * usada no lugar do grid quando não há sessão. #app troca entre .app e .screen.
+ */
+.screen {
+  height: 100vh; /* fallback para navegador sem dvh */
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background-color: var(--surface-side);
+  color: var(--text-primary);
+}
+
+/* As colunas laterais rolam por dentro se a lista crescer — sem gerar scroll de página. */
+.column-scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/*
+ * Tarja do emulador — ver o bloco no fim de main.ts.
+ *
+ * `position: fixed` é o caso legítimo do detalhe decorativo: ela flutua acima
+ * de tudo de propósito, e não pode participar de layout nenhum. Cor de perigo
+ * porque ela existe para você NOTAR.
+ */
+.emulator-badge {
+  position: fixed;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 9999;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--danger);
+  color: var(--danger-on);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}

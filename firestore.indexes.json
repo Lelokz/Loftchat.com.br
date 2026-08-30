@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "_comment": "Lista de mensagens do canal: where('groupId','==',g) + where('channelId','==',c) + orderBy('sentAt') + limitToLast(50). O groupId está na consulta por causa das REGRAS, não da busca — ver subscribeMessages. Ordenar no cliente não substituiria este índice — com limitToLast o SERVIDOR precisa saber a ordem para escolher quais 50 devolver. E `sentAt` é DESCENDING de propósito, apesar de o código dizer orderBy('sentAt') sem argumento: o SDK implementa limitToLast invertendo a ordenação enviada ao servidor (os 50 ÚLTIMOS ascendentes são os 50 PRIMEIROS descendentes) e revertendo o resultado no cliente. Um índice ASCENDING não atende esta consulta — publiquei um assim primeiro e a leitura continuou falhando.",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "channelId", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

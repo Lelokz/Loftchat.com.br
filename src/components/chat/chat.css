@@ -1,0 +1,75 @@
+/* Coluna 3 — cabeçalho do canal. O grid de 4 linhas mora em styles/layout.css. */
+
+.chat__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.chat__hash {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+}
+
+/* Estado vazio no lugar da lista: ocupa o mesmo espaço que ela ocuparia. */
+.chat > .empty {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.chat__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+/*
+ * Slot trocado por fora, pelo app.ts.
+ *
+ * Trocar só ele — em vez da coluna inteira — é o que preserva o texto digitado
+ * no composer quando chega mensagem nova.
+ */
+.chat__messages-slot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat__messages-slot > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * Botões de gaveta e slot da faixa de chamada.
+ *
+ * Existem sempre no DOM e somem no desktop: um caminho de render só, e o
+ * desktop segue idêntico. Ver a media query em layout.css.
+ */
+.chat__mobile-button {
+  display: none;
+  flex: none;
+}
+
+.chat__mobile-button--right {
+  margin-left: auto;
+}
+
+.chat__callbar-slot {
+  flex: none;
+}
+
+.chat__callbar-slot:empty {
+  display: none;
+}

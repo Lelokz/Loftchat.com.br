@@ -1,0 +1,80 @@
+/* Coluna 4 — painel de membros (~150px). */
+
+.members {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  background-color: var(--surface-side);
+  border-left: 1px solid var(--border);
+}
+
+.members__body {
+  padding: var(--space-4) var(--space-2);
+}
+
+.members__section + .members__section {
+  margin-top: var(--space-5);
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.member:hover {
+  background-color: var(--surface-hover);
+}
+
+.member__name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Rótulo de dono: discreto, mas suficiente para explicar quem manda no grupo. */
+.member__role {
+  flex: none;
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-size-xs);
+}
+
+/* Ponto de presença sobre o avatar — decoração pontual, não estrutura. */
+.member__avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.member__dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--surface-side);
+}
+
+/* Online usa a cor de destaque; offline fica no cinza — sem cor nova na paleta. */
+.member--online .member__dot {
+  background-color: var(--accent);
+}
+
+.member--offline .member__dot {
+  background-color: var(--border-strong);
+}
+
+.member--offline .avatar,
+.member--offline .member__name {
+  color: var(--text-muted);
+}

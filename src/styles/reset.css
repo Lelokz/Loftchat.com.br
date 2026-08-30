@@ -1,0 +1,199 @@
+/* Reset mínimo. A página inteira é uma tela fixa: nada aqui pode rolar. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden; /* a página NUNCA rola — só a lista de mensagens */
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height);
+  color: var(--text-primary);
+  background-color: var(--surface-chat);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+hr {
+  border: 0;
+  margin: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Foco visível e consistente — o teclado precisa enxergar onde está. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Barras de rolagem discretas nas regiões que rolam. */
+.scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.scroll-area::-webkit-scrollbar {
+  width: 10px;
+}
+
+.scroll-area::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-full);
+}
+
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- primitivos compartilhados ------------------------------------------ */
+
+/* Texto só para leitor de tela: os botões são de ícone, mas precisam de nome. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Avatar de iniciais. Tamanho vem do modificador. */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.avatar--xs {
+  width: var(--avatar-xs);
+  height: var(--avatar-xs);
+  font-size: 9px;
+}
+
+.avatar--sm {
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+}
+
+.avatar--md {
+  width: var(--avatar-md);
+  height: var(--avatar-md);
+}
+
+.avatar--lg {
+  width: var(--avatar-lg);
+  height: var(--avatar-lg);
+  font-size: var(--font-size-sm);
+}
+
+/* Ícone SVG inline — herda a cor de quem o contém. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: inherit;
+}
+
+/* Botão só-de-ícone, quadrado com cantos arredondados. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.icon-button:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Título de seção: "texto", "voz", "online", "offline". */
+.section-title {
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+/*
+ * Onde os <video> das transmissões esperam.
+ *
+ * Eles são criados pelo motor de voz e MOVIDOS para o palco quando a sala é
+ * montada. Fora da tela por posicionamento, e não por `display: none` ou
+ * `hidden`: um elemento escondido pode ter a decodificação suspensa pelo
+ * navegador, e a imagem voltaria congelada.
+ */
+.voice-video-host {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
