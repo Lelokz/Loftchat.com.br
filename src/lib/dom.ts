@@ -55,7 +55,7 @@ export function iconEl(svg: string, className = 'icon'): HTMLSpanElement {
 /** Avatar circular de iniciais. `size` casa com as classes em tokens/layout. */
 export function avatarEl(
   text: string,
-  size: 'xs' | 'sm' | 'md' | 'lg' = 'sm',
+  size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'sm',
   extraClass = '',
 ): HTMLSpanElement {
   return el(

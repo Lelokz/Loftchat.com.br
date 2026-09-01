@@ -33,9 +33,19 @@
  * Só faz sentido no grid de desktop — no mobile a coluna 4 é gaveta
  * sobreposta, e `.chat__header`/`.friends__header` já ocupam a tela toda.
  */
+/*
+ * `.friends__tabs` (a linha de abas Amigos/Pendentes/Adicionar/Bloqueados)
+ * tem a MESMA borda-de-baixo bruta que `.friends__header` já tinha —
+ * faltou entrar aqui junto (ajuste pós-etapa-19). Na prática
+ * `no-member-column` só fica verdadeiro quando não há grupo nenhum
+ * selecionado (a coluna 4 passou a existir sempre na tela inicial, ver o
+ * comentário em app.ts sobre `showAside`), então isto é rede de segurança
+ * — barato mesmo se nunca disparar.
+ */
 @media (min-width: 721px) {
   .app.no-member-column .chat__header,
-  .app.no-member-column .friends__header {
+  .app.no-member-column .friends__header,
+  .app.no-member-column .friends__tabs {
     width: calc(100% + var(--members-w));
   }
 }

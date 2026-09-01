@@ -2,6 +2,19 @@
    .chat__callbar-slot, .chat__mobile-button) é o mesmo de chat.css: casca
    irmã, mesmo layout, só o conteúdo do cabeçalho muda. */
 
+/*
+ * O avatar já usava a `.avatar` neutra de sempre — mas sobre o fundo BRANCO
+ * do cabeçalho (`--surface-chat`), perto do balão da outra pessoa (`--
+ * surface-bubble`, um cinza bem próximo de `--surface-sunken`, o fundo do
+ * avatar), os dois liam quase iguais e o avatar parecia "parte da
+ * conversa" (ajuste pós-etapa-19). `--surface-side` é o mesmo tom que a
+ * lateral (rail/coluna 2) usa por trás dos avatares que já pareciam certos
+ * — mesma técnica de `.group-bar__avatar` (group-bar.css).
+ */
+.dm-chat__avatar {
+  background-color: var(--surface-side);
+}
+
 .dm-chat__identity {
   display: flex;
   flex-direction: column;

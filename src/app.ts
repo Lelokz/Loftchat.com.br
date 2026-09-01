@@ -684,6 +684,8 @@ export function mountApp(
       me: user.uid,
       onSelectDm: (uid) => store.openDm(uid),
       onOpenFriends: () => store.closeDm(),
+      currentMember: me,
+      onSignOut,
     });
     const bar = buildCallBar(state);
     /*
@@ -918,6 +920,17 @@ export function mountApp(
     });
   }
 
+  /**
+   * Coluna 4 na aba Amigos sem PV aberto — espaço RESERVADO de propósito
+   * (ajuste pós-etapa-19), para uma feature futura. Mesma `.members` das
+   * outras duas variantes (largura, superfície, borda esquerda), sem
+   * cabeçalho e sem texto de estado vazio — é isso que o pedido pede:
+   * "só o espaço", nada para confundir com bug ou com "carregando".
+   */
+  function buildReservedAside(): HTMLElement {
+    return el('aside', { class: 'members', 'aria-hidden': 'true' }, []);
+  }
+
   /** Conteúdo do slot de mensagens: erro > carregando > vazio > lista. */
   function buildMessages(state: AppState): HTMLElement {
     // Erro primeiro: "índice construindo" e "sem permissão" não podem virar
@@ -1033,6 +1046,17 @@ export function mountApp(
     return citationState(pin, messages, atStart);
   }
 
+  /**
+   * Salta até a mensagem original de uma fixada — usado pelo clique direto
+   * no item (grupo e PV) E pelo "Ir para a mensagem" do menu de contexto
+   * (`pinnedItemItems`, context-menus.ts). No grupo, fecha o painel
+   * flutuante primeiro se estiver aberto; no PV não há painel para fechar.
+   */
+  function handleJumpToPin(messageId: string): void {
+    if (store.getState().activeDmUid === null) pinsPanel?.close();
+    jumpToMessage(messageId);
+  }
+
   /** Coluna 4 no PV — perfil da pessoa (terço de cima) + fixadas da conversa (dois terços de baixo). */
   function buildDmSidePanel(state: AppState, friendUid: MemberId): HTMLElement {
     return renderDmSidePanel({
@@ -1055,8 +1079,7 @@ export function mountApp(
         pins: state.pinnedDmMessages,
         pinnedLoaded: state.pinnedDmMessagesLoaded,
         reachabilityOf: (pin) => pinReachabilityIn(pin, state.dmMessages, state.dmMessagesAtStart),
-        onJumpTo: jumpToMessage,
-        onUnpin: handleUnpin,
+        onJumpTo: handleJumpToPin,
       },
     });
   }
@@ -1077,11 +1100,7 @@ export function mountApp(
       reachabilityOf: (pin: PinnedMessage) =>
         pinReachabilityIn(pin, state.messages, state.messagesAtStart),
       canUnpin,
-      onJumpTo: (messageId: string) => {
-        pinsPanel?.close();
-        jumpToMessage(messageId);
-      },
-      onUnpin: handleUnpin,
+      onJumpTo: handleJumpToPin,
     };
   }
 
@@ -1188,6 +1207,15 @@ export function mountApp(
     const list = slot.querySelector<HTMLElement>('.messages');
     if (list === null) return;
 
+    /*
+     * Gruda no fim (message-list.css, `.messages--short`) só quando a
+     * lista de VERDADE não rola — nunca durante "carregar anteriores"
+     * (só existe com a lista já rolando). `slot.replaceChildren(next)` diz
+     * que `list` é um nó NOVO sem essa classe ainda, então isto mede o
+     * overflow bruto, sem o próprio ajuste interferindo na medida.
+     */
+    list.classList.toggle('messages--short', list.scrollHeight <= list.clientHeight);
+
     if (forceBottom || wasAtBottom) {
       list.scrollTop = list.scrollHeight;
       return;
@@ -1291,7 +1319,11 @@ export function mountApp(
       prev.members !== state.members ||
       prev.membersLoaded !== state.membersLoaded;
 
-    if (groupsChanged) groupBarEl = swap(groupBarEl, buildGroupBar(state));
+    // `viewChanged` também importa aqui: trocar para a tela inicial (ou
+    // voltar) não mexe em `groups`/`activeGroupId`, e sem este termo o rail
+    // ficava com o DOM velho — o grupo anterior e a casinha "ativos" ao
+    // mesmo tempo (achado usando o app, não lendo o código).
+    if (groupsChanged || viewChanged) groupBarEl = swap(groupBarEl, buildGroupBar(state));
     if (channelsChanged) {
       channelListEl = swap(
         channelListEl,
@@ -1300,10 +1332,12 @@ export function mountApp(
     }
 
     /*
-     * Coluna 4 aparece em dois casos: visão de grupo com grupo selecionado
-     * (membros) ou PV aberto na tela inicial (perfil + fixadas, etapa 19).
-     * Fora disso — tela de amigos sem PV, ou sem grupo nenhum — fica oculta:
-     * não há conteúdo nenhum para os dois casos.
+     * Coluna 4 aparece sempre que há ALGUMA coisa para mostrar nela: a
+     * tela inicial inteira (perfil+fixadas no PV, ou — ajuste pós-etapa-19
+     * — o espaço reservado da aba Amigos sem PV nenhum aberto, ver
+     * `buildReservedAside`) ou a visão de grupo com um grupo selecionado
+     * (membros). Só fica oculta de verdade quando não há grupo NENHUM — aí
+     * não existe nem lista de membros nem PV para preencher o espaço.
      *
      * `hidden` em vez de não montar: o `swapCenter` usa `memberListEl` como
      * ÂNCORA para inserir a coluna do meio antes dela. Sumindo com o nó, a
@@ -1312,14 +1346,13 @@ export function mountApp(
      *
      * `no-member-column` no `.app` é o conserto da borda do cabeçalho (ver
      * layout.css): sem ela, a faixa reservada da coluna 4 fica sem nenhuma
-     * linha por cima quando não há painel nenhum.
+     * linha por cima quando não há painel nenhum — na prática, só o caso
+     * "sem grupo nenhum" ainda cai nisso.
      *
      * E fica ANTES dos retornos antecipados abaixo — depois deles esta linha
      * nunca rodaria justamente nos casos em que ela existe para tratar.
      */
-    const showAside =
-      (state.view === 'home' && state.activeDmUid !== null) ||
-      (state.view === 'group' && state.groups.length > 0);
+    const showAside = state.view === 'home' || (state.view === 'group' && state.groups.length > 0);
     if (memberListEl !== null) memberListEl.hidden = !showAside;
     root.classList.toggle('no-member-column', !showAside);
 
@@ -1452,6 +1485,9 @@ export function mountApp(
         chatChannelId = null;
         dmChat = null;
         dmChatFriendUid = null;
+        // Espaço reservado da coluna 4 — estático, monta uma vez por
+        // transição para cá (ver buildReservedAside).
+        memberListEl = swap(memberListEl, buildReservedAside());
       } else if (friendsChanged) {
         // A CASCA fica — só o `update()` decide o que repintar. É o que
         // impede um dado novo de arrancar o formulário de adicionar de
@@ -1706,6 +1742,8 @@ export function mountApp(
     openVoiceDiagnostics: handleOpenDiagnostics,
     openDm: (uid) => store.openDm(uid),
     togglePinMessage: handleTogglePinMessage,
+    jumpToPinnedMessage: handleJumpToPin,
+    unpinMessage: handleUnpin,
   });
 
   const unsubscribe = store.subscribe(render);

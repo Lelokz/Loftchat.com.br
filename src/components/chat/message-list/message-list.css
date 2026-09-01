@@ -11,6 +11,31 @@
 }
 
 /*
+ * Com poucas mensagens, gruda no FIM (perto do composer) em vez de ficar
+ * colado no topo com uma área morta embaixo — igual Discord/WhatsApp. A
+ * ordem do DOM continua cronológica (mais antiga primeiro); isto só
+ * empurra o CONJUNTO quando sobra espaço, puxando o espaço livre para
+ * ANTES do primeiro item.
+ *
+ * SÓ ATIVA VIA `.messages--short`, uma classe que `swapMessages` (app.ts)
+ * alterna DEPOIS de cada troca, medindo `scrollHeight <= clientHeight` de
+ * verdade — nunca uma regra incondicional em `.messages`. As duas
+ * tentativas incondicionais (`justify-content: flex-end`, depois `margin-
+ * top: auto` direto em `.messages > :first-child`) FORAM TESTADAS e as
+ * duas mexiam na matemática de pixel que "rolar ao topo carrega o
+ * histórico sem arrancar a posição de leitura" depende (achado RODANDO a
+ * suíte — a primeira quebrou sempre, a segunda intermitente, ~21px de
+ * deriva contra o teto de 12px do teste, com `--repeat-each` provando que
+ * não era ruído). Com a classe condicionada a "sem overflow de verdade",
+ * ela nunca fica ativa durante "carregar anteriores" (a lista SEMPRE está
+ * rolando quando esse botão existe) — zero acoplamento com o caso frágil,
+ * em vez de confiar em `margin:auto` resolver para 0 sozinho.
+ */
+.messages--short > :first-child {
+  margin-top: auto;
+}
+
+/*
  * Separador de dia: linha fina, rótulo, linha fina.
  *
  * As linhas são `::before`/`::after` COMO FILHOS FLEX — nada de `position:

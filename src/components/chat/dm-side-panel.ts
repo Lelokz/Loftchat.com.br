@@ -29,6 +29,10 @@ export function renderDmSidePanel(props: DmSidePanelProps): HTMLElement {
       renderProfileCard(props.profileCard),
     ]),
     el('div', { class: 'members__pinned' }, [
+      // A linha acima já separa do perfil; isto diz o que tem embaixo dela
+      // — mesmo estilo de "Mensagens diretas" em home-column.ts, ajuste
+      // pós-etapa-19 (o estado vazio já existia, só faltava o título).
+      el('span', { class: 'members__pinned-label' }, ['Mensagens fixadas']),
       renderPinnedList({ ...props.pinnedList, canUnpin: true }),
     ]),
   ]);

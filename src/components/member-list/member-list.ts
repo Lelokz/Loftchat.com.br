@@ -2,7 +2,7 @@ import './member-list.css';
 
 import { avatarEl, el } from '../../lib/dom';
 import { renderLoading } from '../empty-state/empty-state';
-import type { Member, MemberId, PresenceStatus } from '../../types/models';
+import type { Member, MemberId } from '../../types/models';
 
 export interface MemberListProps {
   /** Membros do grupo ativo, já resolvidos a partir de memberships + users. */
@@ -18,11 +18,16 @@ export interface MemberListProps {
 }
 
 /**
- * Coluna 4 — membros do grupo ativo, separados por presença.
+ * Coluna 4 — membros do grupo ativo.
  *
- * Nesta etapa todo mundo chega com `status: 'online'`: presença de verdade
- * precisa de heartbeat ou onDisconnect, e é outra etapa. A seção "offline"
- * existe no código e simplesmente não aparece enquanto ninguém estiver offline.
+ * NÃO separa mais por presença nem mostra a bolinha verde (ajuste pós-
+ * etapa-19): presença de verdade não existe (precisa de heartbeat ou
+ * onDisconnect, cancelado etapas atrás), e com `member.status` sempre
+ * `'online'` a seção "offline" nunca aparecia de verdade — a divisão e o
+ * rótulo eram peso morto, e pior: "online" para todo mundo é informação
+ * ERRADA, não só incompleta. Volta a diferenciar quando presença de
+ * verdade for implementada — `Member.status`/`PresenceStatus` continuam
+ * existindo em `types/models.ts` para esse dia, só a exibição mudou.
  */
 export function renderMemberList({
   members,
@@ -31,25 +36,18 @@ export function renderMemberList({
 }: MemberListProps): HTMLElement {
   const body = !membersLoaded
     ? [renderLoading()]
-    : [
-        section('online', members.filter((member) => member.status === 'online'), ownerId),
-        section('offline', members.filter((member) => member.status === 'offline'), ownerId),
-      ];
+    : [section(members, ownerId)];
 
   return el('aside', { class: 'members', 'aria-label': 'Membros' }, [
     el('div', { class: 'members__body column-scroll scroll-area' }, body),
   ]);
 }
 
-function section(
-  status: PresenceStatus,
-  people: Member[],
-  ownerId: MemberId | null,
-): HTMLElement | false {
+function section(people: Member[], ownerId: MemberId | null): HTMLElement | false {
   if (people.length === 0) return false;
 
   return el('section', { class: 'members__section' }, [
-    el('h2', { class: 'section-title' }, [`${status} — ${people.length}`]),
+    el('h2', { class: 'section-title' }, [`membros — ${people.length}`]),
     el(
       'ul',
       {},
@@ -57,15 +55,12 @@ function section(
         el(
           'li',
           {
-            class: `member member--${member.status}`,
+            class: 'member',
             'data-context': 'member',
             'data-member-id': member.id,
           },
           [
-            el('span', { class: 'member__avatar' }, [
-              avatarEl(member.initials, 'sm'),
-              el('span', { class: 'member__dot', 'aria-hidden': 'true' }),
-            ]),
+            avatarEl(member.initials, 'sm'),
             el('span', { class: 'member__name', title: member.displayName }, [
               member.displayName,
             ]),

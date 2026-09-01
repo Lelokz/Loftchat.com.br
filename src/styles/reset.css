@@ -145,6 +145,12 @@ hr {
   font-size: var(--font-size-sm);
 }
 
+.avatar--xl {
+  width: var(--avatar-xl);
+  height: var(--avatar-xl);
+  font-size: var(--font-size-xl);
+}
+
 /* Ícone SVG inline — herda a cor de quem o contém. */
 .icon {
   display: inline-flex;

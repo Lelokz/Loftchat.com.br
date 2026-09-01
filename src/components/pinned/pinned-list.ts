@@ -22,11 +22,17 @@ export interface PinnedListProps {
    * Dono no grupo, qualquer um dos dois no PV — é UM valor para a lista
    * inteira, não por item: a regra concede a mesma coisa para toda fixada
    * daquele escopo.
+   *
+   * Não aparece mais como botão dentro do item (etapa 19, ajustes) — vira
+   * "Desafixar" no MENU DE CONTEXTO da fixada (junto com "Ir para a
+   * mensagem"), montado por `context-menus.ts` a partir dos `data-*`
+   * estampados no `<li>` abaixo. Este valor só decide se o item aparece
+   * nesse menu; quem de fato desafixa é `ContextMenuActions.unpinMessage`,
+   * não uma prop desta lista — por isso não há `onUnpin` aqui.
    */
   canUnpin: boolean;
+  /** Clique direto no item, quando alcançável — a mesma citação clicável da etapa 17. */
   onJumpTo: (messageId: MessageId) => void;
-  /** Recebe TODOS os ids do grupo (ver `groupByMessage` abaixo) — apaga todos de uma vez. */
-  onUnpin: (pinIds: string[]) => void;
 }
 
 interface PinGroup {
@@ -55,7 +61,7 @@ function groupByMessage(pins: PinnedMessage[]): PinGroup[] {
 }
 
 export function renderPinnedList(props: PinnedListProps): HTMLElement {
-  const { pins, pinnedLoaded, canUnpin, onJumpTo, onUnpin, reachabilityOf } = props;
+  const { pins, pinnedLoaded, canUnpin, onJumpTo, reachabilityOf } = props;
 
   if (!pinnedLoaded) {
     return el('div', { class: 'pinned-list__empty' }, ['Carregando fixadas…']);
@@ -69,7 +75,7 @@ export function renderPinnedList(props: PinnedListProps): HTMLElement {
   return el(
     'ul',
     { class: 'pinned-list column-scroll scroll-area' },
-    groups.map((group) => item(group, reachabilityOf(group.primary), canUnpin, onJumpTo, onUnpin)),
+    groups.map((group) => item(group, reachabilityOf(group.primary), canUnpin, onJumpTo)),
   );
 }
 
@@ -104,12 +110,18 @@ export function openPinnedMessagesPanel(initial: PinnedListProps): PinnedPanel {
   };
 }
 
+/**
+ * Um item — só conteúdo (autor, texto, data). Desafixar saiu daqui: é
+ * "Desafixar" no MENU DE CONTEXTO agora (junto com "Ir para a mensagem"),
+ * lido de volta dos `data-*` abaixo por `context-menus.ts`
+ * (`pinnedItemItems`). O clique direto continua levando até a mensagem
+ * quando alcançável — a mesma citação clicável de sempre, sem mudar.
+ */
 function item(
   group: PinGroup,
   reachable: PinReachability,
   canUnpin: boolean,
   onJumpTo: (messageId: MessageId) => void,
-  onUnpin: (pinIds: string[]) => void,
 ): HTMLElement {
   const pin = group.primary;
 
@@ -120,24 +132,22 @@ function item(
 
   const body = content(pin, reachable);
 
-  const row = el('div', { class: 'pinned-item__row' }, [header, body]);
+  const li = el(
+    'li',
+    {
+      class: `pinned-item${reachable === 'carregada' ? ' pinned-item--clickable' : ''}`,
+      'data-context': 'pinned-item',
+      'data-message-id': pin.messageId,
+      'data-pin-ids': group.ids.join(','),
+      'data-reachable': reachable,
+      'data-can-unpin': String(canUnpin),
+    },
+    [header, body],
+  );
 
-  if (reachable === 'carregada') {
-    row.classList.add('pinned-item__row--clickable');
-    row.addEventListener('click', () => onJumpTo(pin.messageId));
-  }
+  if (reachable === 'carregada') li.addEventListener('click', () => onJumpTo(pin.messageId));
 
-  const unpinButton =
-    canUnpin &&
-    el('button', { class: 'pinned-item__unpin', type: 'button', title: 'Desafixar' }, ['Desafixar']);
-  if (unpinButton !== false) {
-    unpinButton.addEventListener('click', (event) => {
-      event.stopPropagation();
-      onUnpin(group.ids);
-    });
-  }
-
-  return el('li', { class: 'pinned-item' }, [row, unpinButton]);
+  return li;
 }
 
 /** O conteúdo por `kind` — as seis categorias já renderizam, mesmo que só `'text'` seja alcançável hoje (sem anexo ainda). */

@@ -11,35 +11,38 @@
   min-height: 0;
 }
 
+/* Vertical só — horizontal fica em 0 de propósito: cada fixada é um cartão
+   de borda a borda, sem margem lateral sobrando (ajuste pós-etapa-19). */
 .pinned-list {
-  padding: var(--space-2);
+  padding: var(--space-2) 0;
 }
 
+/*
+ * Cartão de verdade agora — fundo um degrau acima do painel, borda fina,
+ * cantos arredondados (antes era só padding sobre o fundo do painel,
+ * "chapado"; só aparecia algo no hover). Cada item na sua altura natural —
+ * nunca encolhe, nunca sobrepõe (a lista inteira é quem rola, dentro de
+ * .column-scroll).
+ */
 .pinned-item {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background-color: var(--surface-raised);
 }
 
 .pinned-item + .pinned-item {
   margin-top: var(--space-1);
 }
 
-/* Cada item na sua altura natural — nunca encolhe, nunca sobrepõe (a lista
-   inteira é quem rola, dentro de .column-scroll). */
-.pinned-item__row {
-  flex: 1;
-  min-width: 0;
-}
-
-.pinned-item__row--clickable {
+.pinned-item--clickable {
   cursor: pointer;
-  border-radius: var(--radius-sm);
 }
 
-.pinned-item__row--clickable:hover {
+.pinned-item--clickable:hover {
   background-color: var(--surface-hover);
 }
 
@@ -117,20 +120,6 @@
   flex: none;
   font-size: var(--font-size-xs);
   color: var(--text-muted);
-}
-
-.pinned-item__unpin {
-  flex: none;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.pinned-item__unpin:hover {
-  border-color: var(--danger);
-  color: var(--danger);
 }
 
 .pinned-list__empty {

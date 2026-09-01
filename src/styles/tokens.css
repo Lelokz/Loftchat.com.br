@@ -80,6 +80,8 @@
   --avatar-sm: 26px;
   --avatar-md: 32px;
   --avatar-lg: 40px;
+  /* Painel de perfil (etapa 19, ajustes) — o único lugar grande o bastante para pedir isto. */
+  --avatar-xl: 64px;
 
   /* --- tipografia (stack do sistema: nenhuma fonte baixada) ---------------- */
   --font-sans:

@@ -1,0 +1,27 @@
+/* Rodapé com a identidade da sessão — mesma casca em qualquer coluna 2
+   (canais de grupo, ou a tela inicial/PV). Ver session-footer.ts. */
+
+.session-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.session-footer__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+/* Sair fica em tom de perigo só no hover — no repouso é mais um ícone neutro. */
+.session-footer__signout:hover {
+  background-color: var(--surface-hover);
+  color: var(--danger);
+}

@@ -1,6 +1,109 @@
 # Loft — progresso
 
-Estado em 31/08/2026.
+Estado em 01/09/2026.
+
+## Ajustes na etapa 19 — 11 itens achados usando o app com um amigo de verdade
+
+Onze problemas, achados no primeiro uso real do PV/fixadas — dois eram
+bugs de navegação anteriores à etapa 19 (rodapé sumindo fora do grupo,
+dois ícones "ativos" na barra da esquerda ao mesmo tempo), o resto é
+polimento do que a etapa 19 construiu.
+
+**Rodapé (avatar, nome, engrenagem, sair) sumia na tela inicial e no PV** —
+vivia hardcoded só dentro de `channel-list.ts`, então só existia quando
+`state.view !== 'home'`. Sem ele, ninguém sem grupo nenhum tinha como sair
+da conta. Extraído para `components/session-footer/` (compartilhado por
+`channel-list.ts` e `home-column.ts` — a mesma coluna 2 que já cobre tela
+inicial E PV, sem precisar tocar em `dm-chat.ts`). **Achado de passagem,
+registrado por pedido explícito:** o botão de engrenagem ("Configurações")
+não tem `onClick` nenhum — é inerte desde que foi criado, não é regressão
+desta extração. Vira a tela de configurações só na Entrega 3.
+
+**Dois ícones ativos ao mesmo tempo na barra da esquerda** — `group-bar.ts`
+já era mutuamente exclusivo por construção; o bug era `app.ts` só
+reconstruir a barra quando `groupsChanged`, condição que não incluía
+mudança de `state.view`. Trocar para a tela inicial (ou voltar) deixava o
+DOM da barra desatualizado — achado usando o app, não lendo o código.
+Conserto de uma linha: `if (groupsChanged || viewChanged)`.
+
+**Mensagens coladas no topo com poucas mensagens** — igual Discord/
+WhatsApp, quando sobra espaço o conjunto deveria grudar no fim, perto do
+composer. A solução óbvia quebrou a suíte, duas vezes, por dois motivos
+diferentes — **achado RODANDO os testes, não lendo o código**:
+1. `justify-content: flex-end` em `.messages` quebrava DETERMINISTICAMENTE
+   o teste "rolar ao topo carrega o histórico sem arrancar a posição de
+   leitura" — a suposição de que isso seria um no-op com a lista já
+   rolando (validada por um agente antes de implementar) estava ERRADA: o
+   navegador muda como calcula a região de overflow rolável mesmo com
+   conteúdo de sobra, e isso derruba a matemática de pixel que
+   `swapMessages` (`app.ts`) usa para preservar a posição de leitura ao
+   carregar histórico.
+2. Trocado por `margin-top: auto` em `.messages > :first-child` (a técnica
+   mais idiomática, já que margem automática não pode ficar negativa — em
+   teoria resolve para 0 sozinha sem espaço sobrando). Passou isolado, mas
+   sob `--repeat-each=3` falhou 2 de 3 vezes, com 21px de deriva contra o
+   teto de 12px do teste — intermitente, não ruído.
+
+**Fix final:** a régua condicionada a uma classe, `.messages--short`, que
+`swapMessages` liga/desliga a cada troca de DOM medindo o overflow de
+VERDADE (`scrollHeight <= clientHeight`) do nó recém-inserido — nunca uma
+regra incondicional em `.messages`. Como a classe só pode existir quando a
+lista NÃO rola, e "carregar anteriores" só existe quando a lista JÁ rola, os
+dois casos nunca se tocam — zero acoplamento, em vez de confiar em CSS
+resolver sozinho para 0 no caso frágil. Verificado com `--repeat-each=5` e
+depois a suíte inteira, 100% verde.
+
+**Fixada sem cartão visível, e desafixar virou item de menu** — `.pinned-
+item` ganhou fundo (`--surface-raised`), borda e cantos arredondados, de
+borda a borda no painel (a lista perdeu o padding lateral). O botão
+"Desafixar" saiu de dentro do item — agora é "Desafixar" (junto com "Ir
+para a mensagem") no MENU DE CONTEXTO da própria fixada
+(`pinnedItemItems`, `context-menus.ts`, alvo novo `data-context="pinned-
+item"`), não mais um botão competindo por espaço com o conteúdo. Esse menu
+NÃO substitui o "Fixar/Desafixar" que já existe no menu da mensagem
+original — aquele só alcança mensagem carregada na tela; este cobre
+também fixada "apagada"/"fora-da-janela". O clique direto no item para
+saltar até a mensagem continua igual (citação clicável de sempre).
+
+**Cartão de perfil sem parecer cartão** — ganhou fundo/borda próprios
+(tokens `--surface-raised`/`--border`, não hex fixo — `person-theme.ts` já
+sobrescreve esses tokens quando a Entrega 3 gravar um tema escuro para a
+pessoa, então o cartão herda isso de graça). Avatar do cartão passou de
+`lg` (40px) para uma categoria NOVA, `xl` (64px) — reutilizável em
+`lib/dom.ts`/`avatarEl`, não um ajuste isolado.
+
+**Avatar do cabeçalho do PV parecia "parte da conversa"** — não havia
+regra nenhuma o pintando de destaque; a sensação vinha de `--surface-
+sunken` (fundo do avatar) e `--surface-bubble` (balão da outra pessoa)
+serem tons quase idênticos no claro. Ganhou `background-color: var(--
+surface-side)` (o mesmo tom da lateral) via uma classe extra, mesma
+técnica que `.group-bar__avatar` já usa.
+
+**Coluna 4 reservada, vazia, na aba Amigos sem PV aberto.** Antes ela
+simplesmente não existia ali, e a tela parecia cortada — inclusive
+explicava por que a borda abaixo das abas (Amigos/Pendentes/Adicionar/
+Bloqueados) não ia até o fim, do mesmo jeito que a borda do cabeçalho não
+ia antes do conserto da etapa 19. Agora `showAside` (`app.ts`) mostra a
+coluna 4 em QUALQUER estado da tela inicial, não só com PV aberto; a aba
+Amigos sem PV ganha um `<aside class="members">` genuinamente vazio — sem
+cabeçalho, sem texto de estado vazio, só o espaço. **ISTO É PROPOSITAL —
+espaço reservado para uma feature futura, não bug e não sobra: não
+remover achando que é lixo.**
+
+**"online — N" mentia sobre presença.** Presença de verdade nunca foi
+implementada (heartbeat/onDisconnect, cancelado etapas atrás) — todo
+membro sempre chega com `status:'online'`, então a seção "offline" nunca
+tinha nada de verdade para mostrar, e "online" para todo mundo é
+informação ERRADA, não só incompleta (um amigo apareceu online estando na
+escola). `member-list.ts` colapsou para uma lista só, rótulo "membros — N",
+sem a bolinha de status. **`Member.status`/`PresenceStatus` continuam
+existindo em `types/models.ts`** — só a exibição mudou; o rótulo volta a
+diferenciar online/offline no dia em que presença de verdade existir.
+
+Sem mudança de regra, índice ou modelagem nesta rodada — só onde/como as
+coisas já construídas aparecem. `tests/pins.spec.ts` foi atualizado (dois
+locators que apontavam para o botão de desafixar dentro do item, agora
+menu de contexto).
 
 ## Etapa 19 — painel do perfil no PV e mensagens fixadas
 

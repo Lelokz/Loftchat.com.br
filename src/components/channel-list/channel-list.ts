@@ -1,10 +1,11 @@
 import './channel-list.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { chevronDownIcon, gearIcon, logoutIcon, micIcon, speakerIcon } from '../../lib/icons';
+import { chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
 import { renderCallBar } from '../call-bar/call-bar';
 import type { CallBarProps } from '../call-bar/call-bar';
 import { renderLoading } from '../empty-state/empty-state';
+import { renderSessionFooter } from '../session-footer/session-footer';
 import type { Channel, ChannelId, Group, Member } from '../../types/models';
 
 export interface ChannelListProps {
@@ -37,18 +38,6 @@ export interface VoicePresenceView {
   displayName: string;
   initials: string;
   muted: boolean;
-}
-
-/** Botão de encerrar a sessão, no rodapé ao lado da engrenagem. */
-function signOutButton(onSignOut: () => void): HTMLElement {
-  const button = el('button', {
-    class: 'icon-button channels__signout',
-    type: 'button',
-    title: 'Sair da conta',
-  });
-  button.append(iconEl(logoutIcon(17)), el('span', { class: 'sr-only' }, ['Sair da conta']));
-  button.addEventListener('click', onSignOut);
-  return button;
 }
 
 /**
@@ -207,17 +196,6 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
 
     props.callBar !== undefined && renderCallBar(props.callBar, 'desktop'),
 
-    // Rodapé fixo: eu — nome e iniciais do usuário autenticado.
-    el('footer', { class: 'channels__me' }, [
-      avatarEl(currentMember.initials, 'sm'),
-      el('span', { class: 'channels__me-name', title: currentMember.displayName }, [
-        currentMember.displayName,
-      ]),
-      el('button', { class: 'icon-button', type: 'button', title: 'Configurações' }, [
-        iconEl(gearIcon(17)),
-        el('span', { class: 'sr-only' }, ['Configurações']),
-      ]),
-      signOutButton(onSignOut),
-    ]),
+    renderSessionFooter(currentMember, onSignOut),
   ]);
 }

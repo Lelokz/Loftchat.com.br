@@ -26,7 +26,20 @@
   flex-direction: column;
 }
 
-.members__pinned > * {
+/* O título fica FIXO; só o que renderPinnedList devolve (a lista ou o
+   estado vazio) cresce e rola. */
+.members__pinned-label {
+  flex: none;
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.members__pinned > .pinned-list,
+.members__pinned > .pinned-list__empty {
   flex: 1 1 auto;
   min-height: 0;
 }

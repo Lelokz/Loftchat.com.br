@@ -47,7 +47,7 @@ export function renderProfileCard(props: ProfileCardProps): HTMLElement {
   ]);
 
   const card = el('div', { class: 'profile-card' }, [
-    avatarEl(profile?.initials ?? '?', 'lg'),
+    avatarEl(profile?.initials ?? '?', 'xl'),
     el('div', { class: 'profile-card__identity' }, [
       el('span', { class: 'profile-card__name' }, [nome]),
       arroba === undefined || arroba === ''

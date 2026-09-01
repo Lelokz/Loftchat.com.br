@@ -232,7 +232,9 @@ test('no PV os dois participantes fixam em tempo real, e desafixar remove dos do
   ).toHaveCount(1, { timeout: 15_000 });
 
   // B também pode desafixar — os dois participantes podem, no PV.
-  await b.page.locator('.pinned-item__unpin').click();
+  // Desafixar vive no MENU DE CONTEXTO da fixada agora (ajuste pós-etapa-19).
+  await b.page.locator('.pinned-item').click({ button: 'right' });
+  await b.page.locator('.context-menu').getByRole('menuitem', { name: 'Desafixar' }).click();
   await expect(a.page.locator('.pinned-item')).toHaveCount(0, { timeout: 15_000 });
   await expect(b.page.locator('.pinned-item')).toHaveCount(0, { timeout: 15_000 });
 
@@ -289,7 +291,7 @@ test('clicar numa fixada leva até a mensagem e destaca', async ({ browser }) =>
   await scene.ownerPage.locator('.chat__pin-button').click();
   const dialog = scene.ownerPage.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 15_000 });
-  await dialog.locator('.pinned-item__row--clickable').first().click();
+  await dialog.locator('.pinned-item--clickable').first().click();
 
   // Clicar fecha o painel (ver `onJumpTo` em app.ts) e destaca a mensagem original.
   await expect(dialog).toBeHidden({ timeout: 15_000 });

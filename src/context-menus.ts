@@ -58,6 +58,17 @@ export interface ContextMenuActions {
    * dos dois).
    */
   togglePinMessage(messageId: string): void;
+  /**
+   * Rola até a mensagem original de uma fixada e destaca — "Ir para a
+   * mensagem" no menu da PRÓPRIA fixada (não da mensagem original). Grupo
+   * ou PV, mesma ação — ver `pinnedItemItems`.
+   */
+  jumpToPinnedMessage(messageId: string): void;
+  /**
+   * Desafixa — recebe TODOS os ids do grupo daquele `messageId` de uma vez
+   * (ver o agrupamento em `pinned-list.ts`), não só um.
+   */
+  unpinMessage(pinIds: string[]): void;
 }
 
 /** Copia com retorno na tela — sem isso a pessoa não sabe se funcionou. */
@@ -241,6 +252,43 @@ function friendItems(target: HTMLElement, actions: ContextMenuActions): MenuItem
   const friendUid = target.dataset['friendUid'] ?? '';
   if (friendUid === '') return [];
   return [{ label: 'Enviar mensagem', onSelect: () => actions.openDm(friendUid) }];
+}
+
+/**
+ * Menu de UMA FIXADA na lista de fixadas — diferente do "Fixar/Desafixar"
+ * que já existe no menu da mensagem ORIGINAL (`messageItems`/
+ * `dmMessageItems`, acima): aquele só alcança mensagem carregada na tela;
+ * este cobre também fixada "apagada"/"fora-da-janela", que é exatamente o
+ * caso que o outro não cobre. `canUnpin` já vem decidido por quem montou a
+ * lista (dono no grupo, qualquer um dos dois no PV) — ver pinned-list.ts.
+ */
+function pinnedItemItems(target: HTMLElement, actions: ContextMenuActions): MenuItem[] {
+  const messageId = target.dataset['messageId'] ?? '';
+  const reachable = target.dataset['reachable'];
+  const canUnpin = target.dataset['canUnpin'] === 'true';
+  const pinIds = (target.dataset['pinIds'] ?? '').split(',').filter((id) => id !== '');
+
+  const items: MenuItem[] = [
+    {
+      label: 'Ir para a mensagem',
+      disabled: reachable !== 'carregada',
+      ...(reachable !== 'carregada'
+        ? { reason: 'A mensagem original não está carregada aqui.' }
+        : {}),
+      onSelect: () => actions.jumpToPinnedMessage(messageId),
+    },
+  ];
+
+  if (canUnpin) {
+    items.push({
+      label: 'Desafixar',
+      danger: true,
+      separatorBefore: true,
+      onSelect: () => actions.unpinMessage(pinIds),
+    });
+  }
+
+  return items;
 }
 
 function groupItems(
@@ -484,6 +532,9 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
         break;
       case 'friend':
         items = friendItems(target, actions);
+        break;
+      case 'pinned-item':
+        items = pinnedItemItems(target, actions);
         break;
       case 'group':
         items = groupItems(target, actions, state);
