@@ -1,32 +1,53 @@
 /**
- * Faxina do PROJETO REAL: apaga o que as contas de teste deixaram para trás.
+ * Faxina do PROJETO REAL: apaga contas e o que elas deixaram para trás.
  *
  * Escrito para a etapa 15, depois que a investigação encontrou 175 contas
  * `loft-e2e-` e centenas de documentos órfãos no `loft-3d6c0f`. Apagar isso à
- * mão pelo console é inviável e erra.
+ * mão pelo console é inviável e erra. A etapa 17 acrescentou um segundo modo,
+ * por LISTA DE EXCEÇÃO — apagar todo mundo menos quem se diz para manter —,
+ * para limpar contas de gente de verdade (amigos que usaram por pouco tempo)
+ * em vez de só contas de teste.
  *
  * USO:
  *
- *     node scripts/limpar-projeto-real.mjs              # só LISTA (padrão)
- *     node scripts/limpar-projeto-real.mjs --apagar     # pede confirmação e apaga
- *     node scripts/limpar-projeto-real.mjs --apagar --orfaos   # inclui os órfãos
+ *     node scripts/limpar-projeto-real.mjs                      # lista, modo prefixo loft-e2e-
+ *     node scripts/limpar-projeto-real.mjs --apagar              # apaga, modo prefixo
+ *     node scripts/limpar-projeto-real.mjs --apagar --orfaos     # + órfãos antigos (dono sumiu)
+ *
+ *     node scripts/limpar-projeto-real.mjs --manter=a@x.com,b@y.com             # lista, modo exceção
+ *     node scripts/limpar-projeto-real.mjs --manter=a@x.com --apagar            # apaga, modo exceção
+ *     node scripts/limpar-projeto-real.mjs --manter=a@x.com --apagar --orfaos   # + órfãos antigos
  *
  * O padrão NÃO APAGA NADA. É preciso pedir explicitamente, e depois confirmar
  * digitando o total — porque um script que apaga produção não deve poder ser
- * disparado por engano numa seta para cima no terminal.
+ * disparado por engano numa seta para cima no terminal. Com `--manter`, contas
+ * e órfãos pedem CONFIRMAÇÕES SEPARADAS, com totais separados: são duas
+ * operações de risco diferente, e uma não deve esconder o número da outra.
  *
- * AS DUAS REGRAS QUE NÃO SE NEGOCIAM
+ * AS REGRAS QUE NÃO SE NEGOCIAM
  *
- * 1. Conta só é apagada se o e-mail começar com `loft-e2e-`. A checagem é feita
- *    contra a lista VIVA do Auth, no momento de apagar — não contra um arquivo
- *    lido antes, que poderia estar velho.
- * 2. Documento de GRUPO só entra se o grupo for de uma conta `loft-e2e-`. Uma
- *    conta de teste que entrou num grupo SEU deixa só a `membership` dela para
- *    trás; o grupo, os canais e as mensagens são seus e ficam.
+ * 1. Sem `--manter`: conta só é apagada se o e-mail começar com `loft-e2e-`.
+ *    Com `--manter`: conta só é apagada se o e-mail NÃO estiver na lista. Em
+ *    QUALQUER modo, a checagem final é feita contra a lista VIVA do Auth, no
+ *    momento de apagar — não contra o que foi lido no começo, que pode estar
+ *    velho (a faxina inteira pode levar minutos).
+ * 2. Documento de GRUPO só entra se o dono do grupo for uma conta alvo desta
+ *    execução. Uma conta a apagar que só ENTROU num grupo de outra pessoa
+ *    deixa só a `membership` dela para trás; o grupo, os canais e as
+ *    mensagens são de outra conta e ficam — mesmo que essa conta também vá
+ *    ser apagada por outro motivo, o dono real é quem decide, não quem visita.
  *
  * ORDEM: documentos primeiro, contas depois. Ao contrário, os documentos ficam
- * inalcançáveis — foi assim que nasceram os 529 órfãos que este script também
- * sabe limpar (`--orfaos`).
+ * inalcançáveis — foi assim que nasceram os primeiros órfãos que este script
+ * também sabe limpar (`--orfaos`).
+ *
+ * `--orfaos` sozinho pega dois tipos de órfão: (a) documento cujo "dono" já
+ * não existe entre as contas vivas (a checagem original, etapa 15); (b) EM
+ * MODO `--manter`, documento com `groupId` que não bate com NENHUM grupo
+ * atualmente existente — o caso de `channels`/`messages` sobrando de um grupo
+ * apagado há muito tempo, que a checagem (a) nunca pegava porque essas duas
+ * coleções não têm campo de "dono" (ver `donoDe`). Antes de apagar este tipo,
+ * o script mostra uma AMOSTRA — documento órfão é irrecuperável.
  *
  * REEXECUTÁVEL: cada execução relê o estado do projeto. Se cair no meio, rodar
  * de novo simplesmente encontra menos coisa. Não há arquivo de estado para
@@ -44,6 +65,21 @@ const LOTE = 400; // o `:commit` do Firestore aceita 500 escritas; 400 dá folga
 
 const apagar = process.argv.includes('--apagar');
 const incluirOrfaos = process.argv.includes('--orfaos');
+
+/** `--manter=a@x.com,b@y.com` → Set de e-mails; `null` fora do modo exceção. */
+const MANTER = (() => {
+  const arg = process.argv.find((a) => a.startsWith('--manter='));
+  if (arg === undefined) return null;
+  const emails = arg
+    .slice('--manter='.length)
+    .split(',')
+    .map((e) => e.trim())
+    .filter((e) => e !== '');
+  if (emails.length === 0) {
+    throw new Error('--manter precisa de pelo menos um e-mail: --manter=fulano@exemplo.com');
+  }
+  return new Set(emails);
+})();
 
 /* -------------------------------------------------------------------------- */
 /* Credencial de dono                                                          */
@@ -110,7 +146,14 @@ async function lerContas() {
       `https://identitytoolkit.googleapis.com/v1/projects/${PROJETO}/accounts:batchGet` +
       `?maxResults=1000${proxima ? `&nextPageToken=${encodeURIComponent(proxima)}` : ''}`;
     const pagina = await chamar(url);
-    for (const u of pagina.users ?? []) contas.push({ uid: u.localId, email: u.email ?? '' });
+    for (const u of pagina.users ?? []) {
+      contas.push({
+        uid: u.localId,
+        email: u.email ?? '',
+        // epoch ms em string, como o Auth devolve.
+        createdAt: u.createdAt !== undefined ? Number(u.createdAt) : null,
+      });
+    }
     proxima = pagina.nextPageToken;
   } while (proxima !== undefined);
   return contas;
@@ -152,11 +195,26 @@ async function lerSignals() {
 const txt = (campos, nome) => campos?.[nome]?.stringValue;
 const idDe = (doc) => doc.name.split('/').pop();
 
+function dataBr(epochMs) {
+  if (epochMs === null || epochMs === undefined || Number.isNaN(epochMs)) return '(sem data)';
+  const d = new Date(epochMs);
+  const dois = (n) => String(n).padStart(2, '0');
+  return (
+    `${dois(d.getDate())}/${dois(d.getMonth() + 1)}/${d.getFullYear()} ` +
+    `${dois(d.getHours())}:${dois(d.getMinutes())}`
+  );
+}
+
 /**
  * O uid dono de um documento, quando o documento diz quem é.
  *
  * `from` está na lista por causa dos `signals`, que são mensagens de sinalização
  * do WebRTC entre DUAS pessoas: quem manda é o dono para efeito de faxina.
+ *
+ * `channels` e `messages` (esta com `authorId`, mas SEM os outros nomes) não
+ * têm todos os campos daqui — é por isso que órfão de `channels` nunca é
+ * pego por "dono sumiu": não tem dono nenhum, só `groupId`. Ver `semGrupo`
+ * em `montarPlano`.
  */
 function donoDe(colecao, doc) {
   const f = doc.fields ?? {};
@@ -178,31 +236,62 @@ function envolvidos(doc) {
 /* O plano                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/** É "alvo" (vai ser apagada) segundo o modo desta execução. */
+function contaEhAlvo(email) {
+  return MANTER !== null ? !MANTER.has(email) : email.startsWith(PREFIXO);
+}
+
 async function montarPlano() {
   const contas = await lerContas();
   const uidsVivos = new Set(contas.map((c) => c.uid));
-  const contasE2e = contas.filter((c) => c.email.startsWith(PREFIXO));
-  const uidsE2e = new Set(contasE2e.map((c) => c.uid));
+  const contasAlvo = contas.filter((c) => contaEhAlvo(c.email));
+  const uidsAlvo = new Set(contasAlvo.map((c) => c.uid));
+  const uidsMantidos = new Set(contas.filter((c) => !contaEhAlvo(c.email)).map((c) => c.uid));
+
+  /*
+   * UM UID DE REFERÊNCIA (dono, autor, from/to) É ALVO — e não `uidsAlvo.has`
+   * direto, que exige o uid bater com uma conta VIVA e alvo.
+   *
+   * O bug que isso conserta: um "dono-fantasma" (uid gravado num documento
+   * cuja CONTA já não existe mais — sobra de exclusão anterior) nunca está em
+   * `uidsAlvo`, porque `uidsAlvo` só enumera contas que EXISTEM agora. No modo
+   * `--manter`, isso fazia grupo de dono-fantasma (e tudo dentro dele) escapar
+   * da Parte 1 inteira e cair errado na Parte 2 como "órfão antigo" — mesmo
+   * sendo, na really, um grupo cujo dono não está na lista de exceção, então
+   * É alvo desta limpeza. Testar contra o CONJUNTO PEQUENO dos mantidos, com
+   * negação, resolve os dois modos: um uid-fantasma nunca está em
+   * `uidsMantidos` (não é a conta que sobrevive), então conta como alvo —
+   * exatamente o que deveria.
+   *
+   * No modo prefixo (sem --manter) o comportamento não muda: `uidsMantidos`
+   * aqui é "todo mundo sem o prefixo", e negar isso dá de volta o mesmo
+   * `uidsAlvo.has` de antes para qualquer uid que corresponda a conta viva —
+   * a diferença só aparece para uid-fantasma, que no modo prefixo cai no
+   * órfão de sempre (`semDono`), como já caía.
+   */
+  const donoEhAlvo = (uid) => uid !== null && (MANTER !== null ? !uidsMantidos.has(uid) : uidsAlvo.has(uid));
 
   const colecoes = await lerColecoes();
   const banco = {};
   for (const c of colecoes) banco[c] = await lerDocumentos(c);
   banco['signals'] = await lerSignals();
 
+  const idsGruposAtuais = new Set((banco['groups'] ?? []).map(idDe));
+
   /*
-   * GRUPOS DE TESTE são só os que uma conta `loft-e2e-` CRIOU.
+   * GRUPOS ALVO são só os que uma conta alvo CRIOU.
    *
-   * Deliberadamente não inclui grupo em que uma conta de teste apenas entrou:
+   * Deliberadamente não inclui grupo em que uma conta alvo apenas entrou:
    * esse grupo é de outra pessoa, e apagar os canais e mensagens dele seria
-   * apagar conversa de gente de verdade. Dali sai só a membership do teste.
+   * apagar conversa de gente que fica. Dali sai só a membership de quem sai.
    */
-  const gruposE2e = new Set(
+  const gruposAlvo = new Set(
     (banco['groups'] ?? [])
-      .filter((d) => uidsE2e.has(txt(d.fields, 'ownerId') ?? ''))
+      .filter((d) => donoEhAlvo(txt(d.fields, 'ownerId') ?? null))
       .map(idDe),
   );
 
-  const doTeste = [];
+  const doApagar = [];
   const orfaos = [];
 
   for (const [colecao, documentos] of Object.entries(banco)) {
@@ -211,18 +300,18 @@ async function montarPlano() {
       const grupo = txt(doc.fields, 'groupId');
 
       const partes = envolvidos(doc);
-      const tocaTeste =
-        (dono !== null && uidsE2e.has(dono)) ||
-        (grupo !== undefined && gruposE2e.has(grupo)) ||
-        partes.some((u) => uidsE2e.has(u));
+      const tocaAlvo =
+        donoEhAlvo(dono) ||
+        (grupo !== undefined && gruposAlvo.has(grupo)) ||
+        partes.some((u) => donoEhAlvo(u));
 
-      if (tocaTeste) {
-        doTeste.push({ colecao, nome: doc.name });
+      if (tocaAlvo) {
+        doApagar.push({ colecao, nome: doc.name });
         continue;
       }
 
       /*
-       * ÓRFÃO É SÓ QUEM PERDEU O DONO — não "tudo o que sobrou".
+       * ÓRFÃO É SÓ QUEM PERDEU O DONO (ou o grupo) — não "tudo o que sobrou".
        *
        * Uma versão anterior deste script jogava TODO `signal` aqui, porque os
        * `voiceChannels` pai não existem. Mas parte deles é de contas VIVAS, suas
@@ -231,11 +320,18 @@ async function montarPlano() {
        */
       const semDono = dono !== null && !uidsVivos.has(dono);
       const semNinguemVivo = partes.length > 0 && partes.every((u) => !uidsVivos.has(u));
-      if (semDono || semNinguemVivo) orfaos.push({ colecao, nome: doc.name });
+      /*
+       * SÓ EM MODO --manter: `channels`/`messages` sem campo de dono, mas com
+       * `groupId` apontando para um grupo que JÁ NÃO EXISTE — sobra de uma
+       * exclusão de grupo anterior a esta execução (produto ou script). Fora
+       * do modo --manter mantém o comportamento original: não mexe nisso.
+       */
+      const semGrupo = MANTER !== null && grupo !== undefined && !idsGruposAtuais.has(grupo);
+      if (semDono || semNinguemVivo || semGrupo) orfaos.push({ colecao, nome: doc.name, doc });
     }
   }
 
-  return { contas, contasE2e, doTeste, orfaos, banco, gruposE2e };
+  return { contas, contasAlvo, doApagar, orfaos, banco, gruposAlvo };
 }
 
 function porColecao(itens) {
@@ -244,44 +340,109 @@ function porColecao(itens) {
   return contagem;
 }
 
-function mostrarPlano(plano) {
-  const { contas, contasE2e, doTeste, orfaos } = plano;
+function imprimirPorColecao(itens) {
+  for (const [colecao, n] of Object.entries(porColecao(itens)).sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${String(n).padStart(5)}  ${colecao}`);
+  }
+}
+
+function mostrarPlanoContas(plano) {
+  const { contas, contasAlvo } = plano;
+  const rotuloModo =
+    MANTER !== null
+      ? `NÃO estão na lista de exceção (${[...MANTER].join(', ')})`
+      : `começam com "${PREFIXO}"`;
 
   console.log(`\n${'='.repeat(72)}`);
-  console.log(`PROJETO: ${PROJETO}`);
+  console.log(`PROJETO: ${PROJETO}${MANTER !== null ? '  (modo: lista de exceção)' : '  (modo: prefixo loft-e2e-)'}`);
   console.log(`${'='.repeat(72)}\n`);
 
   console.log(`CONTAS NO AUTH: ${contas.length}`);
-  console.log(`  com prefixo ${PREFIXO} (serão apagadas): ${contasE2e.length}`);
-  console.log(`  sem o prefixo (NÃO SERÃO TOCADAS):       ${contas.length - contasE2e.length}\n`);
+  console.log(`  ${rotuloModo} (serão apagadas): ${contasAlvo.length}`);
+  console.log(`  as demais (NÃO SERÃO TOCADAS):    ${contas.length - contasAlvo.length}\n`);
 
-  console.log('CONTAS QUE FICAM (todas as que não têm o prefixo):');
-  for (const c of contas.filter((c) => !c.email.startsWith(PREFIXO))) {
+  console.log('CONTAS A APAGAR — e-mail e data de criação, da mais antiga à mais nova:');
+  for (const c of [...contasAlvo].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))) {
+    console.log(`    ${(c.email || '(sem e-mail)').padEnd(42)}  criada em ${dataBr(c.createdAt)}`);
+  }
+
+  console.log('\nCONTAS QUE FICAM:');
+  for (const c of contas.filter((c) => !contaEhAlvo(c.email))) {
     console.log(`    ${c.email || '(sem e-mail)'}`);
   }
+}
+
+function mostrarPlanoDocumentos(plano) {
+  const { doApagar, contasAlvo } = plano;
 
   console.log(`\n${'-'.repeat(72)}`);
-  console.log(`DOCUMENTOS DAS CONTAS DE TESTE: ${doTeste.length}`);
+  console.log(`DOCUMENTOS DAS CONTAS A APAGAR: ${doApagar.length}`);
   console.log(`${'-'.repeat(72)}`);
-  for (const [colecao, n] of Object.entries(porColecao(doTeste)).sort((a, b) => b[1] - a[1])) {
-    console.log(`    ${String(n).padStart(5)}  ${colecao}`);
-  }
+  imprimirPorColecao(doApagar);
 
-  console.log(`\n${'-'.repeat(72)}`);
-  console.log(
-    `DOCUMENTOS ÓRFÃOS (dono já não existe): ${orfaos.length}` +
-      `   ${incluirOrfaos ? '<< INCLUÍDOS (--orfaos)' : '<< NÃO incluídos; use --orfaos'}`,
-  );
-  console.log(`${'-'.repeat(72)}`);
-  for (const [colecao, n] of Object.entries(porColecao(orfaos)).sort((a, b) => b[1] - a[1])) {
-    console.log(`    ${String(n).padStart(5)}  ${colecao}`);
-  }
-
-  const total = doTeste.length + (incluirOrfaos ? orfaos.length : 0);
+  const total = doApagar.length;
   console.log(`\n${'='.repeat(72)}`);
-  console.log(`TOTAL A APAGAR: ${total} documentos + ${contasE2e.length} contas`);
+  console.log(`PARTE 1 — TOTAL: ${total} documentos + ${contasAlvo.length} contas`);
   console.log(`${'='.repeat(72)}\n`);
   return total;
+}
+
+/** Amostra — documento órfão apagado não volta. Mostrada ANTES do total e da confirmação. */
+function mostrarAmostraOrfaos(orfaos, idsGruposAtuais) {
+  const porGroupId = (colecao) =>
+    orfaos.filter((o) => o.colecao === colecao && txt(o.doc.fields, 'groupId') !== undefined);
+
+  const channels = porGroupId('channels');
+  const messages = porGroupId('messages');
+
+  if (channels.length === 0 && messages.length === 0) return;
+
+  console.log(`\n${'-'.repeat(72)}`);
+  console.log('AMOSTRA — confira à mão antes de confirmar (documento órfão não volta)');
+  console.log(`${'-'.repeat(72)}`);
+
+  if (channels.length > 0) {
+    console.log(`\n5 de ${channels.length} "channels" órfãos:`);
+    for (const c of channels.slice(0, 5)) {
+      const gid = txt(c.doc.fields, 'groupId');
+      console.log(
+        `    channels/${idDe(c.doc)}  nome="${txt(c.doc.fields, 'name')}"  groupId=${gid}` +
+          `  (esse grupo existe? ${idsGruposAtuais.has(gid)})`,
+      );
+    }
+  }
+
+  if (messages.length > 0) {
+    console.log(`\nTodos os ${messages.length} "messages" órfãos:`);
+    for (const m of messages) {
+      const gid = txt(m.doc.fields, 'groupId');
+      const corpo = (txt(m.doc.fields, 'body') ?? '').slice(0, 40);
+      console.log(
+        `    messages/${idDe(m.doc)}  groupId=${gid}  autor=${txt(m.doc.fields, 'authorId')}` +
+          `  "${corpo}"  (esse grupo existe? ${idsGruposAtuais.has(gid)})`,
+      );
+    }
+  }
+  console.log('');
+}
+
+function mostrarPlanoOrfaos(plano) {
+  const { orfaos, banco } = plano;
+  const idsGruposAtuais = new Set((banco['groups'] ?? []).map(idDe));
+
+  mostrarAmostraOrfaos(orfaos, idsGruposAtuais);
+
+  console.log(`${'-'.repeat(72)}`);
+  console.log(
+    `DOCUMENTOS ÓRFÃOS (sem relação com a Parte 1 — dono ou grupo já não existem): ${orfaos.length}`,
+  );
+  console.log(`${'-'.repeat(72)}`);
+  imprimirPorColecao(orfaos);
+
+  console.log(`\n${'='.repeat(72)}`);
+  console.log(`PARTE 2 — TOTAL: ${orfaos.length} documentos órfãos`);
+  console.log(`${'='.repeat(72)}\n`);
+  return orfaos.length;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -312,7 +473,7 @@ async function apagarDocumentos(itens, rotulo) {
 }
 
 /**
- * Apaga as contas — RECONFERINDO o prefixo contra o Auth vivo.
+ * Apaga as contas — RECONFERINDO o alvo contra o Auth vivo.
  *
  * A lista foi montada no começo da execução; entre lá e aqui passaram minutos
  * de faxina. Reler é barato e é o que garante que a regra 1 valha no instante
@@ -320,10 +481,10 @@ async function apagarDocumentos(itens, rotulo) {
  */
 async function apagarContas() {
   const agora = await lerContas();
-  const alvos = agora.filter((c) => c.email.startsWith(PREFIXO)).map((c) => c.uid);
+  const alvos = agora.filter((c) => contaEhAlvo(c.email)).map((c) => c.uid);
 
-  const recusadas = agora.filter((c) => !c.email.startsWith(PREFIXO)).length;
-  console.log(`  conferência: ${alvos.length} contas com o prefixo; ${recusadas} preservadas`);
+  const recusadas = agora.filter((c) => !contaEhAlvo(c.email)).length;
+  console.log(`  conferência: ${alvos.length} contas alvo; ${recusadas} preservadas`);
 
   let feitas = 0;
   for (let i = 0; i < alvos.length; i += 500) {
@@ -339,9 +500,9 @@ async function apagarContas() {
   return feitas;
 }
 
-async function confirmar(total) {
+async function confirmar(total, rotulo) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  console.log('Isto APAGA DE VERDADE, no projeto real, e não tem desfazer.');
+  console.log(`Isto APAGA DE VERDADE ${rotulo}, no projeto real, e não tem desfazer.`);
   const resposta = await rl.question(`Digite ${total} para confirmar (qualquer outra coisa cancela): `);
   rl.close();
   return resposta.trim() === String(total);
@@ -354,46 +515,86 @@ async function confirmar(total) {
 
   console.log('lendo o estado do projeto…');
   const plano = await montarPlano();
-  const total = mostrarPlano(plano);
+  mostrarPlanoContas(plano);
+  const totalParte1 = mostrarPlanoDocumentos(plano);
+
+  let totalParte2 = 0;
+  if (incluirOrfaos) totalParte2 = mostrarPlanoOrfaos(plano);
 
   if (!apagar) {
     console.log('Modo LISTA — nada foi apagado.');
-    console.log('Para apagar de verdade:  node scripts/limpar-projeto-real.mjs --apagar' +
-      (plano.orfaos.length > 0 ? ' [--orfaos]' : ''));
+    console.log(
+      'Para apagar de verdade:  node scripts/limpar-projeto-real.mjs' +
+        (MANTER !== null ? ` --manter=${[...MANTER].join(',')}` : '') +
+        ' --apagar' +
+        (plano.orfaos.length > 0 ? ' [--orfaos]' : ''),
+    );
     return;
   }
 
-  if (total === 0 && plano.contasE2e.length === 0) {
-    console.log('Nada a fazer — o projeto já está limpo.');
-    return;
+  const apagadosPorColecao = {}; // acumula PARTE 1 + PARTE 2, para o relato final
+
+  /* --- PARTE 1: contas e o que pertence a elas -------------------------- */
+  if (totalParte1 === 0 && plano.contasAlvo.length === 0) {
+    console.log('PARTE 1: nada a fazer — nenhuma conta alvo.');
+  } else if (!(await confirmar(totalParte1, 'as contas alvo e os documentos delas'))) {
+    console.log('PARTE 1 cancelada. Nada foi apagado.');
+  } else {
+    console.log('\n— Parte 1: documentos primeiro —');
+    for (const [colecao, n] of Object.entries(porColecao(plano.doApagar))) {
+      apagadosPorColecao[colecao] = (apagadosPorColecao[colecao] ?? 0) + n;
+    }
+    await apagarDocumentos(plano.doApagar, 'contas alvo');
+
+    console.log('\n— Parte 1: agora as contas —');
+    await apagarContas();
   }
 
-  if (!(await confirmar(total))) {
-    console.log('Cancelado. Nada foi apagado.');
-    return;
+  /* --- PARTE 2: órfãos antigos, confirmação própria ---------------------- */
+  if (incluirOrfaos) {
+    console.log(`\n${'='.repeat(72)}`);
+    console.log('PARTE 2 — ÓRFÃOS ANTIGOS (sem relação com a Parte 1 acima)');
+    console.log(`${'='.repeat(72)}`);
+    if (totalParte2 === 0) {
+      console.log('Nenhum órfão encontrado.');
+    } else if (!(await confirmar(totalParte2, 'os documentos órfãos antigos'))) {
+      console.log('PARTE 2 cancelada. Nada foi apagado.');
+    } else {
+      for (const [colecao, n] of Object.entries(porColecao(plano.orfaos))) {
+        apagadosPorColecao[colecao] = (apagadosPorColecao[colecao] ?? 0) + n;
+      }
+      await apagarDocumentos(plano.orfaos, 'órfãos antigos');
+    }
   }
-
-  console.log('\n— documentos primeiro —');
-  await apagarDocumentos(plano.doTeste, 'contas de teste');
-  if (incluirOrfaos) await apagarDocumentos(plano.orfaos, 'órfãos');
-
-  console.log('\n— agora as contas —');
-  await apagarContas();
 
   /*
    * O RELATO FINAL É UMA LEITURA NOVA, não a soma do que o script achou que fez.
    * Um número calculado a partir das próprias intenções não prova nada; releitura
-   * prova.
+   * prova. O total apagado por coleção, por outro lado, É a soma das intenções —
+   * mas só chega aqui se o `apagarDocumentos` correspondente terminou sem
+   * lançar erro, então é seguro: ou apagou tudo daquele lote, ou o script já
+   * teria parado antes com uma mensagem de erro.
    */
   console.log('\n— conferindo o que sobrou —');
   const depois = await montarPlano();
-  console.log(`\n  contas ${PREFIXO} restantes : ${depois.contasE2e.length}`);
-  console.log(`  documentos de teste restantes: ${depois.doTeste.length}`);
-  console.log(`  documentos órfãos restantes  : ${depois.orfaos.length}`);
-  console.log(`  contas preservadas           : ${depois.contas.length - depois.contasE2e.length}`);
 
-  const sobrou = depois.doTeste.length + depois.contasE2e.length +
-    (incluirOrfaos ? depois.orfaos.length : 0);
+  console.log(`\nAPAGADOS NESTA EXECUÇÃO, por coleção:`);
+  const totalApagado = Object.values(apagadosPorColecao).reduce((s, n) => s + n, 0);
+  if (totalApagado === 0) {
+    console.log('    (nada foi apagado)');
+  } else {
+    for (const [colecao, n] of Object.entries(apagadosPorColecao).sort((a, b) => b[1] - a[1])) {
+      console.log(`    ${String(n).padStart(5)}  ${colecao}`);
+    }
+  }
+  console.log(`  total de documentos apagados: ${totalApagado}`);
+
+  console.log(`\n  contas alvo restantes        : ${depois.contasAlvo.length}`);
+  console.log(`  documentos de contas alvo restantes: ${depois.doApagar.length}`);
+  console.log(`  documentos órfãos restantes  : ${depois.orfaos.length}`);
+  console.log(`  contas preservadas           : ${depois.contas.length - depois.contasAlvo.length}`);
+
+  const sobrou = depois.doApagar.length + depois.contasAlvo.length + (incluirOrfaos ? depois.orfaos.length : 0);
   console.log(
     sobrou === 0
       ? '\n  Limpeza completa.\n'
