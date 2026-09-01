@@ -90,6 +90,11 @@
   background-color: var(--surface-hover);
 }
 
+/* Só a aba Amigos abre PV ao clicar na linha (etapa 18) — pendente/bloqueado ficam inertes. */
+.friends__row--clickable {
+  cursor: pointer;
+}
+
 .friends__identity {
   flex: 1 1 auto;
   display: flex;

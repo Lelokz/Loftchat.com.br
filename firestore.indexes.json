@@ -9,6 +9,15 @@
         { "fieldPath": "channelId", "order": "ASCENDING" },
         { "fieldPath": "sentAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "_comment": "Lista de conversas privadas: where('members','array-contains',uid) + orderBy('lastMessageAt','desc') — ver subscribeDmThreads. array-contains junto de orderBy em outro campo sempre exige índice composto no Firestore, ao contrário do caso de igualdade-só-um-campo do resto do app (etapa 18).",
+      "collectionGroup": "dmThreads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "members", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

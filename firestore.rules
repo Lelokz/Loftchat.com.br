@@ -75,6 +75,22 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/blocks/$(otherUid + '_' + uid()));
     }
 
+    /** Eu bloqueei esta pessoa? Espelha `blockedBy`, na direção contrária. */
+    function iBlocked(otherUid) {
+      return exists(/databases/$(database)/documents/blocks/$(uid() + '_' + otherUid));
+    }
+
+    /**
+     * O OUTRO uid de um par PV, a partir do id determinístico — sem ler
+     * nenhum documento. `pairId` aqui é uma STRING (o `threadId` gravado na
+     * mensagem, ou o path wildcard de `dmThreads`), não um objeto: dá para
+     * usar tanto onde `resource`/`request.resource` existem quanto onde não
+     * (ver o comentário grande em `dmMessages`, abaixo).
+     */
+    function otherInPair(pairId) {
+      return pairId.split('_')[0] == uid() ? pairId.split('_')[1] : pairId.split('_')[0];
+    }
+
     // Confere um convite CUJO CÓDIGO o cliente informou.
     function inviteMatches(groupId, code) {
       return code is string
@@ -227,6 +243,85 @@ service cloud.firestore {
         && request.resource.data.uid == uid()
         && blockId == uid() + '_' + request.resource.data.blockedUid;
       allow update: if false;
+    }
+
+    /* ----------------------------- dmThreads ----------------------------- */
+    /*
+     * A CONVERSA privada — um documento por PAR, id `${menorUid}_${maiorUid}`
+     * (mesma forma de `friendships`, mesmo motivo: um lugar só, venha de que
+     * lado vier). Sem dono, sem canal — etapa 18.
+     */
+
+    match /dmThreads/{pairId} {
+      /*
+       * MESMO PROBLEMA de `friendships`, MESMA SOLUÇÃO: `get` e `list`
+       * precisam de regras diferentes. `get` usa o `pairId` do PATH — vale
+       * mesmo em documento que ainda não existe (o clique num amigo, antes
+       * da primeira mensagem). `list` (a lista de conversas) não tem
+       * `pairId` vinculado numa consulta — só `resource.data.members`, que
+       * nunca é `null` numa listagem (documento inexistente não aparece
+       * nela).
+       */
+      allow get: if signedIn() && pairId.split('_').hasAny([uid()]);
+      allow list: if signedIn() && uid() in resource.data.members;
+
+      allow create: if verified()
+        && uid() in request.resource.data.members
+        && request.resource.data.members.size() == 2
+        && pairId == (
+             request.resource.data.members[0] < request.resource.data.members[1]
+               ? request.resource.data.members[0] + '_' + request.resource.data.members[1]
+               : request.resource.data.members[1] + '_' + request.resource.data.members[0]
+           )
+        && !blockedBy(otherInPair(pairId))
+        && !iBlocked(otherInPair(pairId));
+
+      /*
+       * SÓ o resumo da última mensagem muda — `members` nunca troca depois
+       * de criado. E o autor DENTRO do resumo tem que ser eu: sem isto,
+       * qualquer um dos dois poderia escrever "a última mensagem foi da
+       * outra pessoa" e mentir sobre quem falou por último.
+       */
+      allow update: if signedIn()
+        && uid() in resource.data.members
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt'])
+        && request.resource.data.lastMessage.authorId == uid();
+
+      allow delete: if false; // fora de escopo na etapa 18
+    }
+
+    /* ----------------------------- dmMessages ----------------------------- */
+    /*
+     * Mensagem de conversa PRIVADA. Sem `groupId`/`channelId` — o único
+     * vínculo é `threadId`, igual ao id do `dmThreads` correspondente.
+     *
+     * NENHUMA regra aqui faz get() no doc de `dmThreads`. De propósito: a
+     * lição da etapa 16 foi que `resource.data` num documento que talvez
+     * não exista (lá, a friendship antes do primeiro pedido; aqui, a THREAD
+     * antes da primeira mensagem) derruba a regra inteira, porque o
+     * Firestore trata erro de avaliação como recusa. `threadId` é campo da
+     * PRÓPRIA mensagem, sempre presente em `resource`/`request.resource`
+     * independente de o documento da thread existir — por isso `otherInPair`
+     * funciona igual nos dois casos, sem nunca precisar olhar para o outro
+     * lado.
+     */
+
+    match /dmMessages/{messageId} {
+      allow read: if signedIn() && resource.data.threadId.split('_').hasAny([uid()]);
+
+      allow create: if signedIn()
+        && request.resource.data.threadId.split('_').hasAny([uid()])
+        && request.resource.data.authorId == uid()
+        && !blockedBy(otherInPair(request.resource.data.threadId))
+        && !iBlocked(otherInPair(request.resource.data.threadId));
+
+      // Só o autor, só o texto — mesma disciplina de `messages`.
+      allow update: if signedIn()
+        && resource.data.authorId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'editedAt']);
+
+      // Só o autor apaga: PV não tem dono, não tem moderação.
+      allow delete: if signedIn() && resource.data.authorId == uid();
     }
 
     /* ------------------------------ groups ------------------------------ */

@@ -1,0 +1,37 @@
+/* Cabeçalho do PV — o resto (.chat, .chat__header, .chat__messages-slot,
+   .chat__callbar-slot, .chat__mobile-button) é o mesmo de chat.css: casca
+   irmã, mesmo layout, só o conteúdo do cabeçalho muda. */
+
+.dm-chat__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+/* `.chat__title` já cuida do corte por reticências; aqui só tira o `flex: 1`
+   herdado, que empurraria a arroba para fora da coluna. */
+.dm-chat__name {
+  flex: none;
+}
+
+.dm-chat__handle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.dm-chat__composer-slot {
+  flex: none;
+}
+
+/* Mesma moldura do resto dos avisos de estado — ver empty-state.css. */
+.dm-chat__blocked {
+  flex: none;
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}

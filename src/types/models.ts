@@ -215,20 +215,15 @@ export interface Attachment {
 }
 
 /**
- * coleção: messages
+ * O que toda mensagem tem em comum, de GRUPO ou de PV.
  *
- * Índice composto necessário: channelId + sentAt.
+ * É a forma que `message-list.ts` conhece — ele nunca lê `groupId`/
+ * `channelId`/`threadId`, só o que está aqui. Extrair esta base é o que
+ * deixa o mesmo componente renderizar as duas sem saber de onde a mensagem
+ * veio (etapa 18).
  */
-export interface Message {
+export interface MessageBase {
   id: MessageId;
-  /**
-   * Denormalizado do canal.
-   *
-   * Com ele a regra de leitura faz UMA consulta (exists da membership) em vez
-   * de duas (get do canal + exists) — vezes as 50 mensagens de cada lista.
-   */
-  groupId: GroupId;
-  channelId: ChannelId;
   authorId: MemberId;
   kind: MessageKind;
   /** Texto da mensagem; em image/file/audio vira legenda e pode ser ''. */
@@ -243,6 +238,22 @@ export interface Message {
    */
   editedAt?: string;
   replyTo?: ReplyTo;
+}
+
+/**
+ * coleção: messages — mensagem de GRUPO.
+ *
+ * Índice composto necessário: groupId + channelId + sentAt.
+ */
+export interface Message extends MessageBase {
+  /**
+   * Denormalizado do canal.
+   *
+   * Com ele a regra de leitura faz UMA consulta (exists da membership) em vez
+   * de duas (get do canal + exists) — vezes as 50 mensagens de cada lista.
+   */
+  groupId: GroupId;
+  channelId: ChannelId;
 }
 
 /**
@@ -265,6 +276,47 @@ export interface ReplyTo {
   /** Só o começo do texto — a citação é uma pista, não a mensagem inteira. */
   excerpt: string;
   sentAt: string;
+}
+
+/**
+ * coleção: dmThreads — a CONVERSA privada, um documento por PAR.
+ *
+ * Mesma ideia da `Friendship`: id = `pairId(a, b)` (a mesma função de
+ * `lib/friends.ts`, reaproveitada — não outra). Não existe dono, não existe
+ * canal: é o análogo do par de amigos, não do grupo.
+ */
+export interface DmThread {
+  /** Sempre `pairId(members[0], members[1])`. */
+  id: string;
+  members: MemberId[];
+  /**
+   * Denormalizado — é o que faz a lista de conversas custar UMA leitura por
+   * conversa, e não uma por MENSAGEM. Atualizado no mesmo `writeBatch` que
+   * grava cada `DmMessage` nova, dos dois lados da conversa.
+   */
+  lastMessage: {
+    body: string;
+    authorId: MemberId;
+    sentAt: string;
+  };
+  /**
+   * Igual a `lastMessage.sentAt`, mas campo PRÓPRIO: `orderBy` sobre um
+   * campo aninhado funciona no Firestore, mas manter os dois planos (thread
+   * e índice) simples pesou mais que economizar um campo.
+   */
+  lastMessageAt: string;
+}
+
+/**
+ * coleção: dmMessages — mensagem de conversa PRIVADA.
+ *
+ * Índice composto a confirmar com `npm run check:indexes`: threadId +
+ * sentAt (ver PROGRESSO.md, etapa 18 — só UM campo de igualdade, ao
+ * contrário de `Message`, então pode nem precisar de índice composto).
+ */
+export interface DmMessage extends MessageBase {
+  /** = `DmThread.id` = `pairId(a, b)`. Nunca `groupId`/`channelId`: PV não tem nenhum dos dois. */
+  threadId: string;
 }
 
 /**

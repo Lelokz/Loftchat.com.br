@@ -37,12 +37,19 @@ export interface ContextMenuActions {
   deleteGroup(groupId: string): void;
   deleteChannel(channelId: string): void;
   removeMember(memberId: MemberId): void;
+  /**
+   * Apaga uma mensagem — de grupo OU de PV. Quem implementa decide qual,
+   * olhando se há um PV aberto (`state.activeDmUid`): as duas telas nunca
+   * estão visíveis ao mesmo tempo, então isso basta para desambiguar.
+   */
   deleteMessage(messageId: string): void;
-  /** Começa a responder: a faixa aparece acima do composer. */
+  /** Começa a responder: a faixa aparece acima do composer. Grupo ou PV, mesma regra acima. */
   replyToMessage(messageId: string): void;
-  /** Entra em edição no próprio balão. Só o autor chega aqui. */
+  /** Entra em edição no próprio balão. Só o autor chega aqui. Grupo ou PV, mesma regra acima. */
   editMessage(messageId: string): void;
   openVoiceDiagnostics(): void;
+  /** Abre o PV com este amigo — item "Enviar mensagem" do menu de contexto dele. */
+  openDm(friendUid: MemberId): void;
 }
 
 /** Copia com retorno na tela — sem isso a pessoa não sabe se funcionou. */
@@ -165,6 +172,45 @@ function messageItems(
   }
 
   return items;
+}
+
+/**
+ * Menu da mensagem de PV — dispatch separado de `messageItems`, não um
+ * `if` a mais dentro dela: PV não tem dono, então "apagar mensagem alheia"
+ * simplesmente não existe aqui, e misturar as duas condições na mesma
+ * função é o tipo de engano que faria um PV herdar moderação de grupo por
+ * acidente (etapa 18).
+ */
+function dmMessageItems(target: HTMLElement, actions: ContextMenuActions): MenuItem[] {
+  const messageId = target.dataset['messageId'] ?? '';
+  const authorId = target.dataset['authorId'] ?? '';
+  const text = target.querySelector('.message__text')?.textContent ?? '';
+  const mine = authorId === actions.uid;
+
+  const items: MenuItem[] = [
+    { label: 'Copiar texto', disabled: text === '', onSelect: () => copy(text, 'Copiado.') },
+    { label: 'Responder', onSelect: () => actions.replyToMessage(messageId) },
+  ];
+
+  // Só o autor — nem editar, nem apagar. Não existe dono de PV.
+  if (mine) {
+    items.push({ label: 'Editar', onSelect: () => actions.editMessage(messageId) });
+    items.push({
+      label: 'Apagar mensagem',
+      danger: true,
+      separatorBefore: true,
+      onSelect: () => actions.deleteMessage(messageId),
+    });
+  }
+
+  return items;
+}
+
+/** Menu do amigo, na aba Amigos — hoje só "Enviar mensagem" (etapa 18). */
+function friendItems(target: HTMLElement, actions: ContextMenuActions): MenuItem[] {
+  const friendUid = target.dataset['friendUid'] ?? '';
+  if (friendUid === '') return [];
+  return [{ label: 'Enviar mensagem', onSelect: () => actions.openDm(friendUid) }];
 }
 
 function groupItems(
@@ -402,6 +448,12 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
     switch (kind) {
       case 'message':
         items = messageItems(target, actions, state);
+        break;
+      case 'dm-message':
+        items = dmMessageItems(target, actions);
+        break;
+      case 'friend':
+        items = friendItems(target, actions);
         break;
       case 'group':
         items = groupItems(target, actions, state);

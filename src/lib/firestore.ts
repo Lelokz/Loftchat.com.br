@@ -38,17 +38,21 @@ import type { DocumentData, Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { isPermissionDenied } from './firestore-errors';
+import { pairId } from './friends';
 import { initials } from './format';
 import { generateInviteCode } from './invite-code';
 import type {
   Attachment,
   Channel,
   ChannelKind,
+  DmMessage,
+  DmThread,
   Group,
   Invite,
   Member,
   MemberId,
   Message,
+  MessageBase,
   MessageKind,
   ReplyTo,
   UserProfile,
@@ -140,14 +144,16 @@ function toChannel(id: string, data: DocumentData): Channel {
   };
 }
 
-function toMessage(id: string, data: DocumentData): Message {
+/**
+ * Os campos comuns a `Message` (grupo) e `DmMessage` (PV) — o que os dois
+ * convertores abaixo compartilham. Ver `MessageBase` em `types/models.ts`.
+ */
+function toMessageBase(id: string, data: DocumentData): MessageBase {
   const kind = data['kind'];
   const attachment = data['attachment'];
 
-  const message: Message = {
+  const message: MessageBase = {
     id,
-    groupId: typeof data['groupId'] === 'string' ? data['groupId'] : '',
-    channelId: typeof data['channelId'] === 'string' ? data['channelId'] : '',
     authorId: typeof data['authorId'] === 'string' ? data['authorId'] : '',
     kind:
       kind === 'image' || kind === 'file' || kind === 'audio' ? (kind as MessageKind) : 'text',
@@ -183,6 +189,41 @@ function toMessage(id: string, data: DocumentData): Message {
   }
 
   return message;
+}
+
+function toMessage(id: string, data: DocumentData): Message {
+  return {
+    ...toMessageBase(id, data),
+    groupId: typeof data['groupId'] === 'string' ? data['groupId'] : '',
+    channelId: typeof data['channelId'] === 'string' ? data['channelId'] : '',
+  };
+}
+
+function toDmMessage(id: string, data: DocumentData): DmMessage {
+  return {
+    ...toMessageBase(id, data),
+    threadId: typeof data['threadId'] === 'string' ? data['threadId'] : '',
+  };
+}
+
+function toDmThread(id: string, data: DocumentData): DmThread {
+  const raw = data['lastMessage'];
+  const lastMessage =
+    raw !== undefined && raw !== null && typeof raw === 'object'
+      ? (raw as Record<string, unknown>)
+      : {};
+  return {
+    id,
+    members: Array.isArray(data['members'])
+      ? data['members'].filter((m): m is string => typeof m === 'string')
+      : [],
+    lastMessage: {
+      body: typeof lastMessage['body'] === 'string' ? lastMessage['body'] : '',
+      authorId: typeof lastMessage['authorId'] === 'string' ? lastMessage['authorId'] : '',
+      sentAt: typeof lastMessage['sentAt'] === 'string' ? lastMessage['sentAt'] : '',
+    },
+    lastMessageAt: typeof data['lastMessageAt'] === 'string' ? data['lastMessageAt'] : '',
+  };
 }
 
 function toMember(uid: MemberId, data: DocumentData | undefined): Member {
@@ -550,8 +591,12 @@ export async function sendMessage(
 /** Quanto do texto citado é copiado para dentro da resposta. */
 const EXCERPT_MAX = 120;
 
-/** Monta a citação a partir da mensagem original, no momento de responder. */
-export function buildReplyTo(message: Message, authorName: string): ReplyTo {
+/**
+ * Monta a citação a partir da mensagem original, no momento de responder.
+ * `MessageBase`, não `Message`: serve para citar tanto mensagem de grupo
+ * quanto de PV — nenhum dos dois campos extras de `Message` é usado aqui.
+ */
+export function buildReplyTo(message: MessageBase, authorName: string): ReplyTo {
   const texto = message.body.trim();
   return {
     messageId: message.id,
@@ -898,6 +943,161 @@ export async function removeMember(groupId: string, memberId: MemberId): Promise
  */
 export async function deleteMessage(messageId: string): Promise<void> {
   await withTimeout(deleteDoc(doc(db, 'messages', messageId)));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Conversas privadas (PV) — etapa 18                                          */
+/*                                                                             */
+/* Duas coleções PRÓPRIAS, `dmThreads` e `dmMessages` — não reaproveitam       */
+/* `messages`: PV não tem grupo, não tem canal, não tem dono. Ver PROGRESSO.md */
+/* (etapa 18) para a comparação completa com a alternativa descartada.        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Minhas conversas, mais recente primeiro — em tempo real, numa assinatura só.
+ *
+ * `where('members', 'array-contains', uid)` é o que a REGRA de `list` exige
+ * (ver firestore.rules); o `orderBy('lastMessageAt')` vem do trecho da última
+ * mensagem, DENORMALIZADO no próprio documento — é isso que faz a lista
+ * inteira custar UMA leitura por conversa, e nunca uma por mensagem.
+ */
+export function subscribeDmThreads(
+  uid: MemberId,
+  onChange: (threads: DmThread[]) => void,
+  onError: ErrorHandler,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      collection(db, 'dmThreads'),
+      where('members', 'array-contains', uid),
+      orderBy('lastMessageAt', 'desc'),
+    ),
+    (snapshot) => onChange(snapshot.docs.map((entry) => toDmThread(entry.id, entry.data()))),
+    onError,
+  );
+}
+
+/**
+ * Histórico de UMA conversa privada, em tempo real.
+ *
+ * `where('threadId')` existe pela MESMA razão do `where('groupId')` em
+ * `subscribeMessages`: regras não filtram, e a regra de `dmMessages` olha
+ * `resource.data.threadId` — sem restringir esse campo na consulta, o
+ * Firestore recusa tudo, mesmo que o resultado fosse vazio.
+ */
+export function subscribeDmMessages(
+  threadId: string,
+  pages: number,
+  onChange: (messages: DmMessage[], atStart: boolean) => void,
+  onError: ErrorHandler,
+): Unsubscribe {
+  const cap = MESSAGE_PAGE_SIZE * pages;
+  return onSnapshot(
+    query(
+      collection(db, 'dmMessages'),
+      where('threadId', '==', threadId),
+      orderBy('sentAt'),
+      limitToLast(cap),
+    ),
+    (snapshot) => {
+      const atStart = snapshot.size < cap;
+      onChange(
+        snapshot.docs.map((entry) => toDmMessage(entry.id, entry.data())),
+        atStart,
+      );
+    },
+    onError,
+  );
+}
+
+/**
+ * Manda uma mensagem privada — e, no MESMO `writeBatch`, atualiza o resumo em
+ * `dmThreads` (o que a lista de conversas lê, sem nunca tocar em `dmMessages`).
+ *
+ * `set(..., { merge: true })` no doc da thread serve para os dois casos —
+ * primeira mensagem (documento ainda não existe: a regra avalia como
+ * `create`) e as seguintes (documento já existe: `update`) — sem o cliente
+ * precisar saber qual dos dois é. `members` vai em toda escrita, mesmo
+ * quando não muda: `diff().affectedKeys()` da regra de `update` só nota
+ * campo que realmente mudou de VALOR, então reenviar o mesmo valor não
+ * dispara o `hasOnly(['lastMessage', 'lastMessageAt'])`.
+ *
+ * `permission-denied` aqui SÓ tem uma causa esperada: bloqueio (é a única
+ * condição da regra de `create` que depende de outra pessoa, e não do
+ * remetente). Por isso — e só aqui, ao redor do `commit`, não da função
+ * inteira — ele vira a mensagem neutra; qualquer outro erro sobe cru. Mesmo
+ * padrão do `sendFriendRequest` corrigido na etapa 16.
+ */
+export async function sendDmMessage(
+  me: MemberId,
+  other: MemberId,
+  rawBody: string,
+  replyTo?: ReplyTo,
+): Promise<void> {
+  const body = rawBody.trim();
+  if (body === '') return;
+
+  const threadId = pairId(me, other);
+  const sentAt = nowIso();
+  const batch = writeBatch(db);
+
+  batch.set(doc(collection(db, 'dmMessages')), {
+    threadId,
+    authorId: me,
+    kind: 'text',
+    body,
+    sentAt,
+    ...(replyTo === undefined ? {} : { replyTo }),
+  });
+  batch.set(
+    doc(db, 'dmThreads', threadId),
+    {
+      /*
+       * SEMPRE NA MESMA ORDEM, não `[me, other]`. Achado rodando o teste, não
+       * por leitura: `[me, other]` grava `[A,B]` quando A manda e `[B,A]`
+       * quando B manda — o MESMO PAR, mas ARRAYS DIFERENTES para o
+       * Firestore, cuja comparação é por posição. A regra de `update` só
+       * aceita mexer em `lastMessage`/`lastMessageAt` (`hasOnly`); um
+       * `members` que muda de ORDEM (não de conteúdo) contava como campo
+       * tocado e derrubava a regra — a SEGUNDA pessoa a responder em
+       * qualquer PV nunca conseguia mandar mensagem nenhuma. Ordenar aqui
+       * como `pairId` já ordena o id resolve: o valor sai sempre igual,
+       * venha de quem vier, e `diff()` não vê `members` como alterado.
+       */
+      members: me < other ? [me, other] : [other, me],
+      lastMessage: { body, authorId: me, sentAt },
+      lastMessageAt: sentAt,
+    },
+    { merge: true },
+  );
+
+  try {
+    await withTimeout(batch.commit());
+  } catch (error) {
+    if (isPermissionDenied(error)) {
+      console.error('Mensagem privada recusada pelo servidor.', error);
+      throw new Error('Não foi possível enviar a mensagem.');
+    }
+    throw error;
+  }
+}
+
+/** Edita o TEXTO de uma mensagem privada. Só o autor, e só o texto — mesma disciplina de `editMessage`. */
+export async function editDmMessage(messageId: string, rawBody: string): Promise<void> {
+  const body = rawBody.trim();
+  if (body === '') return;
+
+  await withTimeout(
+    updateDoc(doc(db, 'dmMessages', messageId), { body, editedAt: nowIso() }),
+  );
+}
+
+/**
+ * Apaga uma mensagem privada. Só o autor — PV não tem dono, não tem
+ * moderação, ao contrário de `deleteMessage`.
+ */
+export async function deleteDmMessage(messageId: string): Promise<void> {
+  await withTimeout(deleteDoc(doc(db, 'dmMessages', messageId)));
 }
 
 /* -------------------------------------------------------------------------- */

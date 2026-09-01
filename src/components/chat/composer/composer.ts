@@ -5,8 +5,13 @@ import { firestoreErrorMessage } from '../../../lib/firestore-errors';
 import { clipIcon, micIcon, sendIcon } from '../../../lib/icons';
 
 export interface ComposerProps {
-  /** Nome do canal, só para o placeholder. */
+  /** Nome do canal (ou da pessoa, no PV), só para o placeholder. */
   channelName: string;
+  /**
+   * O placeholder leva "#" antes do nome — faz sentido para canal, não para
+   * PV. Ausente = `true` (canal, sem mudança para quem já chama isto hoje).
+   */
+  hashPrefix?: boolean;
   /** Grava a mensagem. Rejeita em caso de falha, e a rejeição vira erro na tela. */
   onSend: (body: string) => Promise<void>;
 }
@@ -20,11 +25,15 @@ const MAX_HEIGHT_PX = 140;
  * É um <textarea>, não um <input>: Shift+Enter não existe em campo de uma linha.
  * Enter envia, Shift+Enter quebra linha.
  */
-export function renderComposer({ channelName, onSend }: ComposerProps): HTMLElement {
+export function renderComposer({
+  channelName,
+  hashPrefix = true,
+  onSend,
+}: ComposerProps): HTMLElement {
   const input = el('textarea', {
     class: 'composer__input',
     rows: '1',
-    placeholder: `Mensagem para #${channelName}`,
+    placeholder: `Mensagem para ${hashPrefix ? '#' : ''}${channelName}`,
     'aria-label': `Mensagem para ${channelName}`,
   });
 

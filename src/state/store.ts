@@ -9,9 +9,11 @@ import type { User } from 'firebase/auth';
 import type { Unsubscribe } from 'firebase/firestore';
 
 import { isPermissionDenied, messagesErrorMessage } from '../lib/firestore-errors';
-import { subscribeBlocks, subscribeFriendships, publicProfile } from '../lib/friends';
+import { pairId, subscribeBlocks, subscribeFriendships, publicProfile } from '../lib/friends';
 import {
   subscribeChannels,
+  subscribeDmMessages,
+  subscribeDmThreads,
   subscribeGroupMembers,
   subscribeMessages,
   subscribeMyGroups,
@@ -30,6 +32,8 @@ import { startVoiceEngine } from '../lib/voice-engine';
 import type { PeerDiagnostic, VoiceEngine } from '../lib/voice-engine';
 import type {
   Channel,
+  DmMessage,
+  DmThread,
   Friendship,
   Group,
   Member,
@@ -75,6 +79,34 @@ export interface AppState {
   blockedUids: MemberId[];
   /** Perfis públicos de quem aparece na tela de amigos, pelo uid. */
   friendProfiles: Map<MemberId, UserProfile>;
+
+  /**
+   * Minhas conversas privadas, mais recente primeiro — a coluna 2 lê daqui,
+   * sem nunca tocar em `dmMessages` (ver `subscribeDmThreads`).
+   */
+  dmThreads: DmThread[];
+  dmThreadsLoaded: boolean;
+  /**
+   * Uid do amigo cujo PV está aberto na coluna 3 — ou `null` (tela de
+   * amigos). Fica DENTRO de `view === 'home'`: não é um terceiro valor de
+   * `view`, é o que decide o que a home mostra na coluna 3.
+   */
+  activeDmUid: MemberId | null;
+
+  /**
+   * Histórico do PV aberto. Fatia PRÓPRIA, separada de `messages` — um
+   * canal de grupo pode continuar carregado ao mesmo tempo (a chamada de
+   * voz de grupo sobrevive à troca para o PV), e as duas não podem
+   * colidir na mesma fatia.
+   */
+  dmMessages: DmMessage[];
+  dmMessagesLoaded: boolean;
+  /** Mesma ideia de `messagePages`, só que para o PV. */
+  dmMessagePages: number;
+  dmMessagesLoadingOlder: boolean;
+  dmMessagesAtStart: boolean;
+  dmMessagesAtPageCap: boolean;
+  dmMessagesError: string | null;
 
   groups: Group[];
   groupsLoaded: boolean;
@@ -186,6 +218,15 @@ export interface Store {
   setActiveChannel(channelId: string): void;
   /** Carrega a página anterior do histórico. Idempotente e com teto. */
   loadOlderMessages(): void;
+  /**
+   * Abre o PV com este amigo — não cria a conversa, só assina o histórico
+   * (que pode estar vazio, se ninguém mandou a primeira mensagem ainda).
+   */
+  openDm(friendUid: MemberId): void;
+  /** Volta para a tela de amigos, sem fechar a assinatura do PV — reabrir é instantâneo. */
+  closeDm(): void;
+  /** Carrega a página anterior do histórico do PV. Idempotente e com teto. */
+  loadOlderDmMessages(): void;
   /** Troca entre a tela inicial e a visão de grupo. Nunca derruba a voz. */
   setView(view: 'home' | 'group'): void;
   /**
@@ -276,6 +317,16 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     friendships: [],
     blockedUids: [],
     friendProfiles: new Map(),
+    dmThreads: [],
+    dmThreadsLoaded: false,
+    activeDmUid: null,
+    dmMessages: [],
+    dmMessagesLoaded: false,
+    dmMessagePages: 1,
+    dmMessagesLoadingOlder: false,
+    dmMessagesAtStart: false,
+    dmMessagesAtPageCap: false,
+    dmMessagesError: null,
     voiceFailedPeers: [],
     voiceVideoPeers: [],
     screenSharing: false,
@@ -308,6 +359,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
   let stopMembers: Unsubscribe | null = null;
   let stopMessages: Unsubscribe | null = null;
   let stopVoiceRoster: Unsubscribe | null = null;
+  let stopDmMessages: Unsubscribe | null = null;
 
   /* ------------------------------------------------------------------------ */
   /* Presença de voz                                                          */
@@ -453,6 +505,21 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     (error) => console.error('Falha ao ler a lista de bloqueados.', error),
   );
 
+  /*
+   * A lista de conversas assina SEMPRE, não só quando o PV está aberto — a
+   * coluna 2 (home-column) precisa dela mesmo com um grupo ativo, e o mesmo
+   * `ensureProfiles` já usado por amizade/bloqueio cobre o perfil do outro
+   * lado de cada conversa, sem leitura nova.
+   */
+  const stopDmThreads = subscribeDmThreads(
+    user.uid,
+    (dmThreads) => {
+      patch({ dmThreads, dmThreadsLoaded: true });
+      void ensureProfiles(dmThreads.flatMap((t) => t.members));
+    },
+    (error) => console.error('Falha ao ler as conversas privadas.', error),
+  );
+
   // Reavaliação por tempo: é o que faz o fantasma sumir da tela sem depender de
   // nenhuma escrita no banco.
   const ghostSweep = window.setInterval(refreshVoiceParticipants, 5000);
@@ -518,8 +585,6 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
    * regras recusam a leitura inteira. Ver subscribeMessages.
    */
   function watchMessages(channelId: string | null, pages = 1): void {
-    stopFriendships();
-    stopBlocks();
     stopMessages?.();
     stopMessages = null;
 
@@ -599,6 +664,62 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     if (channelId === state.activeChannelId) return;
     patch({ activeChannelId: channelId });
     watchMessages(channelId);
+  }
+
+  /* --- conversas privadas -------------------------------------------------- */
+
+  /**
+   * Assina o histórico de UM PV. Fatia própria (`dmMessages*`), separada da
+   * de grupo — ver o comentário em `AppState.dmMessages`.
+   *
+   * Sem `handleGroupAccessLost`-equivalente aqui de propósito: `dmMessages`
+   * não tem cascata de grupo para perder acesso a. Se aparecer
+   * permission-denied na LEITURA, é falha de verdade — a regra de `read` não
+   * depende de bloqueio nenhum (a conversa antiga continua legível depois de
+   * bloquear; só a ESCRITA é que a regra nega).
+   */
+  function watchDmMessages(threadId: string | null, pages = 1): void {
+    stopDmMessages?.();
+    stopDmMessages = null;
+
+    if (threadId === null) {
+      patch({ dmMessages: [], dmMessagesLoaded: true, dmMessagesError: null });
+      return;
+    }
+
+    if (pages === 1) {
+      patch({
+        dmMessages: [],
+        dmMessagesLoaded: false,
+        dmMessagePages: 1,
+        dmMessagesAtStart: false,
+        dmMessagesAtPageCap: false,
+        dmMessagesError: null,
+      });
+    }
+
+    stopDmMessages = subscribeDmMessages(
+      threadId,
+      pages,
+      (dmMessages, atStart) =>
+        patch({
+          dmMessages,
+          dmMessagesLoaded: true,
+          dmMessagesLoadingOlder: false,
+          dmMessagesAtStart: atStart,
+          dmMessagesAtPageCap: pages >= MAX_MESSAGE_PAGES,
+          dmMessagesError: null,
+        }),
+      (error) => {
+        console.error('Falha ao ler as mensagens do PV.', error);
+        patch({
+          dmMessages: [],
+          dmMessagesLoaded: true,
+          dmMessagesLoadingOlder: false,
+          dmMessagesError: messagesErrorMessage(error),
+        });
+      },
+    );
   }
 
   function selectGroup(groupId: string | null): void {
@@ -750,6 +871,31 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
     /** Trocar o canal de texto devolve a coluna do meio ao chat, sem desconectar. */
     loadOlderMessages,
+
+    openDm(friendUid) {
+      if (friendUid === state.activeDmUid) return;
+      patch({ activeDmUid: friendUid });
+      watchDmMessages(pairId(user.uid, friendUid));
+    },
+
+    /*
+     * NÃO desliga `stopDmMessages` — só troca de PV para OUTRO PV (ou para o
+     * grupo) faz isso, em `openDm`/`dispose`. Voltar para a tela de amigos é
+     * navegação, não saída: a mesma regra que já vale para grupo e canal.
+     */
+    closeDm() {
+      patch({ activeDmUid: null });
+    },
+
+    loadOlderDmMessages() {
+      if (state.dmMessagesLoadingOlder || state.dmMessagesAtStart) return;
+      if (state.dmMessagePages >= MAX_MESSAGE_PAGES) return;
+      if (state.activeDmUid === null) return;
+
+      const pages = state.dmMessagePages + 1;
+      patch({ dmMessagesLoadingOlder: true, dmMessagePages: pages });
+      watchDmMessages(pairId(user.uid, state.activeDmUid), pages);
+    },
 
     setView(view) {
       if (state.view === view) return;
@@ -1015,6 +1161,10 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     },
 
     dispose() {
+      stopFriendships();
+      stopBlocks();
+      stopDmThreads();
+      stopDmMessages?.();
       stopGroups();
       stopChannels?.();
       stopMembers?.();

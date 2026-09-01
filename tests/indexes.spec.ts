@@ -221,6 +221,33 @@ test('@indices as consultas compostas do produto têm índice no projeto real', 
     equals: { groupId },
   });
 
+  /*
+   * ETAPA 18 — conversas privadas. Não precisa de uma conversa DE VERDADE
+   * (dois participantes) para provar o índice: o Firestore valida a FORMA da
+   * consulta contra o índice publicado antes de olhar para os documentos, e
+   * uma consulta vazia continua exigindo o mesmo índice que uma cheia.
+   *
+   * O valor de `threadId` na segunda sonda precisa CONTER o uid da conta —
+   * não porque exista uma mensagem de verdade com esse id, mas porque a
+   * REGRA de `dmMessages` (`threadId.split('_').hasAny([uid()])`) só é
+   * PROVÁVEL para o Firestore se o valor fixado pela consulta já satisfizer
+   * a regra — a mesma exigência de "a regra recusa antes do índice" que a
+   * conta-membro das sondas de grupo já respeita.
+   */
+  await sondar('lista de conversas privadas', {
+    collection: 'dmThreads',
+    equals: {},
+    arrayContains: { fieldPath: 'members', value: account.uid ?? '' },
+    orderBy: 'lastMessageAt',
+    direction: 'DESCENDING',
+  });
+  await sondar('histórico do PV', {
+    collection: 'dmMessages',
+    equals: { threadId: `${account.uid ?? ''}_sonda` },
+    orderBy: 'sentAt',
+    direction: 'DESCENDING',
+  });
+
   for (const { nome, resultado } of sondas) {
     const semIndice =
       /requires an index|FAILED_PRECONDITION/i.test(resultado.message) === true;

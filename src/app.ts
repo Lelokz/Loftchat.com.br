@@ -5,6 +5,9 @@ import { renderCallBar } from './components/call-bar/call-bar';
 import type { CallBarProps } from './components/call-bar/call-bar';
 import { renderChat } from './components/chat/chat';
 import type { ChatParts } from './components/chat/chat';
+import { renderDmBlockedNotice, renderDmChat } from './components/chat/dm-chat';
+import type { DmChatParts, DmFriendView } from './components/chat/dm-chat';
+import { renderComposer } from './components/chat/composer/composer';
 import { renderMessageList } from './components/chat/message-list/message-list';
 import { renderReplyBar } from './components/chat/reply-bar/reply-bar';
 import {
@@ -46,13 +49,16 @@ import {
   createGroup,
   createInvite,
   deleteChannel,
+  deleteDmMessage,
   deleteGroupCascade,
   deleteMessage,
   leaveGroup,
   removeMember,
   renameGroup,
   buildReplyTo,
+  editDmMessage,
   editMessage,
+  sendDmMessage,
   sendMessage,
 } from './lib/firestore';
 import { initials } from './lib/format';
@@ -110,10 +116,13 @@ export function mountApp(
    * chega.
    */
   let centerEl: HTMLElement | null = null;
-  let centerMode: 'chat' | 'voice' | 'friends' | 'no-groups' | null = null;
+  let centerMode: 'chat' | 'voice' | 'friends' | 'no-groups' | 'dm' | null = null;
   let chat: ChatParts | null = null;
   let chatChannelId: string | null = null;
   let friends: FriendsScreenParts | null = null;
+  /** Casca do PV — mesma ideia de `chat`/`chatChannelId`, uma por PESSOA. */
+  let dmChat: DmChatParts | null = null;
+  let dmChatFriendUid: string | null = null;
 
   let previous: AppState | null = null;
 
@@ -326,15 +335,22 @@ export function mountApp(
     });
   };
 
+  /**
+   * Apaga mensagem de grupo OU de PV — a distinção é `state.activeDmUid`, o
+   * mesmo critério usado no resto do app (as duas telas nunca convivem).
+   */
   const handleDeleteMessage = (messageId: string): void => {
+    const emDm = store.getState().activeDmUid !== null;
     openConfirmDialog({
       title: 'Apagar mensagem',
-      description: 'Ela some para todo mundo do canal. Não dá para desfazer.',
+      description: emDm
+        ? 'Ela some para os dois lados da conversa. Não dá para desfazer.'
+        : 'Ela some para todo mundo do canal. Não dá para desfazer.',
       confirmLabel: 'Apagar',
       busyLabel: 'Apagando…',
       failureMessage: 'Não foi possível apagar a mensagem.',
       async onConfirm(controller) {
-        await deleteMessage(messageId);
+        await (emDm ? deleteDmMessage(messageId) : deleteMessage(messageId));
         controller.close();
       },
     });
@@ -409,9 +425,26 @@ export function mountApp(
     });
   };
 
-  /** Começa a responder a uma mensagem: a faixa aparece acima do composer. */
+  /**
+   * Começa a responder a uma mensagem: a faixa aparece acima do composer.
+   * Grupo ou PV — `state.activeDmUid` decide onde procurar a mensagem e o
+   * nome do autor, as duas telas nunca convivem.
+   */
   const handleReplyToMessage = (messageId: string): void => {
     const state = store.getState();
+
+    if (state.activeDmUid !== null) {
+      const alvo = state.dmMessages.find((m) => m.id === messageId);
+      if (alvo === undefined) return;
+      const nome =
+        alvo.authorId === user.uid
+          ? me.displayName
+          : (state.friendProfiles.get(alvo.authorId)?.displayName ?? 'Usuário');
+      replyingTo = buildReplyTo(alvo, nome);
+      renderReplySlot();
+      return;
+    }
+
     const alvo = state.messages.find((m) => m.id === messageId);
     if (alvo === undefined) return;
     const autor = state.members.find((m) => m.id === alvo.authorId);
@@ -446,7 +479,6 @@ export function mountApp(
 
   const handleSend = async (body: string): Promise<void> => {
     const state = store.getState();
-    if (state.activeGroupId === null || state.activeChannelId === null) return;
 
     /*
      * A citação é LIMPA ANTES do await, não depois.
@@ -456,22 +488,35 @@ export function mountApp(
      * tela. Mesmo raciocínio da limpeza otimista do composer na etapa 4.
      */
     const citando = replyingTo ?? undefined;
-    if (replyingTo !== null) {
+    const clearReply = (): void => {
+      if (replyingTo === null) return;
       replyingTo = null;
       renderReplySlot();
-    }
+    };
 
-    await sendMessage(state.activeGroupId, state.activeChannelId, user.uid, body, citando);
-  };
-
-  /** Põe (ou tira) a faixa de resposta acima do composer. */
-  function renderReplySlot(): void {
-    if (chat === null) return;
-    if (replyingTo === null) {
-      chat.replySlot.replaceChildren();
+    if (state.activeDmUid !== null) {
+      const friendUid = state.activeDmUid;
+      clearReply();
+      await sendDmMessage(user.uid, friendUid, body, citando);
       return;
     }
-    chat.replySlot.replaceChildren(
+
+    if (state.activeGroupId === null || state.activeChannelId === null) return;
+    const groupId = state.activeGroupId;
+    const channelId = state.activeChannelId;
+    clearReply();
+    await sendMessage(groupId, channelId, user.uid, body, citando);
+  };
+
+  /** Põe (ou tira) a faixa de resposta acima do composer — do chat ou do PV, o que estiver na tela. */
+  function renderReplySlot(): void {
+    const slot = store.getState().activeDmUid !== null ? dmChat?.replySlot : chat?.replySlot;
+    if (slot === undefined || slot === null) return;
+    if (replyingTo === null) {
+      slot.replaceChildren();
+      return;
+    }
+    slot.replaceChildren(
       renderReplyBar({
         replyTo: replyingTo,
         onCancel: () => {
@@ -565,7 +610,15 @@ export function mountApp(
 
   /** Coluna 2 na tela inicial. A faixa de chamada continua aqui. */
   function buildHomeColumn(state: AppState): HTMLElement {
-    const parts = renderHomeColumn();
+    const parts = renderHomeColumn({
+      dmThreads: state.dmThreads,
+      dmThreadsLoaded: state.dmThreadsLoaded,
+      activeDmUid: state.activeDmUid,
+      profiles: state.friendProfiles,
+      me: user.uid,
+      onSelectDm: (uid) => store.openDm(uid),
+      onOpenFriends: () => store.closeDm(),
+    });
     const bar = buildCallBar(state);
     /*
      * ESTE mount não tem par: ao contrário do chat (rodapé da coluna no
@@ -613,6 +666,7 @@ export function mountApp(
         void unblockUser(user.uid, uid).catch(() => showToast('Não foi possível desbloquear.'));
       },
       onOpenChannels: () => setDrawer('left'),
+      onOpenDm: (uid) => store.openDm(uid),
     };
   }
 
@@ -833,6 +887,69 @@ export function mountApp(
     });
   }
 
+  /** Nome de exibição do amigo, pelo perfil já carregado para a tela de amigos. */
+  function friendDisplayName(state: AppState, uid: MemberId): string {
+    return state.friendProfiles.get(uid)?.displayName ?? 'Usuário';
+  }
+
+  /** O cabeçalho do PV — o que `dm-chat.ts` conhece, sem saber de `UserProfile`. */
+  function friendView(state: AppState, uid: MemberId): DmFriendView {
+    const profile = state.friendProfiles.get(uid);
+    return {
+      uid,
+      displayName: profile?.displayName ?? 'Usuário',
+      initials: profile?.initials ?? '?',
+      ...(profile?.username === undefined ? {} : { username: profile.username }),
+    };
+  }
+
+  /**
+   * Conteúdo do slot de mensagens do PV — mesmo formato de `buildMessages`,
+   * a fatia de estado é que muda (`dmMessages*` em vez de `messages*`).
+   */
+  function buildDmMessages(state: AppState): HTMLElement {
+    const friendUid = state.activeDmUid;
+    if (friendUid === null) return renderNoMessages();
+
+    if (state.dmMessagesError !== null) return renderMessagesError(state.dmMessagesError);
+    if (!state.dmMessagesLoaded) return renderLoading('Carregando mensagens…');
+    if (state.dmMessages.length === 0) return renderNoMessages();
+
+    const friend = friendView(state, friendUid);
+    const authors = new Map<MemberId, Member>([
+      [user.uid, me],
+      [friendUid, { id: friendUid, displayName: friend.displayName, initials: friend.initials, status: 'online' }],
+    ]);
+
+    return renderMessageList({
+      messages: state.dmMessages,
+      authors,
+      currentMemberId: user.uid,
+      loadingOlder: state.dmMessagesLoadingOlder,
+      atStart: state.dmMessagesAtStart,
+      atPageCap: state.dmMessagesAtPageCap,
+      // Sem uso real: `startLabel` abaixo sempre vence quando atStart é true.
+      channelName: friendDisplayName(state, friendUid),
+      startLabel: `Início da conversa com ${friendDisplayName(state, friendUid)}`,
+      dataContext: 'dm-message',
+      onReachTop: () => store.loadOlderDmMessages(),
+      onJumpTo: jumpToMessage,
+      editingId,
+      onEdit: (messageId, body) => {
+        editingId = null;
+        void editDmMessage(messageId, body).catch((error: unknown) => {
+          console.error('Falha ao editar a mensagem.', error);
+          showToast('Não foi possível salvar a edição.');
+        });
+        render(store.getState());
+      },
+      onCancelEdit: () => {
+        editingId = null;
+        render(store.getState());
+      },
+    });
+  }
+
   /**
    * Troca o conteúdo da coluna 3.
    *
@@ -1002,11 +1119,25 @@ export function mountApp(
       prev.friendProfiles !== state.friendProfiles ||
       friendsTabRendered !== friendsTab;
 
+    /*
+     * Só importa NA TELA INICIAL — é lá que `buildHomeColumn` lê essas quatro
+     * fatias (a lista de conversas privadas). Fora dela, `buildChannelList`
+     * nem olha para nenhuma das quatro.
+     */
+    const homeColumnChanged =
+      state.view === 'home' &&
+      (prev === null ||
+        prev.dmThreads !== state.dmThreads ||
+        prev.dmThreadsLoaded !== state.dmThreadsLoaded ||
+        prev.activeDmUid !== state.activeDmUid ||
+        prev.friendProfiles !== state.friendProfiles);
+
     const channelsChanged =
       prev === null ||
       groupsChanged ||
       voiceChanged ||
       viewChanged ||
+      homeColumnChanged ||
       prev.channels !== state.channels ||
       prev.channelsLoaded !== state.channelsLoaded ||
       prev.activeChannelId !== state.activeChannelId;
@@ -1062,6 +1193,83 @@ export function mountApp(
      * atravessar os 720px na etapa 8 não derrubava nada.
      */
     if (state.view === 'home') {
+      /*
+       * PV ABERTO: a coluna 3 é o PV, não a tela de amigos — mesmo raciocínio
+       * de "montar uma vez, trocar o slot" do chat de grupo, só que a casca
+       * nasce por PESSOA (`dmChatFriendUid`) em vez de por canal.
+       */
+      if (state.activeDmUid !== null) {
+        const friendUid = state.activeDmUid;
+        const dmChanged = centerMode !== 'dm' || dmChat === null || dmChatFriendUid !== friendUid;
+
+        let parts: DmChatParts;
+        if (dmChanged) {
+          parts = renderDmChat({
+            friend: friendView(state, friendUid),
+            onOpenChannels: () => setDrawer('left'),
+          });
+          centerEl = swapCenter(centerEl, parts.element);
+          dmChat = parts;
+          dmChatFriendUid = friendUid;
+          centerMode = 'dm';
+          chat = null;
+          chatChannelId = null;
+        } else {
+          parts = dmChat!;
+        }
+
+        const editingChanged = renderedEditingId !== editingId;
+        renderedEditingId = editingId;
+
+        const dmMessagesChanged =
+          dmChanged ||
+          prev === null ||
+          prev.dmMessages !== state.dmMessages ||
+          prev.dmMessagesLoaded !== state.dmMessagesLoaded ||
+          prev.dmMessagesLoadingOlder !== state.dmMessagesLoadingOlder ||
+          prev.dmMessagesAtStart !== state.dmMessagesAtStart ||
+          prev.dmMessagesError !== state.dmMessagesError ||
+          prev.friendProfiles !== state.friendProfiles ||
+          editingChanged;
+
+        if (dmMessagesChanged) {
+          swapMessages(parts.messagesSlot, buildDmMessages(state), dmChanged);
+        }
+
+        /*
+         * Composer OU aviso de bloqueio — troca sempre que `blockedUids` muda,
+         * não só ao (re)montar a casca: bloquear/desbloquear pode acontecer
+         * com o PV já aberto (item 5 da etapa 18).
+         */
+        if (dmChanged || prev === null || prev.blockedUids !== state.blockedUids) {
+          const blocked = state.blockedUids.includes(friendUid);
+          parts.composerSlot.replaceChildren(
+            blocked
+              ? renderDmBlockedNotice(friendDisplayName(state, friendUid))
+              : renderComposer({
+                  channelName: friendDisplayName(state, friendUid),
+                  hashPrefix: false,
+                  onSend: handleSend,
+                }),
+          );
+        }
+
+        /*
+         * A MESMA faixa de chamada de grupo, só no mobile — no desktop ela já
+         * mora na coluna 2 (home-column), que continua por trás do PV. Ver o
+         * comentário equivalente na visão de grupo, mais abaixo.
+         */
+        if (dmChanged || voiceChanged) {
+          const callBar = isMobileLayout() ? buildCallBar(state) : undefined;
+          parts.callBarSlot.replaceChildren(
+            ...(callBar === undefined ? [] : [renderCallBar(callBar, 'mobile')]),
+          );
+        }
+
+        previous = state;
+        return;
+      }
+
       if (centerMode !== 'friends' || viewChanged) {
         friends = renderFriendsScreen(friendsScreenProps(state));
         centerEl = swapCenter(centerEl, friends.element);
@@ -1069,6 +1277,8 @@ export function mountApp(
         centerMode = 'friends';
         chat = null;
         chatChannelId = null;
+        dmChat = null;
+        dmChatFriendUid = null;
       } else if (friendsChanged) {
         // A CASCA fica — só o `update()` decide o que repintar. É o que
         // impede um dado novo de arrancar o formulário de adicionar de
@@ -1298,6 +1508,7 @@ export function mountApp(
     replyToMessage: handleReplyToMessage,
     editMessage: handleEditMessage,
     openVoiceDiagnostics: handleOpenDiagnostics,
+    openDm: (uid) => store.openDm(uid),
   });
 
   const unsubscribe = store.subscribe(render);

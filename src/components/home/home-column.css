@@ -66,10 +66,9 @@
 }
 
 /*
- * Espaço RESERVADO das conversas privadas (Entrega 2).
- *
- * Fica visível e vazio de propósito: uma seção que aparece do nada na entrega
- * seguinte muda a coluna de forma debaixo de quem já se acostumou com ela.
+ * Conversas privadas (etapa 18) — o espaço que a Entrega 1 deixou reservado
+ * e vazio de propósito, para a coluna não mudar de forma quando ganhasse
+ * conteúdo.
  */
 .home-column__section {
   flex: 1 1 auto;
@@ -82,6 +81,7 @@
 }
 
 .home-column__section-label {
+  flex: none;
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -91,6 +91,54 @@
 
 .home-column__empty {
   font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.home-column__dm-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-column__dm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.home-column__dm:hover {
+  background-color: var(--surface-hover);
+}
+
+.home-column__dm.is-active {
+  background-color: var(--surface-hover);
+}
+
+.home-column__dm-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.home-column__dm-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.home-column__dm-preview {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 

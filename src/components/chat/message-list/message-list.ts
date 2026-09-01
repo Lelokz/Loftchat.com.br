@@ -13,12 +13,12 @@ import type {
   Attachment,
   Member,
   MemberId,
-  Message,
+  MessageBase,
   MessageId,
 } from "../../../types/models";
 
 export interface MessageListProps {
-  messages: Message[];
+  messages: MessageBase[];
   /** Perfis vindos da coleção `users`, pelo authorId. */
   authors: Map<MemberId, Member>;
   /** Meu uid. Acabaram as duas noções de "eu": esta é a única. */
@@ -31,6 +31,19 @@ export interface MessageListProps {
   atPageCap: boolean;
   /** Nome do canal, para o "Início de #geral". */
   channelName: string;
+  /**
+   * Substitui o "Início de #{channelName}" quando fornecido — para o PV
+   * (etapa 18), onde "#Fulano" não faz sentido nenhum. Ausente = o padrão
+   * de canal, sem mudança para quem já chama isto hoje.
+   */
+  startLabel?: string;
+  /**
+   * Estampado em `data-context` de cada balão — é o que o menu de contexto
+   * (`context-menus.ts`) usa para decidir QUAL função de permissão chamar.
+   * Ausente = `'message'` (grupo, dono pode apagar). PV usa `'dm-message'`
+   * (etapa 18): não tem dono, só o autor apaga.
+   */
+  dataContext?: 'message' | 'dm-message';
   /** Rolou perto do topo — quem chama decide se busca. */
   onReachTop: () => void;
   /** Clique numa citação cuja original está carregada. */
@@ -77,8 +90,8 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000;
  * separador do topo sai do mesmo caminho, sem caso especial.
  */
 function startsNewDay(
-  current: Message,
-  previous: Message | undefined,
+  current: MessageBase,
+  previous: MessageBase | undefined,
 ): boolean {
   if (previous === undefined) return true;
   return localDayKey(current.sentAt) !== localDayKey(previous.sentAt);
@@ -96,8 +109,8 @@ function startsNewDay(
  * `isBlockEnd` também sai daqui, o balão de bico acerta sozinho nos dois lados.
  */
 function continuesBlock(
-  current: Message,
-  previous: Message | undefined,
+  current: MessageBase,
+  previous: MessageBase | undefined,
 ): boolean {
   if (previous === undefined) return false;
   if (previous.authorId !== current.authorId) return false;
@@ -123,7 +136,9 @@ function historyTop(props: MessageListProps): HTMLElement | false {
 
   if (props.atStart) {
     return el('li', { class: 'messages__top' }, [
-      el('span', { class: 'messages__top-note' }, [`Início de #${props.channelName}`]),
+      el('span', { class: 'messages__top-note' }, [
+        props.startLabel ?? `Início de #${props.channelName}`,
+      ]),
     ]);
   }
 
@@ -188,8 +203,8 @@ function loadMoreOverlay(props: MessageListProps): HTMLElement | false {
  *      deixa de valer justamente no caso em que a certeza é maior.
  */
 function citationState(
-  reply: NonNullable<Message['replyTo']>,
-  messages: Message[],
+  reply: NonNullable<MessageBase['replyTo']>,
+  messages: MessageBase[],
   atStart: boolean,
 ): 'carregada' | 'apagada' | 'fora-da-janela' {
   if (messages.some((message) => message.id === reply.messageId)) return 'carregada';
@@ -201,8 +216,8 @@ function citationState(
 
 /** A citação acima do texto: quem escreveu e o começo do que disse. */
 function citation(
-  reply: NonNullable<Message['replyTo']>,
-  messages: Message[],
+  reply: NonNullable<MessageBase['replyTo']>,
+  messages: MessageBase[],
   atStart: boolean,
   onJumpTo: (messageId: MessageId) => void,
 ): HTMLElement {
@@ -277,8 +292,9 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
       {
         class: classes,
         // Ganchos do menu de contexto. O autor vai junto porque quem pode
-        // apagar depende dele: o autor, ou o dono do grupo.
-        "data-context": "message",
+        // apagar depende dele: o autor, ou (só em grupo) o dono. `dataContext`
+        // é o que separa as duas regras — ver o comentário na prop.
+        "data-context": props.dataContext ?? "message",
         "data-message-id": message.id,
         "data-author-id": message.authorId,
       },
@@ -413,7 +429,7 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
  * Enter salva, Escape cancela, e texto vazio CANCELA em vez de apagar: apagar
  * tem caminho próprio no menu, e um Enter distraído não pode virar exclusão.
  */
-function editor(message: Message, props: MessageListProps): HTMLElement {
+function editor(message: MessageBase, props: MessageListProps): HTMLElement {
   const campo = el("textarea", {
     class: "message__editor",
     rows: "1",
@@ -459,7 +475,7 @@ function editor(message: Message, props: MessageListProps): HTMLElement {
 
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
-function renderContent(message: Message): HTMLElement {
+function renderContent(message: MessageBase): HTMLElement {
   switch (message.kind) {
     case "text":
       return el("p", { class: "message__text" }, [message.body]);

@@ -650,6 +650,13 @@ export async function probeQuery(
     collection: string;
     equals: Record<string, string>;
     /**
+     * Filtro `array-contains` — a forma de `subscribeDmThreads` (etapa 18),
+     * que não é igualdade. Separado de `equals` porque o Firestore trata os
+     * dois operadores como coisas diferentes na REST, e juntar os dois num
+     * `Record<string,string>` só esconderia a distinção que importa aqui.
+     */
+    arrayContains?: { fieldPath: string; value: string };
+    /**
      * Ausente quando a consulta REAL não ordena no servidor.
      *
      * Espelhar a forma exata importa: uma sonda que inventa um `orderBy` que o
@@ -663,9 +670,22 @@ export async function probeQuery(
   const idToken = await tokenOf(account);
   if (idToken === undefined) return { status: 0, message: "sem token" };
 
-  const filters = Object.entries(spec.equals).map(([fieldPath, value]) => ({
-    fieldFilter: { field: { fieldPath }, op: "EQUAL", value: { stringValue: value } },
-  }));
+  const filters = [
+    ...Object.entries(spec.equals).map(([fieldPath, value]) => ({
+      fieldFilter: { field: { fieldPath }, op: "EQUAL", value: { stringValue: value } },
+    })),
+    ...(spec.arrayContains === undefined
+      ? []
+      : [
+          {
+            fieldFilter: {
+              field: { fieldPath: spec.arrayContains.fieldPath },
+              op: "ARRAY_CONTAINS",
+              value: { stringValue: spec.arrayContains.value },
+            },
+          },
+        ]),
+  ];
 
   const response = await fetch(`${FS}:runQuery?key=${API_KEY}`, {
     method: "POST",

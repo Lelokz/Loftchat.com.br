@@ -1,6 +1,175 @@
 # Loft — progresso
 
-Estado em 29/08/2026.
+Estado em 31/08/2026.
+
+## Etapa 18 — conversas privadas (Entrega 2 de 3 da etapa 14)
+
+A Entrega 1 (etapa 14) deixou o espaço reservado, vazio de propósito: tela
+inicial, `@` único, verificação de e-mail, amizade e bloqueio, e uma seção
+"Mensagens diretas" na coluna 2 dizendo "suas conversas privadas aparecem
+aqui". Esta entrega implementa o PV de verdade.
+
+### Modelagem — decisão
+
+Duas coleções PRÓPRIAS, `dmThreads/{pairId}` e `dmMessages/{id}` — não
+reaproveita `messages`. A regra de `messages` só enxerga `groupId`
+(`isMember(resource.data.groupId)`); `channelId` está no documento mas
+NUNCA entra numa condição de regra, é filtro de aplicação, invisível para a
+segurança. Encaixar PV nessa coleção exigiria fingir um grupo de 2 pessoas
+por par de amigos — dono, membership, `Group`/`Channel` inteiros só para
+existir —, e o pedido é explícito: "não existe dono, não existe canal" no
+PV. `pairId` (id do par, ordenado, de `friends.ts`) foi reaproveitado direto
+para o id da thread — mesma conversa, venha de que lado vier, mesmo
+mecanismo que a amizade já usa.
+
+Lista de conversas sem pagar uma leitura por mensagem: `dmThreads` carrega
+`lastMessage`/`lastMessageAt` DENORMALIZADOS, escritos no mesmo
+`writeBatch` de cada mensagem nova. A coluna 2 assina só essa coleção — uma
+leitura por CONVERSA, nunca por mensagem — com
+`where('members','array-contains',uid) + orderBy('lastMessageAt','desc')`,
+e o Firestore reordena sozinho quando qualquer conversa recebe mensagem
+nova.
+
+Bloqueio é a ÚNICA coisa cobrada na regra para criar conversa/mensagem —
+amizade continua sendo só o caminho que a TELA oferece (decisão confirmada
+antes de implementar: é o mesmo padrão do resto do app).
+
+### Dois bugs achados RODANDO o teste, não lendo o código
+
+1. **`members: [me, other]` não sobrevivia à segunda pessoa respondendo.**
+   Cada envio reescreve `dmThreads.lastMessage`/`lastMessageAt` num
+   `merge:true`, e a regra de `update` só aceita mexer nesses dois campos
+   (`hasOnly`). O array `members` ia junto em toda escrita, na crença de que
+   reenviar o MESMO valor não conta como campo tocado — verdade para
+   conteúdo, falsa para ORDEM: `[A,B]` (quando A manda) e `[B,A]` (quando B
+   manda) são o MESMO PAR, mas arrays DIFERENTES para o Firestore, que
+   compara por posição. Resultado: assim que a segunda pessoa respondia,
+   `members` entrava em `diff().affectedKeys()`, `hasOnly` recusava, e a
+   mensagem morria com `permission-denied` — **toda conversa privada
+   quebrava na segunda mensagem, sempre, em produção real, não só em
+   teste.** Achado pelo teste de REST cru (mandar de A, depois de B, editar
+   e reler) — os testes de fluxo simples nunca mandavam mensagem dos dois
+   lados na mesma conversa e passavam verdes por cima do bug. Conserto:
+   `members` sai sempre na mesma ordem (`me < other`), igual ao `pairId` já
+   ordena o id — o valor fica idêntico venha de quem vier, e `diff()` para
+   de ver `members` como alterado.
+2. **`watchMessages` (store.ts) matava `subscribeFriendships`/
+   `subscribeBlocks` a cada troca de canal, e nunca religava.** Achado lendo
+   o código ao redor de onde o PV precisava se conectar (o `blockedUids`
+   ao vivo, para o aviso "você bloqueou" no composer sem round-trip) — duas
+   linhas soltas, sem comentário nenhum explicando por quê, chamando as
+   funções de encerrar as DUAS assinaturas dentro da função que troca de
+   canal de TEXTO. Consequência real: `friendships`/`blockedUids` paravam
+   de atualizar em tempo real assim que a pessoa abria qualquer canal — a
+   primeira coisa que quase todo mundo faz ao entrar. Pedido de amizade
+   novo, aceito, ou bloqueio feito por você em outra aba só apareceriam
+   depois de um F5. E como as duas funções nunca eram chamadas de novo em
+   lugar nenhum (nem em `dispose()`), a falta delas ali também virava um
+   vazamento — as assinaturas nunca fechavam, nem ao sair da conta.
+   Conserto: as duas linhas saíram de `watchMessages` (não tinham nada a
+   ver com trocar de canal) e entraram em `dispose()` (onde já deveriam
+   estar).
+
+### Componentes reaproveitados sem mudar comportamento
+
+`message-list.ts` e `composer.ts` não sabiam de grupo nem de canal desde
+sempre — só ganharam duas props OPCIONAIS (`startLabel`, `dataContext` no
+primeiro; `hashPrefix` no segundo), aditivas, sem tocar o caminho de grupo.
+A separação REAL entre "grupo" e "PV" está em `context-menus.ts`
+(`dmMessageItems`, sem a metade `isOwner` — PV não tem dono) e numa casca
+nova, `dm-chat.ts`, irmã de `chat.ts` — não uma condição a mais dentro
+dela. `swapMessages`/`jumpToMessage` (app.ts) são puramente por seletor
+CSS, reaproveitados sem mudar uma linha.
+
+### Fora de escopo desta entrega (registrado, não esquecido)
+
+- **Chamada de voz no PV** — só chamada de GRUPO existe; o PV não liga nem
+  recebe chamada. A faixa de uma chamada de GRUPO em andamento continua
+  visível enquanto um PV está aberto (mesmo princípio da etapa 16/17
+  aplicado ao PV), mas iniciar uma chamada DENTRO do PV não foi feito.
+- **Anexos no PV** — mesma pendência que já existe no chat de grupo desde a
+  etapa 5, agora também no PV.
+- **Notificações do PV** — mensagem privada nova não notifica; mesma
+  pendência de notificações push já registrada para o resto do app.
+
+### Índices e regras
+
+`dmThreads` (members array-contains + lastMessageAt) precisa de índice
+composto — certeza, sem precisar medir: array-contains junto de `orderBy`
+em outro campo sempre exige. Publicado em `firestore.indexes.json`.
+`dmMessages` (threadId + sentAt) foi implementado SEM índice composto
+declarado — só um campo de igualdade mais `orderBy`, o padrão que o resto
+do app já não precisa de índice — e `tests/indexes.spec.ts` ganhou as duas
+sondas para PROVAR isso, não supor.
+
+**Não consegui rodar `npm run check:indexes` sozinho**: `.check-indexes.json`
+não existe nesta máquina (confirmado na etapa 17 — nenhuma conta no
+projeto real tem `displayName == "Índices"`). Regras e índices FORAM
+publicados no projeto real (`firebase deploy --only
+firestore:rules,firestore:indexes`); falta a conferência de
+`check:indexes` assim que a conta fixa existir.
+
+### Testes (`tests/dm.spec.ts`, novo arquivo)
+
+Quatro testes, emulador: tempo real + conversa não nasce só de abrir; lista
+com o trecho certo dos dois lados + reordenação automática; bloqueio
+impede escrever e preserva o histórico; REST cru (terceiro não lê, ninguém
+escreve como outro autor, bloqueado não cria mensagem). O de REST cru foi o
+que expôs o bug do `members` — os três primeiros, sozinhos, teriam passado
+verdes com o bug ainda lá.
+
+## Etapa 17 — controle de versão, e um segredo saindo do código antes do primeiro commit
+
+Dezesseis etapas de trabalho viviam num disco só, sem git. Risco alto: nada
+disto sobrevive a um disco morto. `git init` dentro de `~/Projetos/Loft` (o
+repositório era outro, solto em `/home/lelokz` sem nenhum commit — não é
+deste projeto, removido à parte). Branch `main`.
+
+**Antes do primeiro commit, uma varredura por segredo.** Achado real:
+`src/lib/ice-servers.ts` tinha usuário e credencial do TURN (ExpressTURN)
+em texto puro. Não são segredo como senha — o navegador precisa delas em
+claro para falar com o servidor, então quem abre o painel de rede do
+navegador já vê as duas —, mas commitadas ficariam no HISTÓRICO do git para
+sempre, sobrevivendo até a uma regeneração de credencial. Decisão: saem
+para `.env` (Vite, `VITE_TURN_USERNAME`/`VITE_TURN_CREDENTIAL`), `.env` no
+`.gitignore`, `.env.example` versionado com os nomes e vazio, explicando de
+onde vêm. Sem as duas variáveis o app não quebra: `ICE_SERVERS` cai para só
+STUN, com aviso no console E no painel de diagnóstico (`TURN_CONFIGURED`,
+lido também por `voice-diagnostics.ts` — o mesmo aviso que já existe para
+relay em uso ganhou um par para "relay ausente").
+
+(Segunda credencial encontrada na mesma varredura, `scripts/limpar-projeto-
+real.mjs` — o `client_id`/`client_secret` do OAuth: não é segredo de
+verdade. É o client id/secret PÚBLICO do próprio `firebase-tools`,
+publicado no repositório open source da ferramenta — toda instalação usa o
+mesmo par. Confirmado, nada a fazer.)
+
+**O conserto quebrou a suíte inteira antes de eu rodar ela — pego a tempo.**
+`tests/turn.spec.ts` importa `ICE_SERVERS` de `ice-servers.ts` PELO NODE
+(para montar a lista antes de entrar no navegador via `page.evaluate`), fora
+de qualquer bundle do Vite. `import.meta.env` só existe dentro do bundle;
+fora dele é `undefined`, e o módulo lê `import.meta.env['VITE_TURN_USERNAME']`
+no escopo de nível superior — que roda ao IMPORTAR o arquivo, não só ao
+usar o valor. Resultado: `playwright test` inteiro morria ao tentar
+CATALOGAR os testes (`Cannot read properties of undefined`), mesmo com
+`turn.spec.ts` marcado `@externo` e fora da execução padrão — porque
+catalogar exige importar o arquivo, e importar já era o bastante para
+quebrar.
+
+Reproduzido (suíte cheia: 0 passou, erro de import) antes de qualquer
+suposição sobre a causa. Conserto: a lista virou pura, em arquivo próprio
+sem leitura de ambiente nenhuma (`src/lib/ice-servers-core.ts`,
+`buildIceServers(usuario, credencial)`); `ice-servers.ts` fica só com a
+parte que lê `import.meta.env` e chama a função pura. `turn.spec.ts` importa
+`ice-servers-core` direto — nunca toca no módulo que lê `import.meta.env` —,
+e pega a credencial de `process.env`, carregado de `.env` por
+`playwright.config.ts` (`process.loadEnvFile()`, silencioso se o arquivo não
+existir). Suíte cheia depois do conserto: **60 passou, 0 falhou, 8,7min** —
+duas vezes, a segunda depois do build de produção confirmado embutindo os
+valores certos (`grep` no bundle final).
+
+Primeiro commit: `977af7e`, 97 arquivos. Falta subir para um repositório
+privado no GitHub — orientação dada, execução é de quem tem a conta.
 
 ## Etapa 16 — migração para Linux Mint, e o que a suíte revelou
 
@@ -1609,6 +1778,79 @@ a linha estabiliza.
   etapa.
 - **Transferir posse de grupo** — dívida da etapa 5.
 - **Corrida do teto de 4 na sala de voz** — regra não conta documentos.
+- **`.check-indexes.json` é LOCAL, fora do repositório (`.gitignore`), e
+  some em qualquer máquina nova ou reinstalação do sistema — e já bloqueou
+  `npm run check:indexes` DUAS vezes por isso: na migração para Linux Mint
+  (etapa 16/17) e de novo na etapa 18. Não é um arquivo de configuração
+  qualquer — sem ele, a única verificação que confirma índice composto
+  contra o projeto REAL fica impossível de rodar, e o emulador não avisa
+  (ele aceita qualquer consulta, com ou sem índice). Passos para recriar:
+  1. `npm run dev` (aponta para o projeto REAL, não o emulador).
+  2. Cadastrar uma conta nova pela tela, com um e-mail de verdade que você
+     consiga abrir.
+  3. Abrir o link de confirmação que chega nesse e-mail — não existe API
+     em produção para confirmar por fora, só o link de verdade.
+  4. Escrever `.check-indexes.json` na raiz do repositório:
+     ```json
+     { "email": "...", "password": "...", "displayName": "Índices" }
+     ```
+  Fica reescrito aqui porque o arquivo em si nunca vai para o git — este
+  registro é o único lugar onde o formato sobrevive a uma máquina nova.
+
+  **Cuidado ao rodar `scripts/limpar-projeto-real.mjs --manter=...` de
+  novo** (etapa 17): essa conta é uma conta REAL, sem prefixo `loft-e2e-`,
+  e o modo `--manter` apaga QUALQUER conta fora da lista de exceção — a
+  conta Índices some junto se o e-mail dela não estiver em `--manter` na
+  hora de apagar. Foi assim (ou pela varredura mais antiga da etapa 15,
+  não dá para saber qual ao certo) que ela sumiu desta vez.
+- **`deleteGroupCascade` não apaga `voiceParticipants` nem
+  `voiceChannels/{channelId}/signals` — bug de PRODUTO, não só do script de
+  limpeza.** Achado na etapa 17, investigando a cascata para adaptar o
+  script de limpeza (`scripts/limpar-projeto-real.mjs`) à limpeza por lista
+  de exceção. A cascata real (`src/lib/firestore.ts:827`) apaga, em ordem,
+  `messages` → `channels` → `invites` → `memberships` → o doc do grupo — e
+  para por aí. `voiceParticipants` e `signals` nunca entram. Consequência
+  real, não teórica: **toda vez que qualquer dono apaga um grupo pela
+  interface normal do app, esses dois tipos de documento ficam para trás,
+  e ficam PERMANENTEMENTE inalcançáveis** — as regras de leitura exigem
+  `isMember`/`isOwner`, que dependem do grupo e das memberships que
+  acabaram de sumir na própria cascata; nem o dono que apagou o grupo
+  consegue mais ler ou apagar o que sobrou depois. É assim que os 357
+  documentos de `channels` órfãos (groupId de um grupo que já não existe)
+  encontrados no projeto real na etapa 17 se acumularam, e o mesmo vai
+  continuar acontecendo a cada grupo apagado no futuro, um pouco por vez —
+  `messages` órfã da mesma forma quase não sobrevive sozinha para ser vista
+  porque quase sempre tem outro motivo próprio para ser apagada (o autor),
+  mas `channels` não tem dono nenhum gravado, só o `groupId` que sumiu, e é
+  isso que a deixa acumulando sem que nada mais capture. O teste
+  `cleanupFirestore` (`tests/helpers.ts`,
+  que se autodenomina "a cascata da etapa 5") já cobre `voiceParticipants`
+  mas também não cobre `signals` — nem ele é a especificação completa.
+  Conserto: acrescentar as duas coleções a `deleteGroupCascade`, na mesma
+  ordem-antes-do-grupo que as outras quatro já seguem (mesma razão:
+  `voiceParticipants` lê `groupId`/`uid`, e sem membership vira ilegível
+  para sempre). O script de limpeza cobrir isso numa faxina manual esconde
+  o sintoma daquela vez; não é o conserto do produto.
+
+- **Personalização de FONTE, para a Entrega 3 (configurações)** — hoje a
+  Entrega 3 cobre tema e cor; fonte fica de fora, registrado agora como
+  opção em aberto, ainda sem escolha feita. Duas abordagens possíveis, com
+  o mesmo trade-off dos dois lados:
+  - **Lista vinda das fontes já instaladas no sistema** — grátis (nada para
+    baixar), mas cada pessoa vê uma lista diferente da de quem programou, e
+    o preview de uma fonte específica não é confiável entre máquinas: quem
+    escolhe uma fonte que só existe no PRÓPRIO computador manda essa
+    escolha para outra pessoa ver com uma fonte diferente (ou a fonte
+    padrão), sem aviso.
+  - **Embutir 2–3 fontes no próprio site** (`@font-face` ou import) — todo
+    mundo vê exatamente igual, mas custa download: peso extra no bundle ou
+    no carregamento, e mais um arquivo por variante escolhida.
+  - **Fonte pixelada (bitmap/8-bit) é ruim em texto CORRIDO** — legível em
+    título ou botão, cansativa num bloco de várias mensagens seguidas.
+    Consequência a considerar: talvez a fonte da INTERFACE (botões,
+    cabeçalhos, menus) precise ser uma escolha SEPARADA da fonte das
+    MENSAGENS, com limites diferentes em cada uma (ex.: pixelada permitida
+    na interface, não nas mensagens).
 
 ## Fora do alcance dos testes
 

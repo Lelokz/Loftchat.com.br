@@ -23,6 +23,8 @@ export interface FriendsScreenProps {
   onRemove: (id: string) => void;
   onBlock: (uid: MemberId) => void;
   onUnblock: (uid: MemberId) => void;
+  /** Abre o PV — clicar na linha (só na aba Amigos) ou "Enviar mensagem" no menu de contexto. */
+  onOpenDm: (uid: MemberId) => void;
 
   /** Gaveta do mobile, como nas outras colunas do meio. */
   onOpenChannels: () => void;
@@ -40,37 +42,59 @@ function otherOf(friendship: Friendship, me: MemberId): MemberId {
   return friendship.members.find((uid) => uid !== me) ?? '';
 }
 
+/**
+ * `onOpenDm` só vem preenchido na aba Amigos (ver `corpo`) — é o que faz a
+ * linha ficar clicável e ganhar `data-context="friend"` (o menu de contexto,
+ * "Enviar mensagem"). Pendente e bloqueado continuam inertes: não faz
+ * sentido abrir PV com quem ainda não é seu amigo, ou com quem você bloqueou.
+ */
 function personRow(
   profile: UserProfile | undefined,
   uid: MemberId,
   actions: HTMLElement[],
+  onOpenDm?: (uid: MemberId) => void,
 ): HTMLElement {
   const nome = profile?.displayName ?? 'Usuário';
   const arroba = profile?.username;
+  const clickable = onOpenDm !== undefined;
 
-  return el('li', { class: 'friends__row' }, [
-    avatarEl(profile?.initials ?? '?', 'sm'),
-    el('div', { class: 'friends__identity' }, [
-      el('span', { class: 'friends__name' }, [nome]),
-      // Sem `@` a pessoa é inencontrável — e mostrar o uid cru não ajudaria
-      // ninguém, então some.
-      arroba === undefined || arroba === ''
-        ? false
-        : el('span', { class: 'friends__handle' }, [`@${arroba}`]),
-    ]),
-    el('div', { class: 'friends__actions' }, actions),
-    // Gancho para o teste e para o menu de contexto encontrarem a linha.
-    el('span', { class: 'sr-only', 'data-friend-uid': uid }, []),
-  ]);
+  const row = el(
+    'li',
+    {
+      class: `friends__row${clickable ? ' friends__row--clickable' : ''}`,
+      ...(clickable ? { 'data-context': 'friend', 'data-friend-uid': uid } : {}),
+    },
+    [
+      avatarEl(profile?.initials ?? '?', 'sm'),
+      el('div', { class: 'friends__identity' }, [
+        el('span', { class: 'friends__name' }, [nome]),
+        // Sem `@` a pessoa é inencontrável — e mostrar o uid cru não ajudaria
+        // ninguém, então some.
+        arroba === undefined || arroba === ''
+          ? false
+          : el('span', { class: 'friends__handle' }, [`@${arroba}`]),
+      ]),
+      el('div', { class: 'friends__actions' }, actions),
+      // Gancho para o teste encontrar a linha, mesmo fora da aba Amigos.
+      el('span', { class: 'sr-only', 'data-friend-uid': uid }, []),
+    ],
+  );
+
+  if (onOpenDm !== undefined) row.addEventListener('click', () => onOpenDm(uid));
+  return row;
 }
 
+/** `stopPropagation`: sem isto, clicar "Bloquear" numa linha clicável TAMBÉM abriria o PV. */
 function action(label: string, onClick: () => void, danger = false): HTMLElement {
   const button = el(
     'button',
     { class: `friends__action${danger ? ' friends__action--danger' : ''}`, type: 'button' },
     [label],
   );
-  button.addEventListener('click', onClick);
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onClick();
+  });
   return button;
 }
 
@@ -238,10 +262,15 @@ function corpo(
     { class: 'friends__list' },
     listas.aceitos.map((f) => {
       const outro = otherOf(f, me);
-      return personRow(profiles.get(outro), outro, [
-        action('Desfazer amizade', () => props.onRemove(f.id), true),
-        action('Bloquear', () => props.onBlock(outro), true),
-      ]);
+      return personRow(
+        profiles.get(outro),
+        outro,
+        [
+          action('Desfazer amizade', () => props.onRemove(f.id), true),
+          action('Bloquear', () => props.onBlock(outro), true),
+        ],
+        props.onOpenDm,
+      );
     }),
   );
 }
