@@ -1,7 +1,7 @@
 import './chat.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { menuIcon, peopleIcon, speakerIcon } from '../../lib/icons';
+import { menuIcon, peopleIcon, pinIcon, speakerIcon } from '../../lib/icons';
 import { renderNoChannel } from '../empty-state/empty-state';
 import { renderComposer } from './composer/composer';
 import type { Channel } from '../../types/models';
@@ -13,6 +13,9 @@ export interface ChatProps {
   /** Gavetas do mobile. Os botões existem sempre; o CSS os esconde no desktop. */
   onOpenChannels: () => void;
   onOpenMembers: () => void;
+  /** Fixadas DESTE canal. O ícone existe sempre; o número só aparece quando há alguma. */
+  pinnedCount: number;
+  onOpenPins: () => void;
 }
 
 /**
@@ -46,6 +49,12 @@ export interface ChatParts {
    * citação apagaria o que a pessoa já tivesse digitado.
    */
   replySlot: HTMLElement;
+  /**
+   * Atualiza só o número no ícone de fixadas, sem reconstruir o cabeçalho —
+   * a casca nasce uma vez por canal, mas quantas fixadas existem muda ao
+   * vivo, sem trocar de canal nenhuma.
+   */
+  setPinnedCount: (count: number) => void;
 }
 
 export function renderChat(props: ChatProps): ChatParts {
@@ -53,12 +62,15 @@ export function renderChat(props: ChatProps): ChatParts {
   const messagesSlot = el('div', { class: 'chat__messages-slot' });
   const callBarSlot = el('div', { class: 'chat__callbar-slot' });
 
+  const pin = pinButton(props.pinnedCount, props.onOpenPins);
+
   const header = el('header', { class: 'chat__header' }, [
     drawerButton('Abrir canais', menuIcon(18), props.onOpenChannels, 'left'),
     channel === null || channel.kind === 'text'
       ? el('span', { class: 'chat__hash', 'aria-hidden': 'true' }, ['#'])
       : iconEl(speakerIcon(16), 'icon chat__hash'),
     el('h1', { class: 'chat__title' }, [channel?.name ?? 'Nenhum canal']),
+    pin.element,
     drawerButton('Abrir membros', peopleIcon(18), props.onOpenMembers, 'right'),
   ]);
 
@@ -71,6 +83,7 @@ export function renderChat(props: ChatProps): ChatParts {
       messagesSlot,
       callBarSlot,
       replySlot,
+      setPinnedCount: pin.setCount,
     };
   }
 
@@ -85,6 +98,31 @@ export function renderChat(props: ChatProps): ChatParts {
     messagesSlot,
     callBarSlot,
     replySlot,
+    setPinnedCount: pin.setCount,
+  };
+}
+
+/** Ícone de pin no cabeçalho — abre o painel flutuante (etapa 19). O número só aparece quando há fixadas. */
+function pinButton(
+  initialCount: number,
+  onClick: () => void,
+): { element: HTMLElement; setCount: (count: number) => void } {
+  const countEl = el('span', { class: 'chat__pin-count' }, [String(initialCount)]);
+  countEl.hidden = initialCount === 0;
+
+  const button = el(
+    'button',
+    { class: 'icon-button chat__pin-button', type: 'button', title: 'Mensagens fixadas' },
+    [iconEl(pinIcon(16)), countEl, el('span', { class: 'sr-only' }, ['Mensagens fixadas'])],
+  );
+  button.addEventListener('click', onClick);
+
+  return {
+    element: button,
+    setCount: (count: number) => {
+      countEl.hidden = count === 0;
+      countEl.textContent = String(count);
+    },
   };
 }
 

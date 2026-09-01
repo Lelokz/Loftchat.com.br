@@ -2,6 +2,230 @@
 
 Estado em 31/08/2026.
 
+## Etapa 19 — painel do perfil no PV e mensagens fixadas
+
+Traz a coluna 4 de volta na tela inicial (só existia no grupo até aqui),
+dividida em cartão de perfil + fixadas no PV, e cria mensagens fixadas para
+grupo e PV ao mesmo tempo, com um componente de lista reaproveitado pelos
+dois.
+
+### Antes de tudo: o índice de `dmMessages` que faltava
+
+A etapa 18 apostou errado: "um campo de igualdade mais `orderBy` não
+precisa de índice composto" não é universal, e `dmMessages` (threadId +
+sentAt + `limitToLast`) precisava sim. Ficou sem cobertura porque a etapa
+18 fechou sem `.check-indexes.json` — sem a conta fixa, não dava para
+rodar `check:indexes` de verdade, só o deploy de regras/índices. O usuário
+achou direto no console do Firebase: só `dmThreads` e `messages` existiam;
+`dmMessages` nunca foi publicado, e o histórico do PV falhava com "o
+índice ainda está sendo construído" — mensagem enganosa, porque não tinha
+índice construindo, tinha índice FALTANDO. Corrigido nesta etapa, publicado
+sozinho e primeiro, antes de qualquer coisa das fixadas: `threadId`
+ASCENDING + `sentAt` DESCENDING (mesma direção do índice de `messages`,
+mesmo motivo — `limitToLast` inverte a ordem enviada ao servidor). Detalhe
+completo da correção do próprio `firestore.indexes.json`.
+
+### Modelagem — decisão
+
+Uma coleção só, `pinnedMessages`, com o escopo por PRESENÇA de campo
+(`groupId`+`channelId` OU `threadId`, nunca os dois — mesmo padrão de
+`messages` vs. `dmMessages`) em vez de duas coleções separadas: o
+DOCUMENTO em si é pequeno e igual nos dois casos (autor, trecho, data,
+id da original), só o vínculo muda, e a regra já sabia decidir "qual
+metade vale" olhando o campo presente, do jeito que `dmMessages` já fazia
+para não precisar de `get()` num documento que talvez não exista (a lição
+da etapa 16, verificada de novo aqui — ver a seção de regras).
+
+ids são AUTOGERADOS, não determinísticos: um id tipo
+`${escopo}_${messageId}` esbarraria no `threadId` já ter `_` no meio
+(`${uidA}_${uidB}`), tornando ambíguo separar escopo de mensagem de volta.
+Sem id determinístico, "já está fixada?" é responsabilidade do CLIENTE
+(olhando a lista já carregada), não da regra — e isso tem uma consequência
+real, achada por raciocínio antes de implementar (não por teste): no PV os
+DOIS participantes podem fixar, e os dois podem clicar em fixar a MESMA
+mensagem ao mesmo tempo, cada um vendo a lista local ainda dizer "não
+fixada". Sem transação, isso produz DUAS fixadas para a mesma mensagem.
+Resolvido sem custo nenhum: a LISTA DE EXIBIÇÃO agrupa por `messageId` e
+mostra uma só (a mais recente); desafixar apaga TODOS os ids do grupo de
+uma vez. Rule fica simples, exibição absorve a corrida.
+
+**Nenhum índice composto — as duas consultas são só igualdade, sem
+`orderBy`.** Grupo: `groupId`+`channelId` (dois iguais, mesma forma que
+`signals` já usa em produção sem índice — `voice-signaling.ts`). PV: só
+`threadId` (um igual, sem risco nenhum). A lista ordena por `pinnedAt` no
+CLIENTE — de propósito, para não repetir a aposta que acabou de sair
+errada com `dmMessages`. As duas ganharam sonda em `indexes.spec.ts` mesmo
+assim: medir, não deduzir, era exatamente a lição do parágrafo anterior.
+
+**Teto de 50 — cobrado só no CLIENTE, LIMITAÇÃO CONHECIDA E ACEITA, não
+descoberta depois.** Mesmo padrão já aceito para o teto de 4 da sala de
+voz ("regra não conta documentos" — Firestore não tem `COUNT` em regra sem
+um contador denormalizado à parte). Quem contornar a UI (REST cru) fixa
+quantas quiser — não é falha de segurança (a regra ainda restringe QUEM
+fixa: dono no grupo, os dois no PV), é possibilidade de bagunça visual.
+Registrado aqui por pedido explícito, para não ser achado como surpresa.
+
+**Excerpt congelado no momento de fixar, não sincronizado com edição
+posterior — decisão consciente, não bug.** Se a mensagem original for
+editada depois de fixada, a fixada continua mostrando o texto de QUANDO
+foi fixada. Manter sincronizado custaria uma leitura extra por item toda
+vez que a lista de fixadas for exibida, só para cobrir uma edição que pode
+nunca acontecer — o mesmo cálculo de custo que já vale para `ReplyTo`.
+
+### Regras — o cuidado com "documento que ainda não existe" (etapa 16)
+
+Verificado ativamente, não só lembrado: a pegadinha da etapa 16 era
+`resource.data` derrubar a regra inteira quando o documento ainda não
+existe (a friendship antes do primeiro pedido). Para `pinnedMessages` ela
+não se aplica, e por design, não por sorte — não há NENHUM ponto onde a
+regra ou o cliente façam `getDoc`/`get()` numa fixada especificamente para
+checar "ela já existe?": criar nunca depende disso (o cliente evita
+duplicar olhando a lista já carregada, e mesmo falhando nessa checagem uma
+fixada repetida só duplica visualmente, tratado na exibição — ver acima);
+apagar sempre mira um id que já está na lista carregada, nunca um chute.
+`isOwner`/`isMember` fazem `get()` no GRUPO, não na fixada, e o grupo de
+um canal real sempre existe. Sem checagem de bloqueio no PV: fixar não é
+mandar mensagem, é arrumar uma conversa que já existe — bloqueio trava
+escrita NOVA, não gestão do que já foi dito.
+
+### O mesmo componente serve o grupo e o PV
+
+`components/pinned/pinned-list.ts` — puramente apresentacional, sem saber
+se está num modal ou num painel fixo. Dois pontos de montagem:
+
+- **Grupo**: ícone no cabeçalho (com contador ao vivo, `ChatParts.
+  setPinnedCount` — a casca do chat nasce uma vez por canal, mas quantas
+  fixadas existem muda sem trocar de canal nenhuma) abre um painel
+  FLUTUANTE. Reaproveita `modal.ts`, não `context-menu.ts`: o menu de
+  contexto só sabe `{label, onSelect}`, sem slot de conteúdo rico —
+  encaixar uma lista rolável ali seria reescrever a peça. Dois ajustes
+  GERAIS em `modal.ts`, que beneficiam todo modal do app, não um jeitinho
+  para este: (1) clique fora fecha, que o `<dialog>` nativo não faz
+  sozinho; (2) teto de altura (`max-height`) + `overflow` correto na
+  cadeia flex — achado RODANDO o teste de "muitas fixadas rolam", não
+  lendo código (ver a seção de bugs abaixo).
+- **PV**: sempre visível, nos dois terços de baixo da coluna 4
+  (`components/chat/dm-side-panel.ts`), sem clique nenhum.
+
+`reachabilityOf` (carregada/apagada/fora-da-janela) reaproveita
+`citationState`, que só ganhou `export` — nenhuma linha de lógica nova:
+`PinnedMessage` tem os mesmos campos que `ReplyTo` (`messageId`,
+`authorId`, `authorName`, `excerpt`, `sentAt`) com os mesmos nomes e
+tipos, e a tipagem estrutural do TypeScript aceita passar uma fixada onde
+a função espera uma citação, sem cast.
+
+### O cartão de perfil e o tema da pessoa (preparo para a Entrega 3)
+
+`lib/person-theme.ts`, função isolada e pura: lê `theme`/`accentId`/
+`fontId` (opcionais, ninguém grava ainda) do perfil PÚBLICO da pessoa e
+devolve variáveis CSS para aplicar via `style.setProperty` no elemento
+raiz do cartão — que é a CONTENÇÃO inteira: variável CSS cascateia só para
+dentro da própria subárvore, então nada vaza para o resto da tela sem
+nenhuma técnica extra. Ausente = `cssVars` vazio = o cartão HERDA o tema
+de quem está vendo (não um terceiro tema fixo). `accentId`/`fontId`/
+`theme` vêm de `Record`s FECHADOS dentro do arquivo — um valor desconhecido
+cai fora do mapa e o `??` volta para "sem escolha"; `fontFamily` nunca é
+o texto cru do banco, sempre um dos 4 valores fixos que o arquivo já
+define. É o que fecha o caminho de injeção.
+
+`'pixelada'` está na lista de `FontId` (a pessoa que pediu esta etapa deu
+esse exato exemplo), mas mapeia para uma pilha monoespaçada comum do
+sistema, SEM `@font-face` nenhum — nenhuma fonte bitmap de verdade sendo
+baixada. A pendência já registrada mais abaixo ("Personalização de fonte
+para a Entrega 3") sobre pixelada ser cansativa em texto corrido continua
+em aberto: esta etapa só reserva o NOME na lista fechada, quem escolher
+uma fonte pixelada de verdade ainda precisa decidir aquilo.
+
+Botões "Bloquear"/"Desfazer amizade" do cartão são os MESMOS de
+`friends-screen.ts` (`action()`, que só ganhou `export`) — zero
+reimplementação.
+
+### A borda do cabeçalho
+
+`.chat__header`/`.friends__header` só cobriam a largura da coluna 3
+(`minmax(0,1fr)`); a coluna 4 é uma faixa de `240px` SEMPRE RESERVADA no
+grid (`grid-template-columns`, `layout.css`), escondida ou não —
+`[hidden]` não colapsa a faixa. Com o painel de membros visível, a borda
+ESQUERDA dele fechava o desenho bem onde a de baixo do cabeçalho parava, e
+por isso "parecia" ir até o fim; sem painel nenhum (tela de amigos sem PV
+aberto), essa borda vertical também sumia e sobrava a faixa sem linha por
+cima nenhuma. Conserto único e genérico, não um jeitinho só para o PV:
+`.app.no-member-column` estica o cabeçalho por cima da faixa reservada
+sempre que a coluna 4 está de fato vazia — cobre os dois casos (tela de
+amigos sem PV, e qualquer estado futuro do PV sem painel).
+
+### Bug achado RODANDO o teste, não lendo o código
+
+**O painel flutuante crescia além da tela em vez de rolar por dentro.**
+`modal.ts`/`modal.css` nunca precisaram de teto de altura: toda tela
+existente (convite, renomear, apagar, criar canal) é curta. Com 50
+fixadas, o `<dialog>` inteiro crescia para acomodar tudo — o teste "com
+muitas fixadas a lista rola" falhou com `scrollHeight === clientHeight`
+na `.pinned-list`, porque quem estava "rolando" (ou tentando) era o modal
+inteiro, sem limite nenhum, não a lista por dentro dele. Conserto no
+PRIMITIVO, não um caso especial: `.modal` ganhou `max-height` + virou
+coluna flex; `.modal__form` ganhou `min-height:0`+`overflow:hidden`; e o
+corpo específico das fixadas (`.pinned-panel-body`) ganhou `flex:1 1
+auto; min-height:0` para ser ele a esticar até o teto e deixar
+`.pinned-list` (já `column-scroll`) rolar de verdade. Nenhum modal
+existente tinha conteúdo alto o bastante para este bug aparecer antes.
+
+### Testes (`tests/pins.spec.ts`, novo arquivo)
+
+Seis testes, emulador: fixar no grupo aparece em tempo real na outra aba +
+membro comum não fixa por REST cru (403); no PV os dois participantes
+fixam em tempo real e qualquer um dos dois desafixa, removendo dos dois
+lados; apagar a mensagem original não quebra a lista (fica "mensagem
+apagada", sem lançar); clicar numa fixada fecha o painel, rola até a
+mensagem e destaca; teto de 50 barrado NA TELA (toast) + com 50 fixadas a
+lista rola e nenhum item encolhe (alturas medidas, todas acima de metade
+da mediana); cartão de perfil sem tema definido herda `--accent` da
+própria página (comparado via `getComputedStyle`, não suposto).
+
+`tests/indexes.spec.ts` ganhou duas sondas novas (fixadas do canal: dois
+iguais sem orderBy; fixadas do PV: um igual sem orderBy) e o
+`.check-indexes.json` já resolve `groupId`/`channelId` que a sonda de
+`dmMessages` também precisava. `tests/helpers.ts`'s `cleanupFirestore`
+ganhou `pinnedMessages` na lista de coleções varridas por `groupId`
+(mesmo padrão de `messages`/`voiceParticipants`/`channels`/`invites`) —
+sem isso, cada rodada de `check:indexes` deixaria fixadas de sonda
+acumulando no projeto real.
+
+### Fora de escopo desta etapa
+
+- **Anexos em mensagem fixada** — o app não tem anexo ainda (depende do
+  Storage). O modelo (`PinnedKind`) já nasce pronto para as seis
+  categorias, e `pinned-list.ts` já sabe renderizar cada uma — só `'text'`
+  é alcançável hoje.
+- **Escrita de `bio`/`theme`/`accentId`/`fontId`** — ninguém grava esses
+  campos ainda; esta etapa só lê, com padrão seguro. É a Entrega 3.
+
+### Pendências novas
+
+- **`upsertUserProfile` (`lib/firestore.ts`) sobrescreve o documento
+  INTEIRO com `setDoc` sem `merge:true`.** Hoje inofensivo — nenhum campo
+  novo (`bio`/`theme`/`accentId`/`fontId`) é escrito por ninguém, então não
+  há nada para perder. Mas assim que a Entrega 3 nascer e alguém gravar um
+  tema, o PRÓXIMO login (que chama `upsertUserProfile` de novo) apagaria
+  esse tema junto, porque o objeto montado ali não inclui os campos novos.
+  Registrado agora para a Entrega 3 não tropeçar nisso: `upsertUserProfile`
+  precisa virar `merge:true` (ou ler e preservar os campos extra) antes ou
+  junto da escrita desses campos.
+- **`deleteGroupCascade` também não apaga `pinnedMessages`** — junta-se a
+  `voiceParticipants`/`signals`, já registrados como órfãos por grupo
+  apagado (etapa 17). Mesma causa, mesmo efeito: `pinnedMessages` do canal
+  fica no banco, ilegível e inapagável por qualquer pessoa assim que o
+  grupo some. Cobrir isso é parte do mesmo conserto já pendente, não uma
+  entrada nova e separada.
+- **Ficar sem commitar entre etapas é risco, não só desorganização.** As
+  etapas 17, 18 e 19 inteiras ficaram no disco, sem commit, por dois dias —
+  nenhum histórico para voltar atrás, e nenhuma cópia fora desta máquina
+  (o primeiro commit da etapa 17 cobre só até a etapa 16). Reconstruir o
+  histórico depois do fato, separando o que era de cada etapa dentro de
+  arquivos que as três mexeram junto, deu trabalho que um commit ao FIM DE
+  CADA ETAPA teria evitado por completo. Prática daqui para frente: commitar
+  ao fechar cada etapa, não deixar acumular.
+
 ## Etapa 18 — conversas privadas (Entrega 2 de 3 da etapa 14)
 
 A Entrega 1 (etapa 14) deixou o espaço reservado, vazio de propósito: tela
@@ -108,6 +332,26 @@ projeto real tem `displayName == "Índices"`). Regras e índices FORAM
 publicados no projeto real (`firebase deploy --only
 firestore:rules,firestore:indexes`); falta a conferência de
 `check:indexes` assim que a conta fixa existir.
+
+**CORREÇÃO (achada na etapa 19) — a previsão acima estava ERRADA.**
+`dmMessages` (threadId + sentAt) PRECISA de índice composto sim. Sem
+`.check-indexes.json`, a etapa 18 fechou sem rodar `check:indexes` de
+verdade — só o deploy de regras/índices, sem a sonda que teria pego isso
+antes de ir para produção. Ficou sem cobertura até o usuário achar direto
+no console do Firebase (Firestore → Índices): só `dmThreads` e `messages`
+existiam, `dmMessages` nunca foi publicado — e o histórico do PV falhava
+com "o índice das mensagens ainda está sendo construído", uma mensagem
+enganosa (não tinha índice construindo, tinha índice FALTANDO). A regra
+geral usada até aqui — "um campo de igualdade mais `orderBy` não exige
+índice composto" — não é universal; aqui ela falhou, e a diferença de
+`voiceParticipants`/`channels` (que de fato não precisam) não ficou clara
+antes de medir. Índice publicado na etapa 19
+(`threadId` ASCENDING + `sentAt` DESCENDING — mesma direção do índice de
+`messages`, pela mesma razão: `limitToLast` inverte a ordem enviada ao
+servidor). Lição aplicada daqui para frente: nenhuma consulta nova entra em
+produção só por dedução — ou passa pela sonda de `check:indexes`, ou (como
+`pinnedMessages` na etapa 19) é desenhada para não precisar de `orderBy`
+nenhum, e mesmo assim ganha sonda.
 
 ### Testes (`tests/dm.spec.ts`, novo arquivo)
 

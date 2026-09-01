@@ -50,6 +50,14 @@ export interface ContextMenuActions {
   openVoiceDiagnostics(): void;
   /** Abre o PV com este amigo — item "Enviar mensagem" do menu de contexto dele. */
   openDm(friendUid: MemberId): void;
+  /**
+   * Fixa OU desafixa — quem implementa decide qual, olhando se a mensagem já
+   * está em `state.pinnedMessages` (é por isso que o rótulo do item já
+   * muda aqui, no menu, sem round-trip). Grupo ou PV, mesma mensagem, mesma
+   * ação — a regra é que muda quem pode chegar a ela (dono vs. qualquer um
+   * dos dois).
+   */
+  togglePinMessage(messageId: string): void;
 }
 
 /** Copia com retorno na tela — sem isso a pessoa não sabe se funcionou. */
@@ -162,6 +170,16 @@ function messageItems(
     items.push({ label: 'Editar', onSelect: () => actions.editMessage(messageId) });
   }
 
+  // Fixar é só do DONO do grupo — conteúdo que todo mundo vê, e qualquer
+  // membro poder fixar viraria bagunça (etapa 19). Mesma restrição da regra.
+  if (isOwner(group, actions.uid)) {
+    const pinned = state.pinnedMessages.some((p) => p.messageId === messageId);
+    items.push({
+      label: pinned ? 'Desafixar' : 'Fixar mensagem',
+      onSelect: () => actions.togglePinMessage(messageId),
+    });
+  }
+
   if (canDelete) {
     items.push({
       label: 'Apagar mensagem',
@@ -181,15 +199,27 @@ function messageItems(
  * função é o tipo de engano que faria um PV herdar moderação de grupo por
  * acidente (etapa 18).
  */
-function dmMessageItems(target: HTMLElement, actions: ContextMenuActions): MenuItem[] {
+function dmMessageItems(
+  target: HTMLElement,
+  actions: ContextMenuActions,
+  state: AppState,
+): MenuItem[] {
   const messageId = target.dataset['messageId'] ?? '';
   const authorId = target.dataset['authorId'] ?? '';
   const text = target.querySelector('.message__text')?.textContent ?? '';
   const mine = authorId === actions.uid;
 
+  // `pinnedDmMessages`, não `pinnedMessages`: são fatias SEPARADAS (ver
+  // AppState) — a de grupo e a de PV podem estar carregadas ao mesmo tempo.
+  const pinned = state.pinnedDmMessages.some((p) => p.messageId === messageId);
   const items: MenuItem[] = [
     { label: 'Copiar texto', disabled: text === '', onSelect: () => copy(text, 'Copiado.') },
     { label: 'Responder', onSelect: () => actions.replyToMessage(messageId) },
+    // Fixar é dos DOIS participantes do PV, não só de quem escreveu — etapa 19.
+    {
+      label: pinned ? 'Desafixar' : 'Fixar mensagem',
+      onSelect: () => actions.togglePinMessage(messageId),
+    },
   ];
 
   // Só o autor — nem editar, nem apagar. Não existe dono de PV.
@@ -450,7 +480,7 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
         items = messageItems(target, actions, state);
         break;
       case 'dm-message':
-        items = dmMessageItems(target, actions);
+        items = dmMessageItems(target, actions, state);
         break;
       case 'friend':
         items = friendItems(target, actions);

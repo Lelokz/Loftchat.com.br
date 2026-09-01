@@ -51,6 +51,27 @@
   min-height: 0;
 }
 
+.chat__pin-button {
+  position: relative;
+  flex: none;
+}
+
+.chat__pin-count {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent);
+  color: var(--accent-on);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
 /*
  * Botões de gaveta e slot da faixa de chamada.
  *

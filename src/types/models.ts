@@ -56,6 +56,18 @@ export interface UserProfile {
    */
   usernameChanges?: number;
   createdAt: string;
+  /**
+   * Entrega 3 (etapa 14) — ainda não gravados por ninguém, só lidos.
+   *
+   * `theme`/`accentId`/`fontId` seguem listas FECHADAS (ver
+   * `lib/person-theme.ts`) — nunca texto livre, para não virar caminho de
+   * CSS/fonte arbitrária vinda de outra pessoa. Ausentes = a pessoa não
+   * escolheu, e quem vê usa o próprio tema, não um terceiro "sem tema".
+   */
+  bio?: string;
+  theme?: string;
+  accentId?: string;
+  fontId?: string;
 }
 
 /** Quantas trocas de `@` cada conta tem direito. Cobrado na regra, não só na tela. */
@@ -310,9 +322,10 @@ export interface DmThread {
 /**
  * coleção: dmMessages — mensagem de conversa PRIVADA.
  *
- * Índice composto a confirmar com `npm run check:indexes`: threadId +
- * sentAt (ver PROGRESSO.md, etapa 18 — só UM campo de igualdade, ao
- * contrário de `Message`, então pode nem precisar de índice composto).
+ * Índice composto: threadId (ASCENDING) + sentAt (DESCENDING) — publicado
+ * em `firestore.indexes.json`. A etapa 18 apostou que um campo de
+ * igualdade mais `orderBy` não precisaria de índice composto; estava
+ * errado (achado em produção, corrigido na etapa 19 — ver PROGRESSO.md).
  */
 export interface DmMessage extends MessageBase {
   /** = `DmThread.id` = `pairId(a, b)`. Nunca `groupId`/`channelId`: PV não tem nenhum dos dois. */
@@ -357,6 +370,63 @@ export interface VoiceParticipant {
   sharingScreen: boolean;
   lastSeen: string;
 }
+
+/**
+ * Tipo de conteúdo de uma mensagem FIXADA.
+ *
+ * Não é `MessageKind`: o app ainda não tem anexo (depende do Storage), mas
+ * o pedido é para o modelo já nascer pronto para as seis categorias
+ * (`'video'`/`'gif'` que `MessageKind` nem tem). Hoje só `'text'` é
+ * alcançável — o resto existe para quando anexos chegarem, sem migração.
+ */
+export type PinnedKind = 'text' | 'image' | 'video' | 'gif' | 'file' | 'audio';
+
+/**
+ * coleção: pinnedMessages — id AUTOGERADO (não determinístico: `threadId`
+ * já tem `_` no meio, compor um id de escopo+mensagem sem ambiguidade
+ * pediria mais complexidade do que vale).
+ *
+ * Uma fixada pertence a um CANAL (grupo) ou a uma THREAD (PV), nunca aos
+ * dois — `groupId`/`channelId` juntos OU `threadId` sozinho. Guarda o
+ * bastante para aparecer na lista SEM ler a mensagem original de novo
+ * (mesmo princípio do `groupId` em `Message`): autor, trecho, data, e o id
+ * da original só para permitir "pular até ela".
+ *
+ * Índice composto: nenhum. As duas consultas (grupo: groupId+channelId;
+ * PV: threadId) não usam `orderBy` — a lista ordena no CLIENTE por
+ * `pinnedAt`, de propósito, para não repetir a aposta que saiu errada com
+ * `dmMessages` (ver PROGRESSO.md, etapa 19).
+ */
+export interface PinnedMessage {
+  id: string;
+  groupId?: GroupId;
+  channelId?: ChannelId;
+  threadId?: string;
+  messageId: MessageId;
+  authorId: MemberId;
+  /** Denormalizado — mesmo motivo do `ReplyTo.authorName`: o autor pode sair do grupo. */
+  authorName: string;
+  kind: PinnedKind;
+  /**
+   * Trecho de quando foi FIXADA, não o texto atual da mensagem.
+   *
+   * Se a original for editada depois, isto NÃO muda — decisão consciente,
+   * não bug: manter sincronizado custaria uma leitura extra por item toda
+   * vez que a lista de fixadas for exibida, só para refletir uma edição
+   * que pode nunca acontecer.
+   */
+  excerpt: string;
+  /** Presente só quando kind !== 'text'. Reaproveita `Attachment` — nasce pronto para quando anexos existirem. */
+  attachment?: Attachment;
+  /** sentAt da mensagem ORIGINAL — é a data mostrada no item. */
+  sentAt: string;
+  /** Quando foi fixada. Ordena a lista (mais recente primeiro) — não é `sentAt`. */
+  pinnedAt: string;
+  pinnedBy: MemberId;
+}
+
+/** Quantas mensagens cada canal/conversa pode ter fixadas ao mesmo tempo. */
+export const MAX_PINNED_MESSAGES = 50;
 
 /*
  * `UiState` saiu daqui: grupo e canal ativos deixaram de ser constante de mock e

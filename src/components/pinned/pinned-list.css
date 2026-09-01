@@ -1,0 +1,141 @@
+/* Lista de mensagens fixadas — compartilhada pelo painel do grupo (modal) e
+   pelo painel do PV (sempre visível). Ver renderPinnedList. */
+
+/* Corpo do painel FLUTUANTE (modal.ts) — cresce até o teto de altura do
+   próprio modal e é ele quem dá o limite para `.pinned-list` (column-scroll)
+   rolar por dentro, em vez do <dialog> inteiro crescer além da tela. */
+.pinned-panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.pinned-list {
+  padding: var(--space-2);
+}
+
+.pinned-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.pinned-item + .pinned-item {
+  margin-top: var(--space-1);
+}
+
+/* Cada item na sua altura natural — nunca encolhe, nunca sobrepõe (a lista
+   inteira é quem rola, dentro de .column-scroll). */
+.pinned-item__row {
+  flex: 1;
+  min-width: 0;
+}
+
+.pinned-item__row--clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.pinned-item__row--clickable:hover {
+  background-color: var(--surface-hover);
+}
+
+.pinned-item__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pinned-item__author {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pinned-item__date {
+  flex: none;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.pinned-item__text {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.pinned-item__gone {
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.pinned-item__thumb {
+  overflow: hidden;
+  max-width: 220px;
+  margin: var(--space-1) 0;
+  border-radius: var(--radius-md);
+}
+
+.pinned-item__thumb img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+.pinned-item__file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
+.pinned-item__file-name {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pinned-item__file-meta {
+  flex: none;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.pinned-item__unpin {
+  flex: none;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.pinned-item__unpin:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pinned-list__empty {
+  padding: var(--space-4) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}

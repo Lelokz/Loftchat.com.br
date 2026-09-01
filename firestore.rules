@@ -324,6 +324,53 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.authorId == uid();
     }
 
+    /* --------------------------- pinnedMessages -------------------------- */
+    /*
+     * Mensagem FIXADA — de um CANAL (grupo) ou de uma THREAD (PV), nunca os
+     * dois. `'channelId' in resource.data` decide qual metade da regra
+     * vale, igual a como `dmMessages` decide por `threadId` estar presente.
+     *
+     * SEM get() em documento que pode não existir — ao contrário do pedido
+     * de amizade da etapa 16, aqui não há nada parecido para checar: criar
+     * não depende de "esta mensagem já está fixada?" (o cliente evita isso
+     * olhando a lista já carregada, e uma fixada repetida não quebra nada,
+     * só duplica visualmente — a tela agrupa por messageId ao exibir).
+     * Apagar sempre mira um id que o cliente já tem na lista carregada,
+     * nunca um chute. `isOwner`/`isMember` fazem get() no GRUPO, não na
+     * fixada, e o grupo de um canal real sempre existe.
+     *
+     * ids são AUTOGERADOS (sem id determinístico) — por isso `read` não
+     * precisa do mesmo split get/list de `friendships`/`dmThreads`: o
+     * cliente nunca faz um `getDoc` chutando um id de fixada que talvez não
+     * exista, só `list` (que nunca "casa" com documento inexistente).
+     */
+
+    match /pinnedMessages/{pinId} {
+      allow read: if signedIn() && (
+        ('channelId' in resource.data)
+          ? isMember(resource.data.groupId)
+          : resource.data.threadId.split('_').hasAny([uid()])
+      );
+
+      // Só o DONO fixa no grupo (conteúdo que todo mundo vê; qualquer
+      // membro poder fixar viraria bagunça). No PV, qualquer um dos dois.
+      allow create: if signedIn() && (
+        ('channelId' in request.resource.data)
+          ? isOwner(request.resource.data.groupId)
+          : request.resource.data.threadId.split('_').hasAny([uid()])
+      ) && request.resource.data.pinnedBy == uid();
+
+      // Mesma gente que pode fixar pode desafixar.
+      allow delete: if signedIn() && (
+        ('channelId' in resource.data)
+          ? isOwner(resource.data.groupId)
+          : resource.data.threadId.split('_').hasAny([uid()])
+      );
+
+      // Fixada é imutável — desafixar é apagar, não editar.
+      allow update: if false;
+    }
+
     /* ------------------------------ groups ------------------------------ */
     // Só membros leem. Qualquer autenticado cria, virando dono na mesma
     // operação. Só o dono altera ou apaga.

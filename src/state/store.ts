@@ -17,6 +17,8 @@ import {
   subscribeGroupMembers,
   subscribeMessages,
   subscribeMyGroups,
+  subscribePinnedChannelMessages,
+  subscribePinnedDmMessages,
   subscribeVoiceParticipants,
   MAX_MESSAGE_PAGES,
 } from '../lib/firestore';
@@ -39,6 +41,7 @@ import type {
   Member,
   MemberId,
   Message,
+  PinnedMessage,
   UserProfile,
   VoiceParticipant,
 } from '../types/models';
@@ -107,6 +110,16 @@ export interface AppState {
   dmMessagesAtStart: boolean;
   dmMessagesAtPageCap: boolean;
   dmMessagesError: string | null;
+
+  /**
+   * Fixadas do PV aberto — etapa 19. Fatia PRÓPRIA, separada de
+   * `pinnedMessages` (grupo), pelo MESMO motivo de `dmMessages` vs.
+   * `messages`: as duas assinaturas podem estar vivas ao mesmo tempo
+   * (`activeDmUid` sobrevive a uma troca de `view`, ver `openDm`/`closeDm`),
+   * então uma fatia só não bastaria sem perder dado de um dos dois lados.
+   */
+  pinnedDmMessages: PinnedMessage[];
+  pinnedDmMessagesLoaded: boolean;
 
   groups: Group[];
   groupsLoaded: boolean;
@@ -208,6 +221,10 @@ export interface AppState {
    * vazia — que seria indistinguível de um canal realmente sem mensagens.
    */
   messagesError: string | null;
+
+  /** Fixadas do canal ativo — etapa 19. Ver o comentário em `pinnedDmMessages`. */
+  pinnedMessages: PinnedMessage[];
+  pinnedMessagesLoaded: boolean;
 }
 
 export interface Store {
@@ -327,6 +344,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     dmMessagesAtStart: false,
     dmMessagesAtPageCap: false,
     dmMessagesError: null,
+    pinnedDmMessages: [],
+    pinnedDmMessagesLoaded: false,
     voiceFailedPeers: [],
     voiceVideoPeers: [],
     screenSharing: false,
@@ -344,6 +363,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     messagesAtStart: false,
     messagesAtPageCap: false,
     messagesError: null,
+    pinnedMessages: [],
+    pinnedMessagesLoaded: false,
   };
 
   const listeners = new Set<(state: AppState) => void>();
@@ -360,6 +381,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
   let stopMessages: Unsubscribe | null = null;
   let stopVoiceRoster: Unsubscribe | null = null;
   let stopDmMessages: Unsubscribe | null = null;
+  let stopPinnedMessages: Unsubscribe | null = null;
+  let stopPinnedDmMessages: Unsubscribe | null = null;
 
   /* ------------------------------------------------------------------------ */
   /* Presença de voz                                                          */
@@ -579,6 +602,36 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     };
 
   /**
+   * Assina as fixadas do canal ativo — etapa 19.
+   *
+   * Chamada de DENTRO de `watchMessages`, só quando `pages === 1` (troca de
+   * canal de verdade, não "carregar anteriores"): fixadas não dependem de
+   * paginação do histórico, então reabrir este listener a cada página
+   * carregada seria uma assinatura descartada à toa, com um pisca de
+   * "carregando" no meio do caminho.
+   */
+  function watchPinnedMessages(groupId: string | null, channelId: string | null): void {
+    stopPinnedMessages?.();
+    stopPinnedMessages = null;
+
+    if (groupId === null || channelId === null) {
+      patch({ pinnedMessages: [], pinnedMessagesLoaded: true });
+      return;
+    }
+
+    patch({ pinnedMessagesLoaded: false });
+    stopPinnedMessages = subscribePinnedChannelMessages(
+      groupId,
+      channelId,
+      (pinnedMessages) => patch({ pinnedMessages, pinnedMessagesLoaded: true }),
+      (error) => {
+        console.error('Falha ao ler as fixadas do canal.', error);
+        patch({ pinnedMessages: [], pinnedMessagesLoaded: true });
+      },
+    );
+  }
+
+  /**
    * Assina as mensagens do canal de texto ativo.
    *
    * Precisa do grupo além do canal: a consulta restringe os dois, senão as
@@ -591,6 +644,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     const groupId = state.activeGroupId;
     if (channelId === null || groupId === null) {
       patch({ messages: [], messagesLoaded: true, messagesError: null });
+      if (pages === 1) watchPinnedMessages(null, null);
       return;
     }
 
@@ -610,6 +664,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         messagesAtPageCap: false,
         messagesError: null,
       });
+      watchPinnedMessages(groupId, channelId);
     }
 
     stopMessages = subscribeMessages(
@@ -668,6 +723,27 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
   /* --- conversas privadas -------------------------------------------------- */
 
+  /** Assina as fixadas do PV aberto. Mesma disciplina de `watchPinnedMessages`, ver lá. */
+  function watchPinnedDmMessages(threadId: string | null): void {
+    stopPinnedDmMessages?.();
+    stopPinnedDmMessages = null;
+
+    if (threadId === null) {
+      patch({ pinnedDmMessages: [], pinnedDmMessagesLoaded: true });
+      return;
+    }
+
+    patch({ pinnedDmMessagesLoaded: false });
+    stopPinnedDmMessages = subscribePinnedDmMessages(
+      threadId,
+      (pinnedDmMessages) => patch({ pinnedDmMessages, pinnedDmMessagesLoaded: true }),
+      (error) => {
+        console.error('Falha ao ler as fixadas da conversa.', error);
+        patch({ pinnedDmMessages: [], pinnedDmMessagesLoaded: true });
+      },
+    );
+  }
+
   /**
    * Assina o histórico de UM PV. Fatia própria (`dmMessages*`), separada da
    * de grupo — ver o comentário em `AppState.dmMessages`.
@@ -684,6 +760,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
     if (threadId === null) {
       patch({ dmMessages: [], dmMessagesLoaded: true, dmMessagesError: null });
+      if (pages === 1) watchPinnedDmMessages(null);
       return;
     }
 
@@ -696,6 +773,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         dmMessagesAtPageCap: false,
         dmMessagesError: null,
       });
+      watchPinnedDmMessages(threadId);
     }
 
     stopDmMessages = subscribeDmMessages(
@@ -732,6 +810,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     stopMembers = null;
     stopMessages?.();
     stopMessages = null;
+    stopPinnedMessages?.();
+    stopPinnedMessages = null;
     stopVoiceRoster?.();
     stopVoiceRoster = null;
     rawVoice = [];
@@ -756,6 +836,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       messages: [],
       messagesLoaded: false,
       messagesError: null,
+      pinnedMessages: [],
+      pinnedMessagesLoaded: false,
     };
     notify();
 
@@ -1165,10 +1247,12 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       stopBlocks();
       stopDmThreads();
       stopDmMessages?.();
+      stopPinnedDmMessages?.();
       stopGroups();
       stopChannels?.();
       stopMembers?.();
       stopMessages?.();
+      stopPinnedMessages?.();
       stopVoiceRoster?.();
       window.clearInterval(ghostSweep);
       // Sair da conta com uma chamada aberta tem que tirar você da sala dos

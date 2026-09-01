@@ -248,6 +248,22 @@ test('@indices as consultas compostas do produto têm índice no projeto real', 
     direction: 'DESCENDING',
   });
 
+  /*
+   * ETAPA 19 — mensagens fixadas. As DUAS sem `orderBy` de propósito: a
+   * lista ordena no CLIENTE por `pinnedAt` (ver `subscribePinnedChannelMessages`/
+   * `subscribePinnedDmMessages`), exatamente para não repetir a aposta que
+   * saiu errada com `dmMessages` acima — mas a sonda mede mesmo assim, não
+   * confia na dedução.
+   */
+  await sondar('fixadas do canal', {
+    collection: 'pinnedMessages',
+    equals: { groupId, channelId },
+  });
+  await sondar('fixadas do PV', {
+    collection: 'pinnedMessages',
+    equals: { threadId: `${account.uid ?? ''}_sonda` },
+  });
+
   for (const { nome, resultado } of sondas) {
     const semIndice =
       /requires an index|FAILED_PRECONDITION/i.test(resultado.message) === true;

@@ -202,7 +202,14 @@ function loadMoreOverlay(props: MessageListProps): HTMLElement | false {
  *      "fora-da-janela": some a única coisa mais velha que ela, e a regra 1
  *      deixa de valer justamente no caso em que a certeza é maior.
  */
-function citationState(
+/**
+ * Exportada para a lista de FIXADAS (etapa 19) reaproveitar sem duplicar:
+ * `PinnedMessage` tem `messageId`/`authorId`/`authorName`/`excerpt`/`sentAt`
+ * com os mesmos nomes e tipos de `ReplyTo` (mais campos próprios, que esta
+ * função ignora), então a tipagem estrutural aceita passar uma fixada aqui
+ * direto, sem cast.
+ */
+export function citationState(
   reply: NonNullable<MessageBase['replyTo']>,
   messages: MessageBase[],
   atStart: boolean,

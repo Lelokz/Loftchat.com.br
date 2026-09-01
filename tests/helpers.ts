@@ -1127,6 +1127,7 @@ export async function cleanupFirestore(
           "voiceParticipants",
           "channels",
           "invites",
+          "pinnedMessages",
         ] as const) {
           for (const document of await queryDocs(
             token,

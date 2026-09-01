@@ -103,3 +103,10 @@ export const rotateIcon = (size?: number): string =>
 /** X — cancelar uma resposta, fechar uma faixa. */
 export const closeIcon = (size?: number): string =>
   svg(`<path d="M18 6 6 18M6 6l12 12"/>`, size);
+
+/** Mensagem fixada — cabeçalho do grupo (etapa 19). */
+export const pinIcon = (size?: number): string =>
+  svg(
+    '<path d="M12 21s7-7.6 7-12.5A7 7 0 0 0 5 8.5C5 13.4 12 21 12 21Z"/><circle cx="12" cy="8.5" r="2.5"/>',
+    size,
+  );

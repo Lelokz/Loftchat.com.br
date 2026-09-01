@@ -7,9 +7,12 @@ import { renderChat } from './components/chat/chat';
 import type { ChatParts } from './components/chat/chat';
 import { renderDmBlockedNotice, renderDmChat } from './components/chat/dm-chat';
 import type { DmChatParts, DmFriendView } from './components/chat/dm-chat';
+import { renderDmSidePanel } from './components/chat/dm-side-panel';
 import { renderComposer } from './components/chat/composer/composer';
-import { renderMessageList } from './components/chat/message-list/message-list';
+import { citationState, renderMessageList } from './components/chat/message-list/message-list';
 import { renderReplyBar } from './components/chat/reply-bar/reply-bar';
+import { openPinnedMessagesPanel } from './components/pinned/pinned-list';
+import type { PinnedPanel } from './components/pinned/pinned-list';
 import {
   renderLoading,
   renderMessagesError,
@@ -23,6 +26,7 @@ import type { FriendsScreenParts, FriendsScreenProps, FriendsTab } from './compo
 import {
   acceptFriendRequest,
   blockUser,
+  pairId,
   removeFriendship,
   sendFriendRequest,
   uidOfUsername,
@@ -53,6 +57,8 @@ import {
   deleteGroupCascade,
   deleteMessage,
   leaveGroup,
+  pinChannelMessage,
+  pinDmMessage,
   removeMember,
   renameGroup,
   buildReplyTo,
@@ -60,6 +66,7 @@ import {
   editMessage,
   sendDmMessage,
   sendMessage,
+  unpinMessages,
 } from './lib/firestore';
 import { initials } from './lib/format';
 import { canLeaveGroup, isOwner, OWNER_CANNOT_LEAVE } from './lib/permissions';
@@ -69,7 +76,8 @@ import { isMobileLayout, onLayoutChange, trackViewportHeight } from './lib/layou
 import { installContextMenus } from './context-menus';
 import { createStore, screenShareSupported } from './state/store';
 import type { AppState, Store } from './state/store';
-import type { ReplyTo } from './types/models';
+import { MAX_PINNED_MESSAGES } from './types/models';
+import type { PinnedMessage, ReplyTo } from './types/models';
 import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
 
@@ -123,6 +131,8 @@ export function mountApp(
   /** Casca do PV — mesma ideia de `chat`/`chatChannelId`, uma por PESSOA. */
   let dmChat: DmChatParts | null = null;
   let dmChatFriendUid: string | null = null;
+  /** O painel flutuante de fixadas do grupo, enquanto aberto — `null` quando fechado. */
+  let pinsPanel: PinnedPanel | null = null;
 
   let previous: AppState | null = null;
 
@@ -353,6 +363,62 @@ export function mountApp(
         await (emDm ? deleteDmMessage(messageId) : deleteMessage(messageId));
         controller.close();
       },
+    });
+  };
+
+  /**
+   * Fixa OU desafixa — grupo ou PV, `state.activeDmUid` decide, mesmo
+   * critério do resto do app. Desafixar remove TODOS os ids daquele
+   * `messageId` de uma vez (a corrida rara do PV — os dois participantes
+   * fixando a mesma mensagem ao mesmo tempo — pode deixar mais de um
+   * documento; ver `pinned-list.ts`).
+   */
+  const handleTogglePinMessage = (messageId: string): void => {
+    const state = store.getState();
+    const scopePins = state.activeDmUid !== null ? state.pinnedDmMessages : state.pinnedMessages;
+    const existingIds = scopePins.filter((p) => p.messageId === messageId).map((p) => p.id);
+
+    if (existingIds.length > 0) {
+      void unpinMessages(existingIds).catch((error: unknown) => {
+        console.error('Falha ao desafixar a mensagem.', error);
+        showToast('Não foi possível desafixar.');
+      });
+      return;
+    }
+
+    if (scopePins.length >= MAX_PINNED_MESSAGES) {
+      showToast(`Teto de ${MAX_PINNED_MESSAGES} fixadas. Desafixe algo antes de fixar outra.`);
+      return;
+    }
+
+    if (state.activeDmUid !== null) {
+      const friendUid = state.activeDmUid;
+      const alvo = state.dmMessages.find((m) => m.id === messageId);
+      if (alvo === undefined) return;
+      const nome =
+        alvo.authorId === user.uid ? me.displayName : friendDisplayName(state, alvo.authorId);
+      void pinDmMessage(pairId(user.uid, friendUid), alvo, nome, user.uid).catch(
+        (error: unknown) => {
+          console.error('Falha ao fixar a mensagem.', error);
+          showToast('Não foi possível fixar.');
+        },
+      );
+      return;
+    }
+
+    if (state.activeGroupId === null || state.activeChannelId === null) return;
+    const alvo = state.messages.find((m) => m.id === messageId);
+    if (alvo === undefined) return;
+    const autor = state.members.find((m) => m.id === alvo.authorId);
+    void pinChannelMessage(
+      state.activeGroupId,
+      state.activeChannelId,
+      alvo,
+      autor?.displayName ?? 'Usuário',
+      user.uid,
+    ).catch((error: unknown) => {
+      console.error('Falha ao fixar a mensagem.', error);
+      showToast('Não foi possível fixar.');
     });
   };
 
@@ -950,6 +1016,82 @@ export function mountApp(
     });
   }
 
+  /** Id do vínculo de amizade aceito com esta pessoa, para "Desfazer amizade" no cartão — `null` se por algum motivo não existir mais. */
+  function friendshipIdWith(state: AppState, uid: MemberId): string | null {
+    return (
+      state.friendships.find((f) => f.status === 'accepted' && f.members.includes(uid))?.id ??
+      null
+    );
+  }
+
+  /** Como saber se a mensagem original de uma fixada ainda está alcançável — mesma `citationState` da citação (etapa 17). */
+  function pinReachabilityIn(
+    pin: PinnedMessage,
+    messages: AppState['messages'] | AppState['dmMessages'],
+    atStart: boolean,
+  ): 'carregada' | 'apagada' | 'fora-da-janela' {
+    return citationState(pin, messages, atStart);
+  }
+
+  /** Coluna 4 no PV — perfil da pessoa (terço de cima) + fixadas da conversa (dois terços de baixo). */
+  function buildDmSidePanel(state: AppState, friendUid: MemberId): HTMLElement {
+    return renderDmSidePanel({
+      profileCard: {
+        friendUid,
+        profile: state.friendProfiles.get(friendUid),
+        friendshipId: friendshipIdWith(state, friendUid),
+        blocked: state.blockedUids.includes(friendUid),
+        onBlock: (uid) => {
+          void blockUser(user.uid, uid).catch(() => showToast('Não foi possível bloquear.'));
+        },
+        onUnblock: (uid) => {
+          void unblockUser(user.uid, uid).catch(() => showToast('Não foi possível desbloquear.'));
+        },
+        onRemove: (friendshipId) => {
+          void removeFriendship(friendshipId).catch(() => showToast('Não foi possível concluir.'));
+        },
+      },
+      pinnedList: {
+        pins: state.pinnedDmMessages,
+        pinnedLoaded: state.pinnedDmMessagesLoaded,
+        reachabilityOf: (pin) => pinReachabilityIn(pin, state.dmMessages, state.dmMessagesAtStart),
+        onJumpTo: jumpToMessage,
+        onUnpin: handleUnpin,
+      },
+    });
+  }
+
+  /** Chamado tanto pelo painel do PV quanto pelo painel flutuante do grupo. */
+  function handleUnpin(pinIds: string[]): void {
+    void unpinMessages(pinIds).catch((error: unknown) => {
+      console.error('Falha ao desafixar a mensagem.', error);
+      showToast('Não foi possível desafixar.');
+    });
+  }
+
+  /** Conteúdo do painel flutuante de fixadas do grupo — reconstruído a cada atualização enquanto está aberto. */
+  function buildGroupPins(state: AppState, canUnpin: boolean) {
+    return {
+      pins: state.pinnedMessages,
+      pinnedLoaded: state.pinnedMessagesLoaded,
+      reachabilityOf: (pin: PinnedMessage) =>
+        pinReachabilityIn(pin, state.messages, state.messagesAtStart),
+      canUnpin,
+      onJumpTo: (messageId: string) => {
+        pinsPanel?.close();
+        jumpToMessage(messageId);
+      },
+      onUnpin: handleUnpin,
+    };
+  }
+
+  const handleOpenPins = (): void => {
+    const state = store.getState();
+    const group = activeGroup(state) ?? null;
+    if (group === null) return;
+    pinsPanel = openPinnedMessagesPanel(buildGroupPins(state, isOwner(group, user.uid)));
+  };
+
   /**
    * Troca o conteúdo da coluna 3.
    *
@@ -1158,20 +1300,28 @@ export function mountApp(
     }
 
     /*
-     * Coluna 4 fica OCULTA na tela inicial e sem grupo nenhum — não há
-     * membro nenhum para listar em nenhum dos dois casos.
+     * Coluna 4 aparece em dois casos: visão de grupo com grupo selecionado
+     * (membros) ou PV aberto na tela inicial (perfil + fixadas, etapa 19).
+     * Fora disso — tela de amigos sem PV, ou sem grupo nenhum — fica oculta:
+     * não há conteúdo nenhum para os dois casos.
      *
      * `hidden` em vez de não montar: o `swapCenter` usa `memberListEl` como
      * ÂNCORA para inserir a coluna do meio antes dela. Sumindo com o nó, a
      * coluna do meio perderia a referência de posição e apareceria no lugar
      * errado ao voltar para um grupo.
      *
+     * `no-member-column` no `.app` é o conserto da borda do cabeçalho (ver
+     * layout.css): sem ela, a faixa reservada da coluna 4 fica sem nenhuma
+     * linha por cima quando não há painel nenhum.
+     *
      * E fica ANTES dos retornos antecipados abaixo — depois deles esta linha
      * nunca rodaria justamente nos casos em que ela existe para tratar.
      */
-    if (memberListEl !== null) {
-      memberListEl.hidden = state.view === 'home' || state.groups.length === 0;
-    }
+    const showAside =
+      (state.view === 'home' && state.activeDmUid !== null) ||
+      (state.view === 'group' && state.groups.length > 0);
+    if (memberListEl !== null) memberListEl.hidden = !showAside;
+    root.classList.toggle('no-member-column', !showAside);
 
     /* --- coluna do meio: o chat OU a sala de voz ------------------------- */
 
@@ -1207,6 +1357,7 @@ export function mountApp(
           parts = renderDmChat({
             friend: friendView(state, friendUid),
             onOpenChannels: () => setDrawer('left'),
+            onOpenPanel: () => setDrawer('right'),
           });
           centerEl = swapCenter(centerEl, parts.element);
           dmChat = parts;
@@ -1264,6 +1415,28 @@ export function mountApp(
           parts.callBarSlot.replaceChildren(
             ...(callBar === undefined ? [] : [renderCallBar(callBar, 'mobile')]),
           );
+        }
+
+        /*
+         * Coluna 4 no PV: perfil + fixadas — etapa 19. `memberListEl` é o
+         * MESMO nó âncora que o grupo usa para os membros (`swap`, mesma
+         * função); aqui ele recebe o painel do PV em vez do painel de
+         * membros. Reconstrói sempre que algo que o cartão OU a lista de
+         * fixadas mostram muda — inclusive `dmMessages`/`dmMessagesAtStart`,
+         * porque é deles que vem "alcançável" de cada fixada.
+         */
+        const asideChanged =
+          dmChanged ||
+          prev === null ||
+          prev.friendProfiles !== state.friendProfiles ||
+          prev.friendships !== state.friendships ||
+          prev.blockedUids !== state.blockedUids ||
+          prev.pinnedDmMessages !== state.pinnedDmMessages ||
+          prev.pinnedDmMessagesLoaded !== state.pinnedDmMessagesLoaded ||
+          prev.dmMessages !== state.dmMessages ||
+          prev.dmMessagesAtStart !== state.dmMessagesAtStart;
+        if (asideChanged) {
+          memberListEl = swap(memberListEl, buildDmSidePanel(state, friendUid));
         }
 
         previous = state;
@@ -1342,6 +1515,8 @@ export function mountApp(
           onSend: handleSend,
           onOpenChannels: () => setDrawer('left'),
           onOpenMembers: () => setDrawer('right'),
+          pinnedCount: state.pinnedMessages.length,
+          onOpenPins: handleOpenPins,
         });
         centerEl = swapCenter(centerEl, parts.element);
         chat = parts;
@@ -1349,6 +1524,10 @@ export function mountApp(
         centerMode = 'chat';
       } else {
         parts = chat!;
+      }
+
+      if (channelChanged || prev === null || prev.pinnedMessages !== state.pinnedMessages) {
+        parts.setPinnedCount(state.pinnedMessages.length);
       }
 
       // A edição é estado LOCAL: o store não muda quando entro em edição, então
@@ -1369,6 +1548,23 @@ export function mountApp(
 
       if (messagesChanged) {
         swapMessages(parts.messagesSlot, buildMessages(state), channelChanged);
+      }
+
+      /*
+       * O painel flutuante de fixadas (etapa 19), SE estiver aberto —
+       * `.isConnected` cai para false sozinho quando fecha (Escape, clique
+       * fora ou o botão: os três chamam `dialog.close()`, que remove o nó do
+       * DOM em `modal.ts`), sem precisar de um listener aqui para saber.
+       */
+      if (pinsPanel !== null) {
+        if (pinsPanel.element.isConnected) {
+          if (messagesChanged || prev === null || prev.pinnedMessages !== state.pinnedMessages || prev.pinnedMessagesLoaded !== state.pinnedMessagesLoaded) {
+            const group = activeGroup(state) ?? null;
+            if (group !== null) pinsPanel.update(buildGroupPins(state, isOwner(group, user.uid)));
+          }
+        } else {
+          pinsPanel = null;
+        }
       }
 
       /*
@@ -1509,6 +1705,7 @@ export function mountApp(
     editMessage: handleEditMessage,
     openVoiceDiagnostics: handleOpenDiagnostics,
     openDm: (uid) => store.openDm(uid),
+    togglePinMessage: handleTogglePinMessage,
   });
 
   const unsubscribe = store.subscribe(render);

@@ -1,7 +1,7 @@
 import './dm-chat.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { menuIcon } from '../../lib/icons';
+import { menuIcon, peopleIcon } from '../../lib/icons';
 
 /** Quem é o outro lado do PV — o cabeçalho não sabe de `UserProfile`, só disto. */
 export interface DmFriendView {
@@ -16,6 +16,12 @@ export interface DmChatProps {
   friend: DmFriendView;
   /** Gaveta do mobile (a coluna 2 vira a lista de amigos/conversas). */
   onOpenChannels: () => void;
+  /**
+   * Gaveta do mobile para o painel da direita (etapa 19: perfil + fixadas).
+   * No desktop ele já é sempre visível na coluna 4 — mesma ideia do
+   * `onOpenMembers` de `chat.ts`, com o painel diferente do lado de lá.
+   */
+  onOpenPanel: () => void;
 }
 
 /**
@@ -69,6 +75,17 @@ export function renderDmChat(props: DmChatProps): DmChatParts {
   );
   backButton.addEventListener('click', props.onOpenChannels);
 
+  const panelButton = el(
+    'button',
+    {
+      class: 'icon-button chat__mobile-button chat__mobile-button--right',
+      type: 'button',
+      title: 'Abrir perfil',
+    },
+    [iconEl(peopleIcon(18)), el('span', { class: 'sr-only' }, ['Abrir perfil'])],
+  );
+  panelButton.addEventListener('click', props.onOpenPanel);
+
   const header = el('header', { class: 'chat__header' }, [
     backButton,
     avatarEl(friend.initials, 'sm'),
@@ -78,6 +95,7 @@ export function renderDmChat(props: DmChatProps): DmChatParts {
         ? false
         : el('span', { class: 'dm-chat__handle' }, [`@${friend.username}`]),
     ]),
+    panelButton,
   ]);
 
   return {

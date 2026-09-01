@@ -2,11 +2,17 @@
 
 .modal {
   width: min(400px, calc(100vw - var(--space-6)));
+  /* Teto de altura: sem ele, um corpo alto (a lista de fixadas, etapa 19)
+     cresceria o <dialog> inteiro para além da tela em vez de rolar por
+     dentro — nenhum modal existente crescia tanto para isso importar antes. */
+  max-height: calc(100vh - var(--space-6));
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-color: var(--surface-chat);
   color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal::backdrop {
@@ -18,6 +24,8 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-5);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .modal__title {

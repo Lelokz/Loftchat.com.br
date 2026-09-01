@@ -3,10 +3,15 @@
  *
  * Duas decisões que valem para o arquivo inteiro:
  *
- * 1. NENHUMA consulta exige índice composto. Todas usam igualdade num campo só,
- *    que o Firestore indexa sozinho. Onde faria sentido um `orderBy`, a
- *    ordenação é feita no cliente — senão você teria que criar o índice à mão
- *    no console antes do app funcionar.
+ * 1. A MAIORIA das consultas usa igualdade num campo só (ou várias
+ *    igualdades sem `orderBy`), que o Firestore indexa sozinho — sem
+ *    índice composto. Onde isso bastava, a ordenação é feita no CLIENTE de
+ *    propósito, para não exigir índice à mão no console. Mas isto NÃO É
+ *    universal: `orderBy` combinado com um `where`, mesmo um só, PODE
+ *    exigir índice composto (`messages`, `dmMessages` — a etapa 18 apostou
+ *    que não precisaria para `dmMessages` e errou, achado em produção; ver
+ *    PROGRESSO.md). Consulta nova com `orderBy`: meça com
+ *    `npm run check:indexes`, não deduza.
  *
  * 2. Documentos de `groups` e `users` são acompanhados UM A UM com
  *    onSnapshot(doc(...)), sincronizando um Map de unsubscribe. Isso evita o
@@ -54,6 +59,8 @@ import type {
   Message,
   MessageBase,
   MessageKind,
+  PinnedKind,
+  PinnedMessage,
   ReplyTo,
   UserProfile,
   VoiceParticipant,
@@ -224,6 +231,35 @@ function toDmThread(id: string, data: DocumentData): DmThread {
     },
     lastMessageAt: typeof data['lastMessageAt'] === 'string' ? data['lastMessageAt'] : '',
   };
+}
+
+function toPinnedMessage(id: string, data: DocumentData): PinnedMessage {
+  const kind = data['kind'];
+  const attachment = data['attachment'];
+
+  const pin: PinnedMessage = {
+    id,
+    messageId: typeof data['messageId'] === 'string' ? data['messageId'] : '',
+    authorId: typeof data['authorId'] === 'string' ? data['authorId'] : '',
+    authorName: typeof data['authorName'] === 'string' ? data['authorName'] : 'Usuário',
+    kind:
+      kind === 'image' || kind === 'video' || kind === 'gif' || kind === 'file' || kind === 'audio'
+        ? (kind as PinnedKind)
+        : 'text',
+    excerpt: typeof data['excerpt'] === 'string' ? data['excerpt'] : '',
+    sentAt: typeof data['sentAt'] === 'string' ? data['sentAt'] : '',
+    pinnedAt: typeof data['pinnedAt'] === 'string' ? data['pinnedAt'] : '',
+    pinnedBy: typeof data['pinnedBy'] === 'string' ? data['pinnedBy'] : '',
+  };
+
+  if (typeof data['groupId'] === 'string') Object.assign(pin, { groupId: data['groupId'] });
+  if (typeof data['channelId'] === 'string') Object.assign(pin, { channelId: data['channelId'] });
+  if (typeof data['threadId'] === 'string') Object.assign(pin, { threadId: data['threadId'] });
+  if (attachment !== undefined && attachment !== null) {
+    Object.assign(pin, { attachment: attachment as Attachment });
+  }
+
+  return pin;
 }
 
 function toMember(uid: MemberId, data: DocumentData | undefined): Member {
@@ -588,8 +624,13 @@ export async function sendMessage(
   );
 }
 
-/** Quanto do texto citado é copiado para dentro da resposta. */
+/** Quanto do texto citado (resposta ou fixada) é copiado para dentro do documento novo. */
 const EXCERPT_MAX = 120;
+
+function excerptOf(rawBody: string): string {
+  const texto = rawBody.trim();
+  return texto.length > EXCERPT_MAX ? `${texto.slice(0, EXCERPT_MAX)}…` : texto;
+}
 
 /**
  * Monta a citação a partir da mensagem original, no momento de responder.
@@ -597,12 +638,11 @@ const EXCERPT_MAX = 120;
  * quanto de PV — nenhum dos dois campos extras de `Message` é usado aqui.
  */
 export function buildReplyTo(message: MessageBase, authorName: string): ReplyTo {
-  const texto = message.body.trim();
   return {
     messageId: message.id,
     authorId: message.authorId,
     authorName,
-    excerpt: texto.length > EXCERPT_MAX ? `${texto.slice(0, EXCERPT_MAX)}…` : texto,
+    excerpt: excerptOf(message.body),
     sentAt: message.sentAt,
   };
 }
@@ -1098,6 +1138,130 @@ export async function editDmMessage(messageId: string, rawBody: string): Promise
  */
 export async function deleteDmMessage(messageId: string): Promise<void> {
   await withTimeout(deleteDoc(doc(db, 'dmMessages', messageId)));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mensagens fixadas — etapa 19                                                */
+/*                                                                             */
+/* UMA coleção para grupo e PV, com o escopo por presença de campo             */
+/* (`groupId`+`channelId` OU `threadId` — nunca os dois, ver firestore.rules). */
+/* Sem `orderBy` nas duas consultas — a lista ordena por `pinnedAt` no         */
+/* CLIENTE, de propósito, para não repetir a aposta que saiu errada com       */
+/* `dmMessages` (ver PROGRESSO.md). ids são AUTOGERADOS, nunca                 */
+/* determinísticos: fixar a mesma mensagem duas vezes (a corrida do PV, com   */
+/* os dois participantes fixando ao mesmo tempo) não quebra nada — a TELA     */
+/* agrupa por `messageId` ao exibir, e `unpinMessages` apaga o grupo inteiro. */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fixadas de UM canal, em tempo real.
+ *
+ * `groupId` + `channelId`: dois filtros de igualdade, SEM `orderBy` — a
+ * mesma forma que `signals` (`voice-signaling.ts`) já usa em produção sem
+ * pedir índice composto. Ordena no cliente por `pinnedAt` (mais recente
+ * primeiro — quando foi FIXADA, não quando foi enviada).
+ */
+export function subscribePinnedChannelMessages(
+  groupId: string,
+  channelId: string,
+  onChange: (pins: PinnedMessage[]) => void,
+  onError: ErrorHandler,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      collection(db, 'pinnedMessages'),
+      where('groupId', '==', groupId),
+      where('channelId', '==', channelId),
+    ),
+    (snapshot) => {
+      const pins = snapshot.docs.map((entry) => toPinnedMessage(entry.id, entry.data()));
+      pins.sort((a, b) => b.pinnedAt.localeCompare(a.pinnedAt));
+      onChange(pins);
+    },
+    (error) => onError(listenerError('fixadas do canal', error)),
+  );
+}
+
+/**
+ * Fixadas de UMA conversa privada, em tempo real.
+ *
+ * Um único campo de igualdade (`threadId`), sem `orderBy` — o Firestore
+ * indexa sozinho, sem risco algum de precisar de índice composto.
+ */
+export function subscribePinnedDmMessages(
+  threadId: string,
+  onChange: (pins: PinnedMessage[]) => void,
+  onError: ErrorHandler,
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'pinnedMessages'), where('threadId', '==', threadId)),
+    (snapshot) => {
+      const pins = snapshot.docs.map((entry) => toPinnedMessage(entry.id, entry.data()));
+      pins.sort((a, b) => b.pinnedAt.localeCompare(a.pinnedAt));
+      onChange(pins);
+    },
+    (error) => onError(listenerError('fixadas da conversa', error)),
+  );
+}
+
+async function createPin(
+  scope: DocumentData,
+  message: MessageBase,
+  authorName: string,
+  pinnedBy: MemberId,
+): Promise<void> {
+  const data: DocumentData = {
+    ...scope,
+    messageId: message.id,
+    authorId: message.authorId,
+    authorName,
+    kind: message.kind,
+    excerpt: excerptOf(message.body),
+    sentAt: message.sentAt,
+    pinnedAt: nowIso(),
+    pinnedBy,
+  };
+  // `exactOptionalPropertyTypes`/Firestore: campo ausente, nunca `undefined`.
+  if (message.attachment !== undefined) data['attachment'] = message.attachment;
+
+  await withTimeout(addDoc(collection(db, 'pinnedMessages'), data));
+}
+
+/** Fixa uma mensagem de GRUPO. Só o DONO pode — cobrado na regra; aqui é só a escrita. */
+export async function pinChannelMessage(
+  groupId: string,
+  channelId: string,
+  message: MessageBase,
+  authorName: string,
+  pinnedBy: MemberId,
+): Promise<void> {
+  await createPin({ groupId, channelId }, message, authorName, pinnedBy);
+}
+
+/** Fixa uma mensagem de PV. Qualquer um dos dois participantes pode. */
+export async function pinDmMessage(
+  threadId: string,
+  message: MessageBase,
+  authorName: string,
+  pinnedBy: MemberId,
+): Promise<void> {
+  await createPin({ threadId }, message, authorName, pinnedBy);
+}
+
+/**
+ * Desafixa — apaga o(s) documento(s) de fixada daquele `messageId`.
+ *
+ * Normalmente um id só; mais de um só na corrida rara do PV (os dois
+ * participantes fixando a mesma mensagem ao mesmo tempo — ver o comentário
+ * no topo desta seção). `renderPinnedList` já agrupa por `messageId` e
+ * entrega TODOS os ids do grupo aqui, então desafixar remove todos de uma
+ * vez, dos dois lados.
+ */
+export async function unpinMessages(pinIds: string[]): Promise<void> {
+  if (pinIds.length === 0) return;
+  const batch = writeBatch(db);
+  for (const id of pinIds) batch.delete(doc(db, 'pinnedMessages', id));
+  await withTimeout(batch.commit());
 }
 
 /* -------------------------------------------------------------------------- */

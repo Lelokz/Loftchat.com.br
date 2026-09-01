@@ -18,6 +18,15 @@
         { "fieldPath": "members", "arrayConfig": "CONTAINS" },
         { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "_comment": "Histórico do PV: where('threadId','==',t) + orderBy('sentAt') + limitToLast(cap) — ver subscribeDmMessages. Faltou publicar este índice junto com a etapa 18: a previsão de que 'um campo de igualdade mais orderBy não precisa de índice composto' estava errada aqui, e ficou sem cobertura até ser achada em produção (ver PROGRESSO.md). Mesma pegadinha do índice de messages acima: sentAt é DESCENDING por causa de como o SDK implementa limitToLast, mesmo o código dizendo orderBy('sentAt') sem argumento.",
+      "collectionGroup": "dmMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "threadId", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

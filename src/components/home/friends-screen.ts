@@ -84,8 +84,12 @@ function personRow(
   return row;
 }
 
-/** `stopPropagation`: sem isto, clicar "Bloquear" numa linha clicável TAMBÉM abriria o PV. */
-function action(label: string, onClick: () => void, danger = false): HTMLElement {
+/**
+ * `stopPropagation`: sem isto, clicar "Bloquear" numa linha clicável TAMBÉM
+ * abriria o PV. Exportada: o cartão de perfil do PV (etapa 19) reaproveita
+ * o MESMO botão — "os mesmos da tela de amigos", não uma cópia.
+ */
+export function action(label: string, onClick: () => void, danger = false): HTMLElement {
   const button = el(
     'button',
     { class: `friends__action${danger ? ' friends__action--danger' : ''}`, type: 'button' },

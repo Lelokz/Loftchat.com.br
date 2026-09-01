@@ -20,6 +20,27 @@
 }
 
 /*
+ * A borda de baixo do cabeçalho (coluna 3) parava no meio da tela sempre
+ * que a coluna 4 não tinha conteúdo — não é `[hidden]` que colapsa a
+ * faixa: `grid-template-columns` acima RESERVA os `var(--members-w)`
+ * sempre, escondido ou não. Com `.members` visível, a BORDA ESQUERDA dela
+ * (member-list.css) fechava o desenho bem onde a de baixo do cabeçalho
+ * parava, e por isso "parecia" ir até o fim — sem painel nenhum (tela de
+ * amigos sem PV aberto), essa borda vertical também some e sobra a faixa
+ * inteira sem linha nenhuma por cima. Conserto genérico — cobre os dois
+ * casos, não só o PV: o cabeçalho estica por cima da faixa reservada
+ * sempre que a coluna 4 está de fato vazia (`app.ts` decide quando).
+ * Só faz sentido no grid de desktop — no mobile a coluna 4 é gaveta
+ * sobreposta, e `.chat__header`/`.friends__header` já ocupam a tela toda.
+ */
+@media (min-width: 721px) {
+  .app.no-member-column .chat__header,
+  .app.no-member-column .friends__header {
+    width: calc(100% + var(--members-w));
+  }
+}
+
+/*
  * Coluna 3 — o chat, em coluna flex:
  *
  *   cabeçalho do canal    flex: none

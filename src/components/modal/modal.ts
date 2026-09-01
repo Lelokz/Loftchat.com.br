@@ -136,6 +136,16 @@ export function openModal(options: ModalOptions): ModalController {
     if (busy) event.preventDefault();
   });
 
+  /*
+   * Clique FORA fecha, como Esc — o <dialog> nativo não faz isto sozinho.
+   * `event.target === dialog` é o clique no ::backdrop: um clique dentro do
+   * `form` (que ocupa toda a área de conteúdo) nunca tem o próprio <dialog>
+   * como alvo.
+   */
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog && !busy) dialog.close();
+  });
+
   dialog.addEventListener('close', () => dialog.remove());
 
   dialog.append(form);
