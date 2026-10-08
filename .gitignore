@@ -26,3 +26,19 @@ screenshots
 # JRE portatil que já existiu aqui num Windows anterior -- se voltar, nao
 # deve ir para o repositorio (ver etapa 16 em PROGRESSO.md).
 .tools
+
+# variantes locais do .env (o .env.example continua versionado)
+.env.*
+!.env.example
+
+# dados exportados do Firebase Emulator (emulators:export / --export-on-exit)
+emulator-data
+firebase-export-*
+
+# chave de conta de servico (service account) -- NUNCA vai para o git
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# permissoes locais do Claude Code (podem conter e-mail e caminhos da maquina)
+.claude/settings.local.json
