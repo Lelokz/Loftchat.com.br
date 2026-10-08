@@ -5,6 +5,32 @@
  * nenhuma unidade relativa. Animações entre 150 e 250 ms.
  */
 
+/*
+ * NUNITO, EMBUTIDA NO PROJETO (self-host) — não depende de internet nem de a
+ * fonte estar instalada na máquina de quem abre.
+ *
+ * Um arquivo só, variável: cobre todos os pesos de 200 a 1000 em 39 KB, menos
+ * que os três estáticos que o lab usa (400/700/800 = 49 KB) e já com os pesos
+ * do app (500/600). Subconjunto latino, que cobre o português inteiro; setas
+ * como ← e → não estão nele e caem na fonte de reserva.
+ *
+ * `block` e não `swap`: o arquivo é local e chega em milissegundos, e `swap`
+ * deixaria a fonte do sistema piscar antes da Nunito.
+ *
+ * Origem: @fontsource-variable/nunito 5.3.0, licença OFL-1.1 (fontes/OFL.txt).
+ * Quando a identidade for para o app, o arquivo muda para src/assets/fontes/
+ * e este bloco vai junto, igual.
+ */
+@font-face {
+  font-family: 'Nunito';
+  src: url('./fontes/nunito-latin-wght-normal.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* ---------------------------------------------------------------- página */
 
 * {
@@ -15,7 +41,7 @@ body {
   margin: 0px;
   background: #F3ECE2;
   color: #2E2620;
-  font-family: 'Nunito', ui-rounded, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Nunito', sans-serif;
   font-size: 14px;
   line-height: 20px;
 }
