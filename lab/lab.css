@@ -17,13 +17,13 @@
  * `block` e não `swap`: o arquivo é local e chega em milissegundos, e `swap`
  * deixaria a fonte do sistema piscar antes da Nunito.
  *
- * Origem: @fontsource-variable/nunito 5.3.0, licença OFL-1.1 (fontes/OFL.txt).
- * Quando a identidade for para o app, o arquivo muda para src/assets/fontes/
- * e este bloco vai junto, igual.
+ * Origem: @fontsource-variable/nunito 5.3.0, licença OFL-1.1. O arquivo mora
+ * em src/assets/fontes/ desde a etapa 20 — é o MESMO que o app carrega (ver
+ * src/styles/fonts.css); o lab só aponta para ele.
  */
 @font-face {
   font-family: 'Nunito';
-  src: url('./fontes/nunito-latin-wght-normal.woff2') format('woff2');
+  src: url('../src/assets/fontes/nunito-latin-wght-normal.woff2') format('woff2');
   font-weight: 200 1000;
   font-style: normal;
   font-display: block;

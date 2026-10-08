@@ -1,0 +1,28 @@
+/*
+ * NUNITO, EMBUTIDA NO PROJETO (self-host) — a fonte da identidade do Loft
+ * (etapa 20).
+ *
+ * Self-host e não Google Fonts: carrega igual em qualquer máquina, sem
+ * internet e sem a fonte instalada, e não avisa o Google cada vez que alguém
+ * abre o app (o IP iria junto no pedido).
+ *
+ * Um arquivo só, variável: todos os pesos de 200 a 1000 em 39 KB — menos que
+ * os estáticos dos pesos que o app usa. Subconjunto latino, que cobre o
+ * português inteiro; o que estiver fora dele (setas, símbolos) cai na pilha
+ * de reserva de `--font-sans` (tokens.css).
+ *
+ * `swap`: enquanto o arquivo não chega, o texto aparece na fonte de reserva
+ * em vez de ficar invisível.
+ *
+ * Origem: @fontsource-variable/nunito 5.3.0, licença OFL-1.1
+ * (src/assets/fontes/OFL.txt). O lab.html usa este mesmo arquivo.
+ */
+@font-face {
+  font-family: 'Nunito';
+  src: url('../assets/fontes/nunito-latin-wght-normal.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

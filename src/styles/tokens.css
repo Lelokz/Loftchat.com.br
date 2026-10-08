@@ -83,9 +83,9 @@
   /* Painel de perfil (etapa 19, ajustes) — o único lugar grande o bastante para pedir isto. */
   --avatar-xl: 64px;
 
-  /* --- tipografia (stack do sistema: nenhuma fonte baixada) ---------------- */
+  /* --- tipografia (Nunito embutida — ver fonts.css; o resto é reserva) ----- */
   --font-sans:
-    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-size-xs: 11px;
   --font-size-sm: 12.5px;
   --font-size-md: 14px;
