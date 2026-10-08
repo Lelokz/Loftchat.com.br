@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  LABORATÓRIO DE IDENTIDADE VISUAL — só existe em desenvolvimento.
+
+  Abrir com `npm run dev` em http://localhost:5173/lab.html.
+
+  Não entra no build nem no deploy: o `vite build` usa só o index.html como
+  entrada (não há `build.rollupOptions.input` no vite.config.ts), e a pasta
+  lab/ não está em public/, então nada daqui é copiado para o dist/.
+  Nenhum arquivo do app importa nada desta página, nem o contrário.
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loft — laboratório de identidade</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 10 12 4l8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z' fill='%23E8833A'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="lab"></div>
+    <script type="module" src="/lab/lab.ts"></script>
+  </body>
+</html>
