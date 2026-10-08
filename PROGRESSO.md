@@ -515,8 +515,16 @@ existir). Suíte cheia depois do conserto: **60 passou, 0 falhou, 8,7min** —
 duas vezes, a segunda depois do build de produção confirmado embutindo os
 valores certos (`grep` no bundle final).
 
-Primeiro commit: `977af7e`, 97 arquivos. Falta subir para um repositório
-privado no GitHub — orientação dada, execução é de quem tem a conta.
+Primeiro commit: `977af7e`, 97 arquivos.
+
+**Subido para o GitHub em 08/10/2026.** Remoto
+`git@github.com:Lelokz/Loftchat.com.br.git`, repositório **privado**; último
+commit enviado na primeira subida: `8ff4a9c`. Antes do push, nova varredura de
+segredos no código atual E em todo o histórico (valores reais do TURN,
+`private_key`, conta de serviço, `client_email`, tokens, senhas): **nada
+encontrado**. O `.gitignore` foi reforçado no mesmo dia (commit `bb71156`):
+variantes do `.env`, dados exportados do emulador, JSON de conta de serviço e
+`.claude/settings.local.json`.
 
 ## Etapa 16 — migração para Linux Mint, e o que a suíte revelou
 
@@ -1615,6 +1623,9 @@ e um `build` comum nunca embute isso.
    que não aconteceram.
 
 ### O JRE — nada foi instalado na máquina
+
+> **SUPERADO na etapa 16:** o projeto passou a usar o Java do sistema; não é
+> mais preciso baixar o JRE portátil. O texto abaixo fica como histórico.
 
 O emulador de Firestore é um programa **Java** (o de Auth é Node e não precisa).
 Não havia JVM aqui. O `winget --scope user` **não existe** para o Temurin — o MSI
