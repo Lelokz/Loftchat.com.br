@@ -2568,6 +2568,15 @@ test("rolar ao topo carrega o histórico sem arrancar a posição de leitura", a
 
   const lista = page.locator(".messages");
   await expect(page.locator(".message")).toHaveCount(50, { timeout: 60_000 });
+  /*
+   * ESPERA A JANELA ASSENTAR (etapa 20). `seedHistory` volta quando as
+   * escritas terminam, mas o listener ainda pode estar entregando os últimos
+   * snapshots — e cada um desliza a janela de 50 e troca o nó `.messages`.
+   * Contar 50 não prova que acabou (a contagem é 50 desde a 50ª escrita); a
+   * mensagem MAIS NOVA na tela prova. Era a causa da instabilidade registrada
+   * acima, que ficou mais frequente com a fonte nova (etapa 20, medido).
+   */
+  await expect(page.getByText("linha 69", { exact: true })).toBeVisible({ timeout: 60_000 });
 
   /*
    * A ÂNCORA: uma mensagem visível agora, cuja posição na tela não pode mudar
@@ -2663,6 +2672,15 @@ test("chegar ao começo do canal mostra o aviso e para de buscar", async ({
 
   const lista = page.locator(".messages");
   await expect(page.locator(".message")).toHaveCount(50, { timeout: 60_000 });
+  /*
+   * ESPERA A JANELA ASSENTAR (etapa 20). `seedHistory` volta quando as
+   * escritas terminam, mas o listener ainda pode estar entregando os últimos
+   * snapshots — e cada um desliza a janela de 50 e troca o nó `.messages`.
+   * Contar 50 não prova que acabou (a contagem é 50 desde a 50ª escrita); a
+   * mensagem MAIS NOVA na tela prova. Era a causa da instabilidade registrada
+   * acima, que ficou mais frequente com a fonte nova (etapa 20, medido).
+   */
+  await expect(page.getByText("antiga 59", { exact: true })).toBeVisible({ timeout: 60_000 });
 
   await lista.evaluate((node) => {
     node.scrollTop = 0;
