@@ -2,6 +2,7 @@ import './friends-screen.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { menuIcon } from '../../lib/icons';
+import { trocarConteudoComTransicao } from '../../lib/transition';
 import type { Friendship, MemberId, UserProfile } from '../../types/models';
 
 export type FriendsTab = 'amigos' | 'pendentes' | 'adicionar' | 'bloqueados';
@@ -186,7 +187,13 @@ export function renderFriendsScreen(props: FriendsScreenProps): FriendsScreenPar
 
     const aceitos = p.friendships.filter((f) => f.status === 'accepted');
     const enviados = p.friendships.filter((f) => f.status === 'pending' && f.from === p.me);
-    corpoEl.replaceChildren(corpo(p, { aceitos, recebidos, enviados }));
+    const novoCorpo = corpo(p, { aceitos, recebidos, enviados });
+    // Trocou de ABA (não só chegou dado novo na mesma aba): transição 1.
+    if (abaMontada !== null && abaMontada !== p.tab) {
+      trocarConteudoComTransicao(corpoEl, () => corpoEl.replaceChildren(novoCorpo));
+    } else {
+      corpoEl.replaceChildren(novoCorpo);
+    }
     abaMontada = p.tab;
   }
 

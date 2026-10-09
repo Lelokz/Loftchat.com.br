@@ -130,6 +130,11 @@
     bottom: 0;
     z-index: 20;
     display: none;
+    /* transição 1 (etapa 20): a gaveta esmaece ao abrir e ao fechar, 200 ms */
+    opacity: 0;
+    transition:
+      opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      display 200ms allow-discrete;
   }
 
   .app > .group-bar {
@@ -152,19 +157,42 @@
   .app.drawer-left > .channels,
   .app.drawer-right > .members {
     display: flex;
+    opacity: 1;
+  }
+
+  @starting-style {
+    .app.drawer-left > .group-bar,
+    .app.drawer-left > .channels,
+    .app.drawer-right > .members {
+      opacity: 0;
+    }
   }
 
   /*
    * O véu é um pseudo-elemento do próprio `.app`: nada de elemento novo no DOM,
    * que precisa continuar idêntico ao do desktop.
    */
-  .app.drawer-left::before,
-  .app.drawer-right::before {
+  /*
+   * O véu existe SEMPRE no mobile, transparente e sem receber toque; abrir a
+   * gaveta só o acende. Assim ele esmaece nos dois sentidos (etapa 20) — um
+   * pseudo-elemento que nasce e morre com a classe não teria como esmaecer
+   * ao sumir.
+   */
+  .app::before {
     content: '';
     position: fixed;
     inset: 0;
     z-index: 19;
     background-color: var(--backdrop);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .app.drawer-left::before,
+  .app.drawer-right::before {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   /* --- cabeçalho e áreas seguras ----------------------------------------- */

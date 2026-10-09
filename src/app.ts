@@ -77,6 +77,7 @@ import { installContextMenus } from './context-menus';
 import { createStore, screenShareSupported } from './state/store';
 import type { AppState, Store } from './state/store';
 import { MAX_PINNED_MESSAGES } from './types/models';
+import { trocarComTransicao } from './lib/transition';
 import type { PinnedMessage, ReplyTo } from './types/models';
 import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
@@ -1120,16 +1121,23 @@ export function mountApp(
    */
   function swapCenter(current: HTMLElement | null, next: HTMLElement): HTMLElement {
     if (current === null) root.insertBefore(next, memberListEl);
-    else current.replaceWith(next);
+    // Toda troca da coluna 3 é troca de visão: transição 1 (etapa 20).
+    else trocarComTransicao(current, next, () => current.replaceWith(next));
     return next;
   }
 
-  function swap(current: HTMLElement | null, next: HTMLElement): HTMLElement {
+  /**
+   * `transicao`: só quando a troca é de VISÃO (casinha ↔ grupo, outro grupo,
+   * outro PV). As colunas 2 e 4 também são trocadas a cada dado novo — uma
+   * mensagem de PV, alguém entrando no grupo —, e isso não pode piscar.
+   */
+  function swap(current: HTMLElement | null, next: HTMLElement, transicao = false): HTMLElement {
     if (current === null) {
       root.append(next);
       return next;
     }
-    current.replaceWith(next);
+    if (transicao) trocarComTransicao(current, next, () => current.replaceWith(next));
+    else current.replaceWith(next);
     return next;
   }
 
@@ -1281,6 +1289,8 @@ export function mountApp(
       prev.voiceEngineError !== state.voiceEngineError;
 
     const viewChanged = prev === null || prev.view !== state.view;
+    /* Troca de visão para a transição 1 (etapa 20): outra tela ou outro grupo. */
+    const visaoMudou = viewChanged || prev.activeGroupId !== state.activeGroupId;
 
     const friendsChanged =
       prev === null ||
@@ -1328,6 +1338,7 @@ export function mountApp(
       channelListEl = swap(
         channelListEl,
         state.view === 'home' ? buildHomeColumn(state) : buildChannelList(state),
+        visaoMudou,
       );
     }
 
@@ -1469,7 +1480,7 @@ export function mountApp(
           prev.dmMessages !== state.dmMessages ||
           prev.dmMessagesAtStart !== state.dmMessagesAtStart;
         if (asideChanged) {
-          memberListEl = swap(memberListEl, buildDmSidePanel(state, friendUid));
+          memberListEl = swap(memberListEl, buildDmSidePanel(state, friendUid), dmChanged);
         }
 
         previous = state;
@@ -1487,7 +1498,7 @@ export function mountApp(
         dmChatFriendUid = null;
         // Espaço reservado da coluna 4 — estático, monta uma vez por
         // transição para cá (ver buildReservedAside).
-        memberListEl = swap(memberListEl, buildReservedAside());
+        memberListEl = swap(memberListEl, buildReservedAside(), true);
       } else if (friendsChanged) {
         // A CASCA fica — só o `update()` decide o que repintar. É o que
         // impede um dado novo de arrancar o formulário de adicionar de
@@ -1618,7 +1629,7 @@ export function mountApp(
       }
     }
 
-    if (membersChanged) memberListEl = swap(memberListEl, buildMemberList(state));
+    if (membersChanged) memberListEl = swap(memberListEl, buildMemberList(state), visaoMudou);
 
     previous = state;
   }

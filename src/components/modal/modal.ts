@@ -1,6 +1,7 @@
 import './modal.css';
 
 import { el } from '../../lib/dom';
+import { prepararSaidaDeModal } from '../../lib/transition';
 
 /**
  * Casca de modal sobre o <dialog> nativo — sem biblioteca.
@@ -75,9 +76,20 @@ export function openModal(options: ModalOptions): ModalController {
 
   const dialog = el('dialog', { class: 'modal' });
 
+  /*
+   * Saída esmaecendo (transição 1, etapa 20): o fantasma é fotografado ANTES
+   * de fechar, por isso todo fechamento daqui passa por `fechar` — e o Escape,
+   * que fecha sozinho, fotografa no `cancel` (abaixo).
+   */
+  let mostrarSaida: (() => void) | null = null;
+  const fechar = (): void => {
+    mostrarSaida = prepararSaidaDeModal(dialog);
+    dialog.close();
+  };
+
   const controller: ModalController = {
     close(): void {
-      dialog.close();
+      fechar();
     },
     setError(message: string): void {
       errorBox.textContent = message;
@@ -101,7 +113,7 @@ export function openModal(options: ModalOptions): ModalController {
   };
 
   cancelButton.addEventListener('click', () => {
-    if (!busy) dialog.close();
+    if (!busy) fechar();
   });
 
   // <form> de verdade: Enter em qualquer campo confirma.
@@ -119,7 +131,7 @@ export function openModal(options: ModalOptions): ModalController {
     event.preventDefault();
     if (busy) return;
     if (onConfirm === undefined) {
-      dialog.close();
+      fechar();
       return;
     }
     controller.setError('');
@@ -134,6 +146,7 @@ export function openModal(options: ModalOptions): ModalController {
   // Esc dispara `cancel` antes de fechar — bloqueia enquanto está escrevendo.
   dialog.addEventListener('cancel', (event) => {
     if (busy) event.preventDefault();
+    else mostrarSaida = prepararSaidaDeModal(dialog);
   });
 
   /*
@@ -143,10 +156,14 @@ export function openModal(options: ModalOptions): ModalController {
    * como alvo.
    */
   dialog.addEventListener('click', (event) => {
-    if (event.target === dialog && !busy) dialog.close();
+    if (event.target === dialog && !busy) fechar();
   });
 
-  dialog.addEventListener('close', () => dialog.remove());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    mostrarSaida?.();
+    mostrarSaida = null;
+  });
 
   dialog.append(form);
   document.body.append(dialog);

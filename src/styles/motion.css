@@ -27,6 +27,58 @@ button:not(:disabled):active,
   transform: translateX(-50%) scale(0.92);
 }
 
+/* --- transição 1: troca de visão, 200 ms (ver src/lib/transition.ts) -------- */
+
+/* A cópia da coluna velha que esmaece por cima da nova. Posição e tamanho vêm
+   do retângulo da coluna velha, escritos em px pelo transition.ts. */
+.view-ghost {
+  position: fixed;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Modal: ENTRA esmaecendo pelo próprio <dialog> (@starting-style). A SAÍDA é
+ * um fantasma (transition.ts, prepararSaidaDeModal): o <dialog> sai do DOM no
+ * instante em que fecha, como sempre saiu, e uma cópia dele com o véu
+ * esmaece por cima.
+ */
+.modal,
+.modal::backdrop {
+  transition: opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@starting-style {
+  .modal[open],
+  .modal[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* O fantasma da saída do modal cobre a janela inteira, acima das gavetas. */
+.view-ghost--modal {
+  z-index: 50;
+}
+
+.modal-ghost-veil {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+  background-color: var(--backdrop);
+}
+
+.modal-ghost {
+  position: absolute;
+  right: auto;
+  bottom: auto;
+  margin: 0px;
+  opacity: 1;
+  transition: none;
+}
+
 /* --- movimento reduzido: tudo vira troca instantânea ------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
