@@ -206,3 +206,19 @@ export function prepararSaidaDeModal(dialog: HTMLDialogElement): (() => void) | 
     saida.finished.then(remover, remover);
   };
 }
+
+/**
+ * CHEGADA 1 do lab: a mensagem sobe 12px enquanto aparece, 200 ms. Só para
+ * mensagem nova que chega AO VIVO — quem decide isso é `swapMessages`
+ * (app.ts); aqui é só o movimento. Com movimento reduzido, nada.
+ */
+export function animarChegada(mensagem: HTMLElement): void {
+  if (movimentoReduzido()) return;
+  mensagem.animate(
+    [
+      { opacity: 0, transform: 'translateY(12px)' },
+      { opacity: 1, transform: 'translateY(0px)' },
+    ],
+    { duration: TRANSICAO_MS, easing: CURVA },
+  );
+}

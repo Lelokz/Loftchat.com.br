@@ -77,7 +77,7 @@ import { installContextMenus } from './context-menus';
 import { createStore, screenShareSupported } from './state/store';
 import type { AppState, Store } from './state/store';
 import { MAX_PINNED_MESSAGES } from './types/models';
-import { trocarComTransicao } from './lib/transition';
+import { animarChegada, trocarComTransicao } from './lib/transition';
 import type { PinnedMessage, ReplyTo } from './types/models';
 import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
@@ -1184,8 +1184,18 @@ export function mountApp(
    * E mensagem chegando EMBAIXO cai na mesma regra sozinha: o que está acima da
    * âncora não mudou, o delta dá zero, e a posição fica onde estava.
    */
-  function swapMessages(slot: HTMLElement, next: HTMLElement, forceBottom: boolean): void {
+  /*
+   * `animarNovas` (chegada 1, etapa 20): só quem chama sabe se esta troca é
+   * "chegou coisa ao vivo" — falso ao abrir canal/PV e enquanto a lista ainda
+   * carrega. O histórico ("carregar anteriores", rolar ao topo) não precisa
+   * de flag: ele entra ACIMA das mensagens que já estavam, e só anima o que
+   * entra DEPOIS da última delas.
+   */
+  function swapMessages(slot: HTMLElement, next: HTMLElement, forceBottom: boolean, animarNovas = false): void {
     const old = slot.querySelector<HTMLElement>('.messages');
+    const idsAntes = new Set(
+      Array.from(old?.querySelectorAll<HTMLElement>('.message[data-message-id]') ?? [], (m) => m.dataset['messageId']),
+    );
     const wasAtBottom =
       old === null ||
       old.scrollHeight - old.scrollTop - old.clientHeight <= STICK_TO_BOTTOM_PX;
@@ -1214,6 +1224,18 @@ export function mountApp(
 
     const list = slot.querySelector<HTMLElement>('.messages');
     if (list === null) return;
+
+    if (animarNovas) {
+      const agora = Array.from(list.querySelectorAll<HTMLElement>('.message[data-message-id]'));
+      // Posição, na lista nova, da mais nova das que já estavam.
+      let ultimaQueJaEstava = -1;
+      agora.forEach((m, i) => {
+        if (idsAntes.has(m.dataset['messageId'])) ultimaQueJaEstava = i;
+      });
+      for (const m of agora.slice(ultimaQueJaEstava + 1)) {
+        if (!idsAntes.has(m.dataset['messageId'])) animarChegada(m);
+      }
+    }
 
     /*
      * Gruda no fim (message-list.css, `.messages--short`) só quando a
@@ -1428,7 +1450,12 @@ export function mountApp(
           editingChanged;
 
         if (dmMessagesChanged) {
-          swapMessages(parts.messagesSlot, buildDmMessages(state), dmChanged);
+          swapMessages(
+            parts.messagesSlot,
+            buildDmMessages(state),
+            dmChanged,
+            !dmChanged && prev !== null && prev.dmMessagesLoaded && state.dmMessagesLoaded,
+          );
         }
 
         /*
@@ -1594,7 +1621,12 @@ export function mountApp(
         editingChanged;
 
       if (messagesChanged) {
-        swapMessages(parts.messagesSlot, buildMessages(state), channelChanged);
+        swapMessages(
+          parts.messagesSlot,
+          buildMessages(state),
+          channelChanged,
+          !channelChanged && prev !== null && prev.messagesLoaded && state.messagesLoaded,
+        );
       }
 
       /*

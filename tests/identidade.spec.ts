@@ -1,7 +1,17 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { createGroupThroughUi, limparTudo, newAccount, openCreateGroupDialog, signUpThroughUi } from './helpers';
+import {
+  activeGroupId,
+  createGroupThroughUi,
+  limparTudo,
+  newAccount,
+  openCreateGroupDialog,
+  resolveTokens,
+  sendMessageThroughUi,
+  signUpThroughUi,
+  writeMessageAt,
+} from './helpers';
 import type { TestAccount } from './helpers';
 
 /**
@@ -120,4 +130,90 @@ test('modal entra esmaecendo; ao fechar sai do DOM na hora e quem esmaece é um 
   const [entrou] = await fantasmas(page);
   expect(entrou!.shadowAberto).toBe(false);
   expect(entrou!.inert).toBe(true);
+});
+
+/**
+ * Registra cada `.message` que recebe animação (a chegada 1 usa
+ * `element.animate`), pelo texto dela — a partir de agora.
+ */
+async function vigiarChegadas(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __chegadas: string[]; __animateOriginal?: typeof Element.prototype.animate };
+    w.__chegadas = [];
+    if (w.__animateOriginal === undefined) {
+      const original = Element.prototype.animate;
+      w.__animateOriginal = original;
+      Element.prototype.animate = function (this: Element, ...args: Parameters<typeof original>) {
+        if (this.classList.contains('message')) {
+          w.__chegadas.push(this.querySelector('.message__text')?.textContent ?? '?');
+        }
+        return original.apply(this, args);
+      };
+    }
+  });
+}
+
+async function chegadas(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __chegadas: string[] }).__chegadas);
+}
+
+test('mensagem nova ao vivo chega animada; abrir canal e carregar o histórico não animam', async ({ page }) => {
+  test.setTimeout(120_000);
+  const conta = track('chegada');
+  await page.goto('/');
+  await signUpThroughUi(page, conta);
+  await createGroupThroughUi(page, 'Grupo da chegada');
+  await resolveTokens(conta);
+  const groupId = await activeGroupId(page);
+  const geral = page.locator('.channel.is-active');
+  const geralId = (await geral.getAttribute('data-channel-id')) ?? '';
+  const outro = page.locator('.channel[data-channel-id]:not(.is-active)').first();
+  const outroId = (await outro.getAttribute('data-channel-id')) ?? '';
+  expect(geralId).not.toBe('');
+  expect(outroId).not.toBe('');
+
+  // 55 mensagens antigas no OUTRO canal: mais que a janela de 50.
+  const base = Date.now() - 60 * 60_000;
+  for (let i = 0; i < 55; i += 1) {
+    const status = await writeMessageAt(conta, {
+      groupId,
+      channelId: outroId,
+      body: `antiga ${i}`,
+      sentAt: new Date(base + i * 60_000).toISOString(),
+    });
+    expect(status).toBe(200);
+  }
+
+  await vigiarChegadas(page);
+
+  // 1. Minha, pela tela.
+  await sendMessageThroughUi(page, 'oi, cheguei');
+  await expect(page.getByText('oi, cheguei', { exact: true })).toBeVisible();
+  await expect.poll(() => chegadas(page)).toEqual(['oi, cheguei']);
+
+  // 2. De fora, ao vivo (como se fosse outra pessoa noutra aba).
+  expect(
+    await writeMessageAt(conta, { groupId, channelId: geralId, body: 'vinda de fora', sentAt: new Date().toISOString() }),
+  ).toBe(200);
+  await expect(page.getByText('vinda de fora', { exact: true })).toBeVisible();
+  await expect.poll(() => chegadas(page)).toEqual(['oi, cheguei', 'vinda de fora']);
+
+  // 3. Abrir um canal: as 50 mais novas aparecem SEM animação.
+  await vigiarChegadas(page);
+  await outro.click();
+  await expect(page.getByText('antiga 54', { exact: true })).toBeVisible();
+  await expect(page.locator('.message')).toHaveCount(50);
+
+  // 4. Histórico: rolar ao topo traz as 5 restantes, também sem animação.
+  await page.locator('.messages').evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await expect(page.locator('.message')).toHaveCount(55, { timeout: 30_000 });
+  expect(await chegadas(page)).toEqual([]);
+
+  // 5. Movimento reduzido: chega, mas sem animação.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await sendMessageThroughUi(page, 'sem movimento');
+  await expect(page.getByText('sem movimento', { exact: true })).toBeVisible();
+  expect(await chegadas(page)).toEqual([]);
 });
