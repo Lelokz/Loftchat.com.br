@@ -1,6 +1,181 @@
 # Loft — progresso
 
-Estado em 01/09/2026.
+Estado em 08/10/2026.
+
+## Etapa 20 — Identidade visual
+
+O Loft deixou de ser "cinza-escuro + roxo, jeitão padrão de chat" e ganhou a
+identidade escolhida pelo Leo no laboratório (`lab.html`, só em
+desenvolvimento — ver o commit `121f02b`). Etapa só visual: nada de
+funcionalidade, layout das colunas, texto, Firestore, regra, WebRTC ou
+sinalização mudou.
+
+**Publicada no Hosting em 08/10/2026 às 23:54 (horário de Brasília)** —
+versão `2475da8ab0ade9b0`. Só o Hosting (`npm run deploy`); regras e índices
+não foram tocados.
+
+### As escolhas
+
+| Item | Escolha | Onde mora |
+| --- | --- | --- |
+| Paleta | A, "Noite no sótão" (roxo-noite) | `src/styles/tokens.css` |
+| Botão | 1, chapado, raio 14px | tokens + `motion.css` |
+| Clique | 1, encolhe para 92% em 150 ms e volta | `src/styles/motion.css` |
+| Transição | 1, cruzada, 200 ms | `src/lib/transition.ts` + `motion.css` |
+| Cantos | 2: cartão/balão/modal 16px, botão 14px | `--radius-lg` / `--radius-md` |
+| Chegada | 1, sobe 12px enquanto aparece, 200 ms | `animarChegada` (transition.ts) |
+| Detalhe | só o 7.4, fixada vira bilhete com fita | `pinned-list.css` + `--note-*` |
+| Fonte | Nunito, embutida (self-host) | `src/assets/fontes/` + `src/styles/fonts.css` |
+
+Curva de tudo: `cubic-bezier(0.2, 0.8, 0.2, 1)`, a mesma do lab. Com
+`prefers-reduced-motion`, toda transição e animação vira troca seca.
+
+### Decisões tomadas com o Leo durante a etapa
+
+- **As variáveis CSS continuam.** A regra do lab era "hex e px direto, sem
+  variável". O app inteiro é construído em cima de variáveis (866 usos em 29
+  arquivos), e três coisas dependem delas de verdade: `--app-height` (teclado
+  do celular, layout.ts), `--layout` (o corte dos 720px, layout.ts) e o tema
+  por pessoa do cartão de perfil (person-theme.ts, preparo da Entrega 3).
+  Converter tudo seria grande e quebraria isso. Os VALORES novos estão
+  escritos em hex/px literais no tokens.css, que continua sendo o único
+  arquivo com cor.
+- **O Loft agora é só escuro.** Saíram o tema claro e os blocos de
+  `prefers-color-scheme`/`data-theme` (index.html atualizado). Tema escolhido
+  pela pessoa volta na Entrega 3.
+- **Botão roxo, não laranja.** O botão 1 do lab era laranja (#e8833a); no
+  app ele usa o roxo da paleta A.
+- **Sem o ciano.** A paleta A do lab tinha um segundo destaque (#22d3ee); o
+  app ficou só com o roxo.
+- **Gradiente só na casinha.** A minha mensagem é roxo sólido.
+- **Transição cruzada de verdade**, como no lab (a velha esmaece enquanto a
+  nova entra) — ver "Como a transição funciona" abaixo.
+- **Bilhete na largura da lista**, não nos 220px fixos do lab.
+
+### Contraste (WCAG, mínimo 4.5:1 para texto)
+
+Medido para todos os pares de texto principais. Os que ficaram abaixo e o
+ajuste aprovado:
+
+| Par | Lab | Ajuste aprovado |
+| --- | --- | --- |
+| branco sobre o hover do botão (#9361f0) | 4.03 | hover ESCURECE para #6a30cc (7.22) |
+| roxo #7b3fe4 usado como cor de TEXTO | 3.26 | `--accent-text` #a98bf5 (6.84); fundo segue `--accent` |
+| texto apagado (derivado, #8577b8) dentro do balão / sobre hover | 4.12 / 4.15 | #8e81c1 (4.69 / 4.72) |
+| autor/data do bilhete (#8a7434 sobre #fff1a8) | 3.98 | #7a6428 (5.00) |
+
+Os valores que o lab não definia (texto apagado, perigo #f2557a, hover
+#221a3d, borda forte #3d2f70, fundo fundo/tarja de vídeo #0b0816, véu do
+modal #0e0a1a99) foram derivados da paleta A, aprovados e medidos. Texto
+principal sobre o chat: 15.00:1.
+
+### Como a transição funciona (e por que assim)
+
+O app troca de visão SUBSTITUINDO o nó — a coluna velha deixa de existir na
+hora, e isso não mudou: dados e listeners seguem exatamente o mesmo caminho,
+sem esperar animação nenhuma. `trocarComTransicao` fotografa a coluna velha
+antes da troca e põe por cima um FANTASMA (cópia + posições de rolagem) que
+esmaece em 200 ms enquanto a nova aparece.
+
+O fantasma mora num **shadow root fechado**, `inert` e `aria-hidden`: nem o
+Playwright nem leitor de tela enxergam a cópia, então nunca existem dois de
+cada botão na página. O CSS do app entra nele por `adoptedStyleSheets`.
+
+Onde: casinha ↔ grupo, troca de grupo, troca de canal, abrir PV (colunas 2,
+3 e 4 só quando a VISÃO muda — dado novo na mesma visão não pisca), abas da
+tela inicial, modal e gavetas do mobile. **A sala de voz fica de fora**
+(troca seca): vídeo de chamada e tela compartilhada não animam, e um
+`<video>` copiado nem teria o stream.
+
+**Modal: o `<dialog>` continua saindo do DOM no instante em que fecha.** Uma
+primeira versão o segurava 200 ms no DOM para esmaecer e quebrou 3 testes
+(dois `.diag`, dois `dialog` ao reabrir em seguida) — era mudança real de
+comportamento, então o conserto foi no app: a saída também é um fantasma,
+fotografado ANTES de fechar (todo fechamento passa por `fechar()` em
+modal.ts; o Escape fotografa no `cancel`). A entrada é `@starting-style`.
+
+**Gavetas:** a transição ficou dentro da media query que já existia em
+layout.css (o 720 continua num lugar só, decisão da etapa 8). O véu passou a
+existir sempre no mobile, transparente e sem receber toque, para poder
+esmaecer também ao fechar.
+
+### Chegada de mensagem
+
+`swapMessages` anima só o que NÃO estava na lista anterior e vem DEPOIS da
+mais nova que já estava. Abrir canal/PV e a lista ainda carregando não
+animam (o render passa `animarNovas = false`); o histórico ("carregar
+anteriores", rolar ao topo) entra acima e nunca se encaixa na regra. O teste
+foi conferido contra a regra quebrada de propósito (animando tudo) e acusou
+54 animações a mais — o detector detecta.
+
+### Bilhete com fita
+
+Valores do lab no `.pinned-item`; a fita é `::before` (nenhum nó novo). Medida
+MINHA, não do lab (o lab tinha um bilhete só): folga entre bilhetes para a
+fita e nas bordas da lista para os cantos inclinados não serem cortados. O
+clique 1 no bilhete compõe a escala com a inclinação. **A animação de "colar"
+do lab não entrou** (pendência abaixo).
+
+### Testes
+
+- `tests/identidade.spec.ts` (novo): fantasma existe, vive ~200 ms, é
+  fechado/inert/aria-hidden e some; movimento reduzido não cria nenhum; modal
+  sai do DOM na hora; chegada só ao vivo; bilhete medido (papel, tinta,
+  inclinação, fita) e o clique ainda leva à mensagem.
+- `tests/identidade-capturas.spec.ts` (novo): capturas desktop e mobile em
+  `screenshots/identidade/` (fora do git).
+- **Os dois testes de histórico instáveis desde a etapa 16** ("rolar ao
+  topo…" e "chegar ao começo…") ficaram MAIS instáveis com a fonte nova
+  (medido isolado: 1 de 6 antes da etapa 20, 3 de 6 depois). A hipótese
+  registrada neles estava certa: `seedHistory` volta com o listener ainda
+  entregando snapshots. Agora os dois esperam a mensagem MAIS NOVA na tela
+  antes de rolar — 16 de 16 depois. Nenhuma conferência afrouxada.
+- Suíte no emulador depois de cada parte: 1) 68 + 2 intermitentes (passaram
+  10/10 isolados); 2) 70/70; 3) 70/70; 4) 72/72 (depois do conserto do modal
+  e dos testes de histórico); 5) 73/73; 6) 74/74.
+
+### Commits
+
+`5fd3e59` fonte · `ce1e384` paleta e cantos · `50db332` botões e clique ·
+`5543890` testes de histórico · `6f391b9` transições · `892aced` chegada ·
+`518d0b3` bilhete · `07ae3aa` capturas.
+
+### Como voltar à versão anterior do site
+
+A versão que estava no ar antes (`5396863991613df7`, de 01/09) foi copiada
+para o canal de pré-visualização **`antes-etapa-20`** antes do deploy
+(expira em 07/11/2026): https://loft-3d6c0f--antes-etapa-20-04z46d63.web.app
+
+- Comando: `firebase hosting:clone loft-3d6c0f:antes-etapa-20 loft-3d6c0f:live`
+- Ou no console: Hosting → aba do site → "Histórico de versões" → na versão
+  de 01/09/2026 → menu ⋮ → "Reverter" ("Rollback" no console em inglês).
+
+### Pendências e achados
+
+- **Ícones do PWA** (`public/icon-192.png`, `icon-512.png`) continuam no roxo
+  ANTIGO (#5b5bd6): são imagens e precisam ser geradas de novo. Favicon,
+  `theme-color` e manifest já estão com as cores novas.
+- **Cores por autor** (ciano/rosa/verde nos nomes, como no mini Loft do lab)
+  não entraram: o app não tem cor por pessoa hoje.
+- **Animação de "colar" o bilhete** (7.4 do lab) não entrou — só a
+  aparência.
+- **`person-theme.ts`** ainda tem os temas antigos (claro/escuro e as cinco
+  cores de destaque). Só vale quando alguém escolher tema (Entrega 3), e o
+  `--accent-text` novo não é sobrescrito por ele — revisar junto com a
+  Entrega 3.
+- **BUG ACHADO, anterior à etapa 20 (conferido no commit `946979f`):** no
+  mobile, a tela inicial e o PV mostram a coluna "Início" (Amigos, mensagens
+  diretas, rodapé) EMPILHADA acima do conteúdo, em vez de escondida na gaveta
+  — as regras de gaveta de layout.css miram `.app > .channels`, e a coluna da
+  tela inicial é `nav.home-column`. E a gaveta do perfil no PV põe o cartão e
+  as fixadas LADO A LADO, espremidos (o bilhete fica com ~70px). Não foi
+  corrigido aqui porque mexe no layout das colunas, fora do escopo de uma
+  etapa só visual. Capturas `mobile-14-*`, `mobile-15-pv`,
+  `mobile-16-pv-gaveta-perfil`.
+- **Intermitência nova observada:** na suíte da parte 1, "participante com
+  lastSeen velho é ignorado" ficou preso em "Confirme seu e-mail" (o
+  cadastro do convidado não percebeu a confirmação em 30 s). Passou 5 de 5
+  isolado e não voltou a aparecer nas cinco suítes seguintes.
 
 ## Ajustes na etapa 19 — 11 itens achados usando o app com um amigo de verdade
 
