@@ -34,7 +34,7 @@
 
 .verify__note {
   font-size: var(--font-size-sm);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .verify__actions {

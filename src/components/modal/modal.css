@@ -89,7 +89,7 @@
 .modal__choice:has(input:checked) {
   border-color: var(--accent);
   background-color: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .modal__choice input {
@@ -128,7 +128,7 @@
 
 .modal__copy:hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .modal__note {

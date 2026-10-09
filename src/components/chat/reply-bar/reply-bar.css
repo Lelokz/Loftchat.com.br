@@ -27,7 +27,7 @@
 .reply-bar__label {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Uma linha só: a faixa é uma pista, não a mensagem inteira. */

@@ -81,7 +81,7 @@
 /* Canal de TEXTO que estou lendo. */
 .channel.is-active {
   background-color: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 500;
 }
 
@@ -99,7 +99,7 @@
 }
 
 .channel.is-connected .channel__icon {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .channel__live {
@@ -108,7 +108,7 @@
   padding: 0 6px;
   border-radius: var(--radius-full);
   background-color: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--font-size-xs);
   font-weight: 600;
 }
@@ -122,7 +122,7 @@
 }
 
 .channel.is-active .channel__hash {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .channel__icon {

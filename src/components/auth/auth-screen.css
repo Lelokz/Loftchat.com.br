@@ -130,7 +130,7 @@
 }
 
 .auth__toggle {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   text-decoration: underline;
@@ -165,6 +165,6 @@
 }
 
 .auth__reset:hover:not(:disabled) {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
 }

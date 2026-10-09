@@ -1,11 +1,8 @@
 <!doctype html>
 <!--
-  TEMA — o atributo data-theme abaixo controla a paleta:
-    ausente          → segue o tema do sistema operacional (prefers-color-scheme)
-    data-theme="dark"  → força escuro
-    data-theme="light" → força claro
-  Para inspecionar o outro tema sem mexer no Windows, edite o atributo aqui
-  ou pelo DevTools (Elements → nó <html>).
+  TEMA — desde a etapa 20 o Loft é só escuro (paleta A, "Noite no sótão").
+  As cores ficam em src/styles/tokens.css; não há mais data-theme nem
+  prefers-color-scheme. Tema escolhido pela pessoa é a personalização futura.
 -->
 <html lang="pt-BR">
   <head>
@@ -19,12 +16,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Loft</title>
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#5B5BD6" />
+    <meta name="theme-color" content="#0E0A1A" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <!-- favicon inline: evita a requisicao de /favicon.ico -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 10 12 4l8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z' fill='%235B5BD6'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 10 12 4l8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z' fill='%237B3FE4'/%3E%3C/svg%3E"
     />
   </head>
   <body>

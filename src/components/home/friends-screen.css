@@ -205,7 +205,7 @@
 
 .friends__note {
   font-size: var(--font-size-sm);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .friends__note--error {

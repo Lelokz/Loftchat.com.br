@@ -26,7 +26,7 @@
 }
 
 .room__header-icon {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .room__title {
@@ -364,7 +364,7 @@
 }
 
 .room__notice-action {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   text-decoration: underline;

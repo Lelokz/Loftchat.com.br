@@ -108,6 +108,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-color: var(--surface-bubble);
+  box-shadow: var(--shadow-bubble);
 }
 
 /* Só a ÚLTIMA mensagem do bloco leva o canto "de bico" — o bloco lê como um só. */
@@ -348,7 +349,7 @@
 .quote__author {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .quote__text {
