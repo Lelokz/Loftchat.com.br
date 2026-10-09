@@ -217,3 +217,35 @@ test('mensagem nova ao vivo chega animada; abrir canal e carregar o histórico n
   await expect(page.getByText('sem movimento', { exact: true })).toBeVisible();
   expect(await chegadas(page)).toEqual([]);
 });
+
+test('fixada vira bilhete com fita, e o clique ainda leva até a mensagem', async ({ page }) => {
+  const conta = track('bilhete');
+  await page.goto('/');
+  await signUpThroughUi(page, conta);
+  await createGroupThroughUi(page, 'Grupo do bilhete');
+  await sendMessageThroughUi(page, 'sábado 20h na casa da Carol');
+  const mensagem = page.locator('.message', { hasText: 'sábado 20h na casa da Carol' });
+  await expect(mensagem).toBeVisible();
+
+  await mensagem.click({ button: 'right' });
+  await page.locator('.context-menu').getByRole('menuitem', { name: 'Fixar mensagem' }).click();
+  await page.locator('.chat__pin-button').click();
+  const bilhete = page.getByRole('dialog').locator('.pinned-item');
+  await expect(bilhete).toHaveCount(1);
+
+  // O papel, a tinta e a inclinação do lab (-2°: cos 0.999391, sin -0.0348995).
+  await expect(bilhete).toHaveCSS('background-color', 'rgb(255, 241, 168)');
+  await expect(bilhete).toHaveCSS('color', 'rgb(74, 59, 18)');
+  await expect(bilhete).toHaveCSS('transform', 'matrix(0.999391, -0.0348995, 0.0348995, 0.999391, 0, 0)');
+  // A fita existe (pseudo-elemento, sem nó novo no DOM).
+  const fita = await bilhete.evaluate((n) => {
+    const s = getComputedStyle(n, '::before');
+    return { content: s.content, largura: s.width, altura: s.height };
+  });
+  expect(fita).toEqual({ content: '""', largura: '52px', altura: '16px' });
+
+  // Clicar no bilhete continua levando até a mensagem original.
+  await bilhete.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(mensagem).toHaveClass(/is-highlighted/);
+});

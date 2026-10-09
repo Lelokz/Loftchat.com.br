@@ -58,6 +58,13 @@
   /* --- sombra do balão (paleta A do lab) ----------------------------------- */
   --shadow-bubble: 0px 1px 2px #00000066;
 
+  /* --- bilhete: mensagem fixada (detalhe 7.4 do lab) ---------------------- */
+  --note-paper: #fff1a8;
+  --note-text: #4a3b12; /* 9.56:1 sobre o papel */
+  --note-meta: #7a6428; /* autor e data — 5.00:1 (o #8a7434 do lab dava 3.98:1) */
+  --note-tape: #e8dcc8cc;
+  --note-shadow: 0px 3px 6px #7a5a1a33;
+
   /* --- véu atrás do modal -------------------------------------------------- */
   --backdrop: #0e0a1a99;
 

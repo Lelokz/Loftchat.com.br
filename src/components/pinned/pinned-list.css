@@ -11,39 +11,58 @@
   min-height: 0;
 }
 
-/* Vertical só — horizontal fica em 0 de propósito: cada fixada é um cartão
-   de borda a borda, sem margem lateral sobrando (ajuste pós-etapa-19). */
+/* Folga em volta dos bilhetes (etapa 20): em cima, para a fita do primeiro
+   (que sobe 8px); dos lados, para os cantos inclinados a -2° não serem
+   cortados pela lista, que rola com overflow escondido. */
 .pinned-list {
-  padding: var(--space-2) 0;
+  padding: var(--space-4) 6px var(--space-3);
 }
 
 /*
- * Cartão de verdade agora — fundo um degrau acima do painel, borda fina,
- * cantos arredondados (antes era só padding sobre o fundo do painel,
- * "chapado"; só aparecia algo no hover). Cada item na sua altura natural —
- * nunca encolhe, nunca sobrepõe (a lista inteira é quem rola, dentro de
- * .column-scroll).
+ * BILHETE COM FITA (etapa 20, detalhe 7.4 do lab): papel amarelo, meio torto,
+ * preso por uma fita. Valores do lab — padding, cantos de 2px, sombra,
+ * inclinação, fita. Cada item na sua altura natural — nunca encolhe, nunca
+ * sobrepõe (a lista inteira é quem rola, dentro de .column-scroll).
  */
 .pinned-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: var(--surface-raised);
+  padding: 12px 14px 8px;
+  border-radius: 2px;
+  background-color: var(--note-paper);
+  color: var(--note-text);
+  box-shadow: var(--note-shadow);
+  transform: rotate(-2deg);
+  font-size: 13px;
+  line-height: 18px;
 }
 
+/* A fita: pseudo-elemento, nada de nó novo no DOM. */
+.pinned-item::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 84px;
+  width: 52px;
+  height: 16px;
+  background-color: var(--note-tape);
+  transform: rotate(3deg);
+}
+
+/* Espaço para a fita do bilhete de baixo não cobrir o de cima. */
 .pinned-item + .pinned-item {
-  margin-top: var(--space-1);
+  margin-top: var(--space-5);
 }
 
 .pinned-item--clickable {
   cursor: pointer;
 }
 
-.pinned-item--clickable:hover {
-  background-color: var(--surface-hover);
+/* Clique 1 sem perder a inclinação do bilhete (o motion.css só sabe escala). */
+.pinned-list .pinned-item--clickable:active {
+  transform: rotate(-2deg) scale(0.92);
 }
 
 .pinned-item__header {
@@ -56,18 +75,18 @@
 .pinned-item__author {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--note-meta);
 }
 
 .pinned-item__date {
   flex: none;
   font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  color: var(--note-meta);
 }
 
 .pinned-item__text {
   overflow: hidden;
-  color: var(--text-secondary);
+  color: var(--note-text);
   font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -78,7 +97,7 @@
 .pinned-item__gone {
   font-size: var(--font-size-xs);
   font-style: italic;
-  color: var(--text-muted);
+  color: var(--note-meta);
 }
 
 .pinned-item__thumb {
@@ -101,9 +120,9 @@
   gap: var(--space-2);
   margin: var(--space-1) 0;
   padding: var(--space-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--note-meta);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
+  color: var(--note-text);
 }
 
 .pinned-item__file-name {
@@ -119,7 +138,7 @@
 .pinned-item__file-meta {
   flex: none;
   font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  color: var(--note-meta);
 }
 
 .pinned-list__empty {
