@@ -308,7 +308,6 @@
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 600;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 15%);
 }
 
 .messages__load-more:hover {

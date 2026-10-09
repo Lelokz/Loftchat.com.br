@@ -1,0 +1,39 @@
+/*
+ * MOVIMENTO — etapa 20 (identidade visual). Os valores vêm do lab.html:
+ * "clique 1", "transição 1 em 200 ms" e "chegada 1". Nada aqui muda dado,
+ * layout ou comportamento: só como a troca aparece.
+ *
+ * Mesma curva do lab em tudo: começa rápido e assenta devagar.
+ */
+
+/* --- clique 1: encolhe para 92% em 150 ms ao apertar, volta em 150 ms ------- */
+
+button,
+.pinned-item--clickable {
+  transition: transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button:not(:disabled):active,
+.pinned-item--clickable:active {
+  transform: scale(0.92);
+}
+
+/*
+ * O "carregar anteriores" já usa `transform` para se centralizar
+ * (message-list.css): sem repetir o translate aqui, apertar o arrancaria do
+ * centro.
+ */
+.messages__load-more:not(:disabled):active {
+  transform: translateX(-50%) scale(0.92);
+}
+
+/* --- movimento reduzido: tudo vira troca instantânea ------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
