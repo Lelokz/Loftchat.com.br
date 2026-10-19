@@ -1,4 +1,5 @@
-import { el } from './lib/dom';
+import { el, iconEl } from './lib/dom';
+import { menuIcon } from './lib/icons';
 import { renderChannelList } from './components/channel-list/channel-list';
 import type { VoicePresenceView } from './components/channel-list/channel-list';
 import { renderCallBar } from './components/call-bar/call-bar';
@@ -711,7 +712,19 @@ export function mountApp(
 
   /** Coluna do meio quando não há grupo nenhum: criar ou entrar por convite. */
   function buildNoGroupsCenter(): HTMLElement {
+    const menu = el(
+      'button',
+      {
+        class: 'icon-button chat__mobile-button chat__mobile-button--left',
+        type: 'button',
+        title: 'Abrir menu',
+        'aria-label': 'Abrir menu',
+      },
+      [iconEl(menuIcon(20), 'icon')],
+    );
+    menu.addEventListener('click', () => setDrawer('left'));
     return el('main', { class: 'chat' }, [
+      el('header', { class: 'chat__header chat__header--mobile-only' }, [menu]),
       renderNoGroups({ onCreateGroup: handleCreateGroup, onJoinByCode: handleJoinByCode }),
     ]);
   }

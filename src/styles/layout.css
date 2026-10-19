@@ -221,6 +221,10 @@
     display: inline-flex;
   }
 
+  .chat > .chat__header--mobile-only {
+    display: flex;
+  }
+
   .chat__header,
   .room__header {
     padding-top: calc(var(--space-2) + env(safe-area-inset-top));

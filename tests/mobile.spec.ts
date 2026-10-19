@@ -121,6 +121,32 @@ test('as gavetas abrem por botão e fecham por toque fora; o chat ocupa a tela',
   expect(new URL(page.url()).pathname).toBe('/');
 });
 
+test('sem grupo nenhum, o botão de gaveta leva à tela inicial e ao sair da conta', async ({
+  page,
+}) => {
+  const account = track('mob-sem-grupo');
+  await page.goto('/');
+  await signUpThroughUi(page, account);
+
+  const app = page.locator('.app');
+  const cabecalho = page.locator('.chat__header--mobile-only');
+  await expect(page.getByText('Nenhum grupo por aqui ainda')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tela inicial' })).toBeHidden();
+  await expect(cabecalho).toBeVisible();
+
+  // No desktop o cabeçalho que só carrega o botão não aparece.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(cabecalho).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 780 });
+
+  await page.getByRole('button', { name: 'Abrir menu' }).click();
+  await expect(app).toHaveClass(/drawer-left/);
+  await expect(page.getByRole('button', { name: 'Sair da conta' })).toBeVisible();
+  await page.getByRole('button', { name: 'Tela inicial' }).click();
+  await expect(app).not.toHaveClass(/drawer-left/);
+  await expect(page.locator('.friends')).toBeVisible();
+});
+
 test('na tela inicial a coluna Início é gaveta, e a gaveta do PV empilha cartão e fixadas', async ({
   browser,
 }) => {

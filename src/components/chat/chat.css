@@ -87,6 +87,11 @@
   margin-left: auto;
 }
 
+/* Cabeçalho que só existe para o botão de gaveta (tela sem grupo). */
+.chat__header--mobile-only {
+  display: none;
+}
+
 .chat__callbar-slot {
   flex: none;
 }
