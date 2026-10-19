@@ -199,7 +199,7 @@ export function mountApp(
   const onPointerDownOutside = (event: PointerEvent): void => {
     if (drawer === null) return;
     const target = event.target as HTMLElement | null;
-    if (target?.closest('.channels, .group-bar, .members') !== null && target !== null) return;
+    if (target?.closest('.channels, .home-column, .group-bar, .members') !== null && target !== null) return;
     setDrawer(null);
   };
   document.addEventListener('pointerdown', onPointerDownOutside);
@@ -683,8 +683,14 @@ export function mountApp(
       activeDmUid: state.activeDmUid,
       profiles: state.friendProfiles,
       me: user.uid,
-      onSelectDm: (uid) => store.openDm(uid),
-      onOpenFriends: () => store.closeDm(),
+      onSelectDm: (uid) => {
+        setDrawer(null);
+        store.openDm(uid);
+      },
+      onOpenFriends: () => {
+        setDrawer(null);
+        store.closeDm();
+      },
       currentMember: me,
       onSignOut,
     });

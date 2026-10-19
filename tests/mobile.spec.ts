@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import {
   createGroupThroughUi,
@@ -6,6 +7,7 @@ import {
   newAccount,
   sendMessageThroughUi,
   signUpThroughUi,
+  usernameFor,
 } from './helpers';
 import type { TestAccount } from './helpers';
 
@@ -117,6 +119,92 @@ test('as gavetas abrem por botão e fecham por toque fora; o chat ocupa a tela',
   await expect(app).not.toHaveClass(/drawer-right/);
   await expect(page.locator('.chat')).toBeVisible();
   expect(new URL(page.url()).pathname).toBe('/');
+});
+
+test('na tela inicial a coluna Início é gaveta, e a gaveta do PV empilha cartão e fixadas', async ({
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const ana = track('mob-pv-ana');
+  const leo = track('mob-pv-leo');
+
+  // Cadastro, amizade e fixada no desktop; o que se confere é o mobile, depois.
+  const desktop = { viewport: { width: 1440, height: 900 } };
+  const paginaAna = await (await browser.newContext(desktop)).newPage();
+  await paginaAna.goto('/');
+  await signUpThroughUi(paginaAna, ana);
+  const paginaLeo = await (await browser.newContext(desktop)).newPage();
+  await paginaLeo.goto('/');
+  await signUpThroughUi(paginaLeo, leo);
+
+  const abrirAmigos = async (page: Page, aba: string): Promise<void> => {
+    await page.getByRole('button', { name: 'Tela inicial' }).click();
+    await page.getByRole('button', { name: 'Amigos', exact: true }).click();
+    await page.locator(`.friends__tab[data-tab="${aba}"]`).click();
+  };
+  await abrirAmigos(paginaAna, 'adicionar');
+  await paginaAna.locator('.friends__input').fill(usernameFor(leo));
+  await paginaAna.locator('.friends__submit').click();
+  await expect(paginaAna.locator('.friends__note')).toHaveText('Pedido enviado.', { timeout: 30_000 });
+  await abrirAmigos(paginaLeo, 'pendentes');
+  await paginaLeo.getByRole('button', { name: 'Aceitar' }).click();
+
+  await abrirAmigos(paginaLeo, 'amigos');
+  await paginaLeo.locator('.friends__row--clickable', { hasText: ana.displayName }).click();
+  await expect(paginaLeo.locator('.dm-chat__name')).toHaveText(ana.displayName, { timeout: 15_000 });
+  await sendMessageThroughUi(paginaLeo, 'sábado a gente assiste');
+  await paginaLeo.locator('.message', { hasText: 'sábado a gente assiste' }).click({ button: 'right' });
+  await paginaLeo.locator('.context-menu').getByRole('menuitem', { name: 'Fixar mensagem' }).click();
+  await expect(paginaLeo.locator('.pinned-item')).toHaveCount(1, { timeout: 15_000 });
+
+  // Agora no celular.
+  await paginaLeo.setViewportSize({ width: 390, height: 780 });
+  const app = paginaLeo.locator('.app');
+  const inicio = paginaLeo.locator('.home-column');
+
+  // A coluna Início não fica empilhada em cima do PV: está escondida na gaveta.
+  await expect(inicio).toBeHidden();
+  const chatBox = (await paginaLeo.locator('.chat').boundingBox())!;
+  expect(Math.round(chatBox.y)).toBe(0);
+  expect(Math.round(chatBox.width)).toBe(390);
+
+  // Abre pela gaveta da esquerda, junto com a barra de grupos.
+  await paginaLeo.locator('.chat .chat__mobile-button--left').click();
+  await expect(app).toHaveClass(/drawer-left/);
+  await expect(inicio).toBeVisible();
+  await expect(paginaLeo.locator('.group-bar')).toBeVisible();
+
+  // Tocar dentro da gaveta não a fecha; escolher "Amigos" fecha.
+  await paginaLeo.getByRole('button', { name: 'Amigos', exact: true }).click();
+  await expect(app).not.toHaveClass(/drawer-left/);
+  await expect(paginaLeo.locator('.friends')).toBeVisible();
+  await expect(inicio).toBeHidden();
+
+  // Da tela de Amigos também dá para abrir a gaveta, e toque fora fecha.
+  // x=360 está à direita da gaveta (rail 64 + coluna 260 = 324px).
+  await paginaLeo.getByRole('button', { name: 'Abrir menu' }).click();
+  await expect(app).toHaveClass(/drawer-left/);
+  await paginaLeo.mouse.click(360, 400);
+  await expect(app).not.toHaveClass(/drawer-left/);
+
+  // Escolher a conversa fecha a gaveta e abre o PV.
+  await paginaLeo.getByRole('button', { name: 'Abrir menu' }).click();
+  await paginaLeo.locator('.home-column__dm', { hasText: ana.displayName }).click();
+  await expect(app).not.toHaveClass(/drawer-left/);
+  await expect(paginaLeo.locator('.dm-chat__name')).toBeVisible();
+
+  // Gaveta do perfil: cartão EM CIMA, fixadas EMBAIXO, as duas na largura toda.
+  await paginaLeo.locator('.chat .chat__mobile-button--right').click();
+  await expect(app).toHaveClass(/drawer-right/);
+  const perfil = (await paginaLeo.locator('.members__profile').boundingBox())!;
+  const fixadas = (await paginaLeo.locator('.members__pinned').boundingBox())!;
+  expect(fixadas.y).toBeGreaterThanOrEqual(perfil.y + perfil.height - 1);
+  expect(Math.round(fixadas.width)).toBe(Math.round(perfil.width));
+  const bilhete = (await paginaLeo.locator('.members__pinned .pinned-item').boundingBox())!;
+  expect(bilhete.width).toBeGreaterThan(fixadas.width / 2);
+
+  await paginaAna.context().close();
+  await paginaLeo.context().close();
 });
 
 test('toque longo abre o menu na mensagem; arrastar cancela; no composer não abre', async ({

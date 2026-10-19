@@ -124,6 +124,7 @@
    */
   .app > .group-bar,
   .app > .channels,
+  .app > .home-column,
   .app > .members {
     position: fixed;
     top: 0;
@@ -142,9 +143,14 @@
     width: var(--rail-w);
   }
 
-  .app > .channels {
+  .app > .channels,
+  .app > .home-column {
     left: var(--rail-w);
     width: min(var(--channels-w), calc(100vw - var(--rail-w) - var(--space-6)));
+  }
+
+  .app > .home-column {
+    border-right: 1px solid var(--border);
   }
 
   .app > .members {
@@ -153,16 +159,28 @@
     border-left: 1px solid var(--border);
   }
 
+  /* Aberta, cada coluna volta ao display que ela tem no desktop. */
+  .app.drawer-left > .group-bar,
+  .app.drawer-right > .members {
+    display: grid;
+  }
+
+  .app.drawer-left > .channels,
+  .app.drawer-left > .home-column {
+    display: flex;
+  }
+
   .app.drawer-left > .group-bar,
   .app.drawer-left > .channels,
+  .app.drawer-left > .home-column,
   .app.drawer-right > .members {
-    display: flex;
     opacity: 1;
   }
 
   @starting-style {
     .app.drawer-left > .group-bar,
     .app.drawer-left > .channels,
+    .app.drawer-left > .home-column,
     .app.drawer-right > .members {
       opacity: 0;
     }
@@ -198,7 +216,8 @@
   /* --- cabeçalho e áreas seguras ----------------------------------------- */
 
   .chat .chat__mobile-button,
-  .room .chat__mobile-button {
+  .room .chat__mobile-button,
+  .friends .chat__mobile-button {
     display: inline-flex;
   }
 
