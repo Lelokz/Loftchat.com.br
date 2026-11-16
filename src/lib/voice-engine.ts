@@ -563,7 +563,15 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       // Reatribuir é o que faz o elemento notar a faixa nova quando o som da
       // tela chega depois do microfone.
       peer.audio.srcObject = peer.remoteAudio;
-      void peer.audio.play().catch(() => {
+      void peer.audio.play().catch((error: unknown) => {
+        /*
+         * Só `NotAllowedError` é autoplay bloqueado. Reatribuir `srcObject`
+         * (logo acima, quando chega o som da tela) interrompe o `play()`
+         * anterior com `AbortError` — e o elemento segue tocando com o novo
+         * (`autoplay`). Tratar isso como bloqueio mostrava o aviso "o
+         * navegador bloqueou o áudio" sem bloqueio nenhum (15/11/2026).
+         */
+        if ((error as { name?: string }).name !== 'NotAllowedError') return;
         // Autoplay bloqueado: a sala oferece um botão para ativar.
         if (!blockedReported) {
           blockedReported = true;

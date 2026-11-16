@@ -85,6 +85,41 @@
   color: var(--text-muted);
 }
 
+/* O `@` do cadastro: a arroba fica grudada no campo, sem fazer parte dele. */
+.auth__at-row {
+  position: relative;
+  display: flex;
+}
+
+.auth__at {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: var(--font-size-md);
+  pointer-events: none;
+}
+
+.auth__input--at {
+  flex: 1;
+  min-width: 0;
+  padding-left: calc(var(--space-3) + 1.1em);
+}
+
+.auth__note {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.auth__note[data-tom='ok'] {
+  color: var(--success, var(--accent-text));
+}
+
+.auth__note[data-tom='erro'] {
+  color: var(--danger);
+}
+
 .auth__error {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--danger);

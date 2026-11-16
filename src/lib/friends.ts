@@ -22,6 +22,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -66,6 +67,11 @@ export async function uidOfUsername(name: string): Promise<MemberId | null> {
   if (!snapshot.exists()) return null;
   const uid = snapshot.data()['uid'];
   return typeof uid === 'string' ? uid : null;
+}
+
+/** O `@` ainda não é de ninguém? (Leitura liberada até sem login: cadastro.) */
+export async function usernameFree(name: string): Promise<boolean> {
+  return (await uidOfUsername(name)) === null;
 }
 
 export class UsernameTakenError extends Error {
@@ -140,6 +146,7 @@ export async function claimUsername(
   batch.update(doc(db, 'users', uid), {
     username: name,
     usernameChanges: changesSoFar + 1,
+    pendingUsername: deleteField(),
   });
 
   try {
@@ -360,6 +367,9 @@ export async function publicProfile(uid: MemberId): Promise<UserProfile | null> 
   }
   if (typeof data['usernameChanges'] === 'number') {
     Object.assign(perfil, { usernameChanges: data['usernameChanges'] });
+  }
+  if (typeof data['pendingUsername'] === 'string') {
+    Object.assign(perfil, { pendingUsername: data['pendingUsername'] });
   }
   return perfil;
 }

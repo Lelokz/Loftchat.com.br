@@ -7,6 +7,10 @@ export interface ChooseUsernameProps {
   /** Rejeita com a mensagem a mostrar. */
   onChoose: (name: string) => Promise<void>;
   onSignOut: () => void;
+  /** Já vem escrito no campo (o `@` do cadastro que não deu para reservar). */
+  sugestao?: string;
+  /** Por que esta tela apareceu — dito com todas as letras. */
+  aviso?: string;
 }
 
 /**
@@ -21,6 +25,8 @@ export interface ChooseUsernameProps {
 export function renderChooseUsername({
   onChoose,
   onSignOut,
+  sugestao,
+  aviso,
 }: ChooseUsernameProps): HTMLElement {
   const campo = el('input', {
     class: 'username__input',
@@ -32,7 +38,9 @@ export function renderChooseUsername({
     'aria-label': 'Nome de usuário',
   }) as HTMLInputElement;
 
-  const erro = el('p', { class: 'username__error', role: 'alert' }, ['']);
+  if (sugestao !== undefined) campo.value = sugestao;
+
+  const erro = el('p', { class: 'username__error', role: 'alert' }, [aviso ?? '']);
 
   const enviar = el('button', { class: 'username__submit', type: 'submit' }, [
     'Continuar',
@@ -93,9 +101,9 @@ export function renderChooseUsername({
 
   return el('div', { class: 'screen' }, [
     el('div', { class: 'username' }, [
-      el('h1', { class: 'username__title' }, ['Como te encontram no Loft']),
+      el('h1', { class: 'username__title' }, ['Seu nome de usuário']),
       el('p', { class: 'username__text' }, [
-        'É por esse nome que outras pessoas te adicionam. Seu e-mail nunca é usado para busca.',
+        'É o @ que as pessoas usam para te adicionar como amigo. Ele aparece embaixo do seu nome, no seu cartão. Seu e-mail nunca é usado para busca.',
       ]),
       form,
       sair,

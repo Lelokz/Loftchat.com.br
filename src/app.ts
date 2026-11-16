@@ -99,17 +99,24 @@ const STICK_TO_BOTTOM_PX = 80;
 const HIGHLIGHT_MS = 1600;
 
 /** Identidade da sessão para o rodapé da coluna de canais. */
-function sessionMember(user: User): Member {
+function sessionMember(user: User, username: string): Member {
   const displayName = user.displayName ?? user.email ?? 'Sem nome';
-  return { id: user.uid, displayName, initials: initials(displayName), status: 'online' };
+  return {
+    id: user.uid,
+    displayName,
+    initials: initials(displayName),
+    status: 'online',
+    ...(username === '' ? {} : { username }),
+  };
 }
 
 export function mountApp(
   user: User,
+  username: string,
   onFatalError: (error: unknown) => void,
   onSignOut: () => void,
 ): AppHandle {
-  const me = sessionMember(user);
+  const me = sessionMember(user, username);
   const store: Store = createStore(user, onFatalError);
 
   const root = document.createElement('div');
@@ -1329,7 +1336,11 @@ export function mountApp(
       prev.screenMaximized !== state.screenMaximized ||
       prev.voiceReady !== state.voiceReady ||
       prev.voiceVideoPeers !== state.voiceVideoPeers ||
-      prev.voiceEngineError !== state.voiceEngineError;
+      prev.voiceEngineError !== state.voiceEngineError ||
+      // Os dois avisos da sala: sem eles aqui, o aviso só aparecia/sumia quando
+      // OUTRA coisa mudava — "Ativar áudio" resolvia o som e o aviso ficava.
+      prev.voiceAudioBlocked !== state.voiceAudioBlocked ||
+      prev.voiceMicDenied !== state.voiceMicDenied;
 
     const viewChanged = prev === null || prev.view !== state.view;
     /* Troca de visão para a transição 1 (etapa 20): outra tela ou outro grupo. */

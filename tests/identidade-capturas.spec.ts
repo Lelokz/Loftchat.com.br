@@ -68,19 +68,18 @@ for (const tamanho of ['desktop', 'mobile'] as const) {
 
     await page.getByRole('button', { name: 'Criar conta' }).click();
     await page.getByLabel('Nome de exibição').fill(conta.displayName);
+    await page.getByLabel('Nome de usuário').fill(usernameFor(conta));
     await page.getByLabel('E-mail').fill(conta.email);
-    await page.getByLabel('Senha').fill(conta.password);
+    await page.getByLabel('Senha', { exact: true }).fill(conta.password);
+    await page.getByLabel('Repetir senha').fill(conta.password);
+    await expect(page.getByText(`@${usernameFor(conta)} está livre.`)).toBeVisible();
     await foto(page, p('03-cadastro'));
     await page.getByRole('button', { name: 'Criar conta' }).click();
 
     await expect(page.getByText('Confirme seu e-mail')).toBeVisible({ timeout: 30_000 });
     await foto(page, p('04-confirmar-email'));
     await markEmailVerified(conta);
-
-    await expect(page.getByText('Como te encontram no Loft')).toBeVisible({ timeout: 30_000 });
-    await page.locator('.username__input').fill(usernameFor(conta));
-    await foto(page, p('05-escolher-arroba'));
-    await page.locator('.username__submit').click();
+    // O `@` do cadastro é reservado sozinho: não existe mais a tela 05.
 
     /* --- sem grupo, depois um grupo com conversa ------------------------- */
     await expect(page.getByText('Nenhum grupo por aqui ainda')).toBeVisible({ timeout: 30_000 });

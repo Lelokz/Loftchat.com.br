@@ -1987,6 +1987,68 @@ test.describe("compartilhar tela — chegada da faixa de vídeo", () => {
   });
 });
 
+/*
+ * O AVISO DE ÁUDIO BLOQUEADO SÓ PARA BLOQUEIO DE VERDADE (15/11/2026).
+ *
+ * Reatribuir `srcObject` interrompe o `play()` anterior com `AbortError`, e
+ * isso era confundido com autoplay bloqueado: o aviso aparecia sem bloqueio
+ * nenhum (visto na janela do app de computador).
+ *
+ * Bloqueio real não dá para provocar aqui: a suíte roda MUDA, e o Chromium
+ * deixa tocar o que não faz som. Então o teste faz o `play()` responder com
+ * cada erro e confere a reação do Loft — que é o que estava errado.
+ */
+async function playRespondendo(page: Page, erro: "NotAllowedError" | "AbortError"): Promise<void> {
+  await page.addInitScript((nome) => {
+    const original = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+      if ((window as unknown as { liberado?: boolean }).liberado === true || this.tagName !== "AUDIO") {
+        return original.call(this);
+      }
+      const w = window as unknown as { recusas?: number };
+      w.recusas = (w.recusas ?? 0) + 1;
+      return Promise.reject(new DOMException("teste", nome));
+    };
+  }, erro);
+  await page.reload();
+  // Quem entrou por convite volta para a tela do convite ("já faz parte").
+  const abrir = page.getByRole("button", { name: "Abrir o grupo" });
+  const grupo = page.locator(".channels__group-name");
+  await expect(grupo.or(abrir)).toBeVisible({ timeout: 30_000 });
+  if (await abrir.isVisible()) await abrir.click();
+  await expect(grupo).toBeVisible({ timeout: 30_000 });
+}
+
+test("o aviso de áudio bloqueado aparece com bloqueio de verdade, e não com play() interrompido", async ({
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const scene = await groupWithMember(browser, "autoplay");
+  await playRespondendo(scene.ownerPage, "NotAllowedError");
+  await playRespondendo(scene.guestPage, "AbortError");
+  await bothInVoice(scene);
+
+  // Bloqueio de verdade (dono): o aviso aparece, e "Ativar áudio" resolve.
+  const aviso = scene.ownerPage.getByText("O navegador bloqueou o áudio automático.");
+  await expect(aviso).toBeVisible({ timeout: 30_000 });
+  await scene.ownerPage.evaluate(() => {
+    (window as unknown as { liberado: boolean }).liberado = true;
+  });
+  await scene.ownerPage.getByRole("button", { name: "Ativar áudio" }).click();
+  await expect(aviso).toBeHidden({ timeout: 15_000 });
+
+  // play() interrompido (membro, AbortError) NÃO é bloqueio: nada de aviso.
+  // Espera o play() dele ter sido MESMO recusado, e dá tempo à tela — sem
+  // isso a conferência podia passar só por chegar cedo.
+  await expect
+    .poll(() => scene.guestPage.evaluate(() => (window as unknown as { recusas?: number }).recusas ?? 0))
+    .toBeGreaterThan(0);
+  await scene.guestPage.waitForTimeout(1_500);
+  await expect(
+    scene.guestPage.getByText("O navegador bloqueou o áudio automático."),
+  ).toHaveCount(0);
+});
+
 test("começar e parar três vezes seguidas mantém o áudio intacto", async () => {
   const browser = await freshBrowser();
   try {

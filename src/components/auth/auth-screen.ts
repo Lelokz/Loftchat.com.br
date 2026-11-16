@@ -1,12 +1,15 @@
 import './auth-screen.css';
 
 import { el, iconEl } from '../../lib/dom';
+import { usernameProblem } from '../../lib/friends';
 import { logoIcon } from '../../lib/icons';
 
 export interface AuthScreenProps {
   /** Rejeita com um Error cuja `message` já está traduzida para português. */
   onSignIn(email: string, password: string): Promise<void>;
-  onSignUp(displayName: string, email: string, password: string): Promise<void>;
+  onSignUp(displayName: string, username: string, email: string, password: string): Promise<void>;
+  /** O `@` está livre? Usado para avisar enquanto a pessoa digita. */
+  checkUsername(name: string): Promise<boolean>;
   /**
    * Manda o link de recuperação. NUNCA rejeita por e-mail inexistente.
    *
@@ -43,6 +46,7 @@ const LABELS: Record<Mode, { submit: string; busy: string; toggle: string; hint:
 export function renderAuthScreen({
   onSignIn,
   onSignUp,
+  checkUsername,
   onResetPassword,
 }: AuthScreenProps): HTMLElement {
   let mode: Mode = 'signIn';
@@ -80,6 +84,83 @@ export function renderAuthScreen({
     nameInput,
   ]);
   nameField.hidden = true;
+
+  /*
+   * O `@` nasce NO CADASTRO, junto do nome de exibição — e os dois ficam
+   * claros: um é como te VEEM, o outro é como te ACHAM. Antes o `@` vinha numa
+   * tela separada depois do cadastro e nunca mais aparecia; quem esquecia o que
+   * digitou não tinha como descobrir.
+   */
+  const usernameInput = el('input', {
+    class: 'auth__input auth__input--at',
+    id: 'auth-username',
+    name: 'username',
+    type: 'text',
+    autocomplete: 'off',
+    spellcheck: 'false',
+    autocapitalize: 'off',
+    placeholder: 'lelokz',
+  }) as HTMLInputElement;
+  const USERNAME_HINT = 'É por ele que as pessoas te adicionam como amigo.';
+  const usernameStatus = el('p', { class: 'auth__note', id: 'auth-username-status' }, [
+    USERNAME_HINT,
+  ]);
+  const usernameField = el('div', { class: 'auth__field' }, [
+    el('label', { class: 'auth__label', for: 'auth-username' }, ['Nome de usuário']),
+    el('div', { class: 'auth__at-row' }, [el('span', { class: 'auth__at' }, ['@']), usernameInput]),
+    usernameStatus,
+  ]);
+  usernameField.hidden = true;
+
+  const confirmInput = el('input', {
+    class: 'auth__input',
+    id: 'auth-confirm-password',
+    name: 'confirm-password',
+    type: 'password',
+    autocomplete: 'new-password',
+    placeholder: 'Digite a senha de novo',
+  }) as HTMLInputElement;
+  const confirmField = el('div', { class: 'auth__field' }, [
+    el('label', { class: 'auth__label', for: 'auth-confirm-password' }, ['Repetir senha']),
+    confirmInput,
+  ]);
+  confirmField.hidden = true;
+
+  /* Aviso enquanto digita: regra do nome primeiro, depois se está livre. */
+  let checagem = 0;
+  let timerChecagem = 0;
+  function setUsernameStatus(texto: string, tom: 'neutro' | 'ok' | 'erro'): void {
+    usernameStatus.textContent = texto;
+    usernameStatus.dataset['tom'] = tom;
+  }
+  usernameInput.addEventListener('input', () => {
+    window.clearTimeout(timerChecagem);
+    const nome = usernameInput.value.trim().toLowerCase();
+    if (nome === '') {
+      setUsernameStatus(USERNAME_HINT, 'neutro');
+      return;
+    }
+    const problema = usernameProblem(nome);
+    if (problema !== null) {
+      setUsernameStatus(problema, 'erro');
+      return;
+    }
+    setUsernameStatus('Conferindo…', 'neutro');
+    const minha = ++checagem;
+    timerChecagem = window.setTimeout(() => {
+      void checkUsername(nome)
+        .then((livre) => {
+          if (minha !== checagem) return;
+          setUsernameStatus(
+            livre ? `@${nome} está livre.` : `@${nome} já é de alguém. Escolha outro.`,
+            livre ? 'ok' : 'erro',
+          );
+        })
+        .catch(() => {
+          if (minha === checagem) setUsernameStatus(USERNAME_HINT, 'neutro');
+        });
+    }, 350);
+  });
 
   const passwordLabel = el('label', { class: 'auth__label', for: 'auth-current-password' }, [
     'Senha',
@@ -143,11 +224,13 @@ export function renderAuthScreen({
   // mensagens desta tela são em português.
   const form = el('form', { class: 'auth__form', novalidate: true }, [
     nameField,
+    usernameField,
     el('div', { class: 'auth__field' }, [
       el('label', { class: 'auth__label', for: 'auth-email' }, ['E-mail']),
       emailInput,
     ]),
     el('div', { class: 'auth__field' }, [passwordLabel, passwordInput]),
+    confirmField,
     errorBox,
     submitButton,
   ]);
@@ -169,8 +252,10 @@ export function renderAuthScreen({
     submitButton.disabled = value;
     toggleButton.disabled = value;
     nameInput.disabled = value;
+    usernameInput.disabled = value;
     emailInput.disabled = value;
     passwordInput.disabled = value;
+    confirmInput.disabled = value;
     submitButton.textContent = value ? LABELS[mode].busy : LABELS[mode].submit;
   }
 
@@ -179,6 +264,9 @@ export function renderAuthScreen({
     setError('');
 
     nameField.hidden = next === 'signIn';
+    usernameField.hidden = next === 'signIn';
+    resetRow.hidden = next === 'signUp';
+    confirmField.hidden = next === 'signIn';
 
     // O campo de senha é o mesmo elemento nos dois modos, então id, name e
     // autocomplete precisam acompanhar — senão o gerenciador de senhas oferece
@@ -206,11 +294,20 @@ export function renderAuthScreen({
     const email = emailInput.value.trim().toLowerCase();
     const password = passwordInput.value;
     const displayName = nameInput.value.trim();
+    const username = usernameInput.value.trim().toLowerCase();
 
     if (mode === 'signUp' && displayName === '') {
       setError('Informe um nome de exibição.');
       nameInput.focus();
       return;
+    }
+    if (mode === 'signUp') {
+      const problema = username === '' ? 'Escolha um nome de usuário.' : usernameProblem(username);
+      if (problema !== null) {
+        setError(problema);
+        usernameInput.focus();
+        return;
+      }
     }
     if (email === '') {
       setError('Informe o e-mail.');
@@ -222,10 +319,15 @@ export function renderAuthScreen({
       passwordInput.focus();
       return;
     }
+    if (mode === 'signUp' && confirmInput.value !== password) {
+      setError('As duas senhas não são iguais.');
+      confirmInput.focus();
+      return;
+    }
 
     setBusy(true);
     try {
-      if (mode === 'signUp') await onSignUp(displayName, email, password);
+      if (mode === 'signUp') await onSignUp(displayName, username, email, password);
       else await onSignIn(email, password);
       // Em caso de sucesso a tela inteira é substituída pelo app, então o estado
       // de carregando fica de propósito — evita duplo envio durante a troca.
@@ -235,6 +337,9 @@ export function renderAuthScreen({
       passwordInput.focus();
     }
   }
+
+  // Começa no modo entrar, onde ele existe; `setMode` esconde no cadastro.
+  const resetRow = el('div', { class: 'auth__reset-row' }, [resetButton]);
 
   const card = el('section', { class: 'auth' }, [
     el('header', { class: 'auth__header' }, [
@@ -246,7 +351,7 @@ export function renderAuthScreen({
     ]),
     form,
     el('footer', { class: 'auth__footer' }, [hintText, toggleButton]),
-    el('div', { class: 'auth__reset-row' }, [resetButton]),
+    resetRow,
   ]);
 
   // O elemento ainda não está no documento aqui; o microtask roda depois da

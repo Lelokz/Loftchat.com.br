@@ -10,14 +10,47 @@
   border-top: 1px solid var(--border);
 }
 
-.session-footer__name {
+.session-footer__identity {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: var(--space-1) var(--space-2);
+  margin-left: calc(var(--space-1) * -1);
+  border: 0;
+  border-radius: var(--radius-sm, 8px);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.session-footer__identity {
+  cursor: pointer;
+}
+
+button.session-footer__identity:hover {
+  background-color: var(--surface-hover);
+}
+
+.session-footer__name,
+.session-footer__handle {
+  max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.session-footer__name {
   font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.session-footer__handle {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
 }
 
 /* Sair fica em tom de perigo só no hover — no repouso é mais um ícone neutro. */

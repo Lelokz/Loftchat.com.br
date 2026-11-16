@@ -49,6 +49,12 @@ export interface UserProfile {
   /** O `@`, sem a arroba. Ausente até a pessoa escolher. */
   username?: string;
   /**
+   * O `@` escolhido NO CADASTRO, esperando a confirmação do e-mail para ser
+   * reservado (as regras só deixam reservar com e-mail confirmado). Some
+   * quando a reserva acontece.
+   */
+  pendingUsername?: string;
+  /**
    * Quantas vezes o `@` já foi trocado.
    *
    * Fica aqui, e não em `userPrivate`, porque a REGRA precisa lê-lo para cobrar
@@ -147,6 +153,8 @@ export interface Member {
   id: MemberId;
   displayName: string;
   initials: string;
+  /** O `@`, quando se sabe (o meu sempre). */
+  username?: string;
   /**
    * ATENÇÃO — presença como campo simples só serve para o mock.
    *

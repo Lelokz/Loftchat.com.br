@@ -285,7 +285,11 @@ function toMember(uid: MemberId, data: DocumentData | undefined): Member {
  * Cria ou atualiza o doc em `users`, com o uid como id.
  * Preserva o `createdAt` original quando o perfil já existe.
  */
-export async function upsertUserProfile(uid: MemberId, displayName: string): Promise<void> {
+export async function upsertUserProfile(
+  uid: MemberId,
+  displayName: string,
+  pendingUsername?: string,
+): Promise<void> {
   const ref = doc(db, 'users', uid);
   const snapshot = await getDoc(ref);
   const existingCreatedAt = snapshot.exists() ? snapshot.get('createdAt') : undefined;
@@ -295,9 +299,16 @@ export async function upsertUserProfile(uid: MemberId, displayName: string): Pro
     displayName,
     initials: initials(displayName),
     createdAt: typeof existingCreatedAt === 'string' ? existingCreatedAt : nowIso(),
+    ...(pendingUsername === undefined ? {} : { pendingUsername }),
   };
 
-  await setDoc(ref, profile);
+  /*
+   * MERGE, não substituição. Sem ele, cada login reescrevia o documento
+   * INTEIRO sem `username`/`usernameChanges` — e a regra (com razão) recusava
+   * isso como "trocar de `@` sem pagar a troca". A recusa era calada: o login
+   * seguia porque a tela já tinha trocado.
+   */
+  await setDoc(ref, profile, { merge: true });
 }
 
 /* -------------------------------------------------------------------------- */

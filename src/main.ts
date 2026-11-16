@@ -27,7 +27,7 @@ import { USING_EMULATOR } from './lib/firebase';
 import { authErrorMessage } from './lib/auth-errors';
 import { auth } from './lib/firebase';
 import { getInvite, isMemberOf, joinGroup, upsertUserProfile } from './lib/firestore';
-import { claimUsername, publicProfile } from './lib/friends';
+import { claimUsername, publicProfile, usernameFree, UsernameTakenError } from './lib/friends';
 import { isWellFormedInviteCode } from './lib/invite-code';
 import {
   currentRoute,
@@ -83,6 +83,28 @@ async function resolveUsername(user: User): Promise<void> {
       decide();
       return;
     }
+
+    /*
+     * O `@` escolhido NO CADASTRO é reservado aqui, sozinho, assim que o
+     * e-mail é confirmado. A tela de escolher só aparece se ele não der certo
+     * (alguém pegou o nome nesse meio-tempo) — e diz isso com todas as letras.
+     */
+    const pendente = perfil?.pendingUsername;
+    if (pendente !== undefined && pendente !== '') {
+      try {
+        await claimUsername(user.uid, pendente, null, perfil?.usernameChanges ?? 0);
+        username = pendente;
+        decide();
+        return;
+      } catch (error) {
+        const aviso =
+          error instanceof UsernameTakenError
+            ? `Alguém pegou @${pendente} enquanto você confirmava o e-mail. Escolha outro.`
+            : `Não foi possível reservar @${pendente}. Tente de novo ou escolha outro.`;
+        void showChooseUsername(user, { sugestao: pendente, aviso });
+        return;
+      }
+    }
     void showChooseUsername(user);
   } catch (error) {
     handleFatalError(error);
@@ -135,7 +157,7 @@ function showApp(user: User): void {
     return;
   }
   teardownApp();
-  app = mountApp(user, handleFatalError, handleSignOut);
+  app = mountApp(user, username ?? '', handleFatalError, handleSignOut);
   appUserId = user.uid;
   mount.className = '';
   mount.replaceChildren(app.element);
@@ -249,9 +271,13 @@ function showVerifyEmail(user: User): void {
  * poder pular: sem `@` a pessoa é inencontrável, e uma conta inencontrável no
  * meio de uma tela de amigos é só confusão.
  */
-async function showChooseUsername(user: User): Promise<void> {
+async function showChooseUsername(
+  user: User,
+  opcoes: { sugestao?: string; aviso?: string } = {},
+): Promise<void> {
   showScreen(
     renderChooseUsername({
+      ...opcoes,
       onChoose: async (name) => {
         const perfil = await publicProfile(user.uid);
         await claimUsername(user.uid, name, null, perfil?.usernameChanges ?? 0);
@@ -268,6 +294,7 @@ function showAuth(): void {
     renderAuthScreen({
       onSignIn: handleSignIn,
       onSignUp: handleSignUp,
+      checkUsername: usernameFree,
       onResetPassword: handlePasswordReset,
     }),
   );
@@ -411,12 +438,22 @@ async function handlePasswordReset(email: string): Promise<void> {
   });
 }
 
-async function handleSignUp(displayName: string, email: string, password: string): Promise<void> {
+async function handleSignUp(
+  displayName: string,
+  nomeDeUsuario: string,
+  email: string,
+  password: string,
+): Promise<void> {
+  // Antes de criar a conta: um `@` ocupado aqui não pode virar conta criada
+  // com um nome que ela nunca vai ter.
+  const livre = await usernameFree(nomeDeUsuario).catch(() => true);
+  if (!livre) throw new Error(`@${nomeDeUsuario} já é de alguém. Escolha outro.`);
+
   signingUp = true;
   try {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName });
-    await upsertUserProfile(credential.user.uid, displayName);
+    await upsertUserProfile(credential.user.uid, displayName, nomeDeUsuario);
     // O link de confirmação sai JUNTO do cadastro: a tela seguinte já é a de
     // "confirme seu e-mail", e ela ficaria sem sentido se nada tivesse sido
     // enviado ainda.

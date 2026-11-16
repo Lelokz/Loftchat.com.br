@@ -155,7 +155,13 @@ service cloud.firestore {
     match /usernames/{name} {
       // Leitura aberta: é como a busca por `@` encontra alguém, e o documento
       // só contém um uid — nada mais.
-      allow read: if signedIn();
+      //
+      // `get` (UM nome) vale até sem login: é o aviso de "@ livre" do
+      // cadastro, antes de a conta existir. Não revela nada novo — qualquer
+      // um cria uma conta e lê o mesmo. `list` (varrer todos) segue exigindo
+      // login.
+      allow get: if true;
+      allow list: if signedIn();
 
       allow create: if verified() && request.resource.data.uid == uid();
 

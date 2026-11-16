@@ -98,19 +98,46 @@ export async function markEmailVerified(account: TestAccount): Promise<void> {
   await resolveTokens(account);
 }
 
+/**
+ * Preenche o CADASTRO (desde 15/11/2026: nome de exibição, nome de usuário,
+ * e-mail, senha e repetir senha) e envia. O `@` nasce aqui, junto.
+ */
+export async function fillSignUpForm(page: Page, account: TestAccount): Promise<void> {
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await page.getByLabel("Nome de exibição").fill(account.displayName);
+  await page.getByLabel("Nome de usuário").fill(usernameFor(account));
+  await page.getByLabel("E-mail").fill(account.email);
+  await page.getByLabel("Senha", { exact: true }).fill(account.password);
+  await page.getByLabel("Repetir senha").fill(account.password);
+  await page.getByRole("button", { name: "Criar conta" }).click();
+}
+
+/*
+ * A TELA DE ESCOLHER `@` NÃO PODE APARECER num cadastro normal: o `@` do
+ * formulário é reservado sozinho quando o e-mail é confirmado. Ela só existe
+ * para o caso raro de alguém pegar o nome nesse meio-tempo — se aparecer aqui,
+ * a reserva automática falhou, e o teste diz isso em vez de seguir.
+ */
+async function expectUsernameReservedAutomatically(page: Page, account: TestAccount): Promise<void> {
+  await expect(page.getByText("Confirme seu e-mail")).toBeHidden({ timeout: 30_000 });
+  const telaDoArroba = page.getByRole("heading", { name: "Seu nome de usuário" });
+  if (await telaDoArroba.isVisible().catch(() => false)) {
+    throw new Error(
+      `a reserva automática do @ "${usernameFor(account)}" falhou: ` +
+        `${await page.locator(".username__error").textContent()}`,
+    );
+  }
+}
+
 /** Cria a conta pela própria tela de cadastro — exercita o formulário de verdade. */
 export async function signUpThroughUi(
   page: Page,
   account: TestAccount,
 ): Promise<void> {
-  await page.getByRole("button", { name: "Criar conta" }).click();
-  await page.getByLabel("Nome de exibição").fill(account.displayName);
-  await page.getByLabel("E-mail").fill(account.email);
-  await page.getByLabel("Senha").fill(account.password);
-  await page.getByRole("button", { name: "Criar conta" }).click();
+  await fillSignUpForm(page, account);
 
   /*
-   * O CADASTRO AGORA PARA NA CONFIRMAÇÃO DE E-MAIL (etapa 14).
+   * O CADASTRO PARA NA CONFIRMAÇÃO DE E-MAIL (etapa 14).
    *
    * A conta é marcada como confirmada pela API de admin do emulador, e a tela
    * entra sozinha no ciclo seguinte de `reload()` — que é exatamente o
@@ -120,93 +147,34 @@ export async function signUpThroughUi(
     timeout: 30_000,
   });
   await markEmailVerified(account);
+  await expectUsernameReservedAutomatically(page, account);
 
-  // Depois do e-mail vem o `@`, que também não dá para pular.
-  await expect(page.getByText("Como te encontram no Loft")).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.locator(".username__input").fill(usernameFor(account));
-  await page.locator(".username__submit").click();
-
-  /*
-   * O FIM DO CADASTRO NÃO É "Sair da conta" APARECER.
-   *
-   * Esse botão existe em QUATRO telas — confirmar e-mail, escolher `@`, estado
-   * vazio e a barra de canais (`choose-username.ts`, `verify-email.ts`,
-   * `empty-state.ts`, `channel-list.ts`). Esperar por ele dava o cadastro por
-   * concluído ainda na tela do `@`, com a reserva RECUSADA e o erro escrito na
-   * própria tela — e o teste seguia como se tudo tivesse dado certo. Foi assim
-   * que uma reserva de `@` que nunca acontecia passou despercebida, até o teste
-   * de colisão receber 200 onde esperava 403.
-   *
-   * A tela do `@` sair é o sinal de que a reserva PASSOU. E o estado vazio é a
-   * confirmação de que a pessoa entrou mesmo no app.
-   */
-  const erro = page.locator(".username__error");
-  if ((await erro.textContent({ timeout: 5_000 }).catch(() => "")) !== "") {
-    throw new Error(
-      `a reserva do @ "${usernameFor(account)}" foi recusada: ${await erro.textContent()}`,
-    );
-  }
-
-  await expect(page.getByText("Como te encontram no Loft")).toBeHidden({
-    timeout: 30_000,
-  });
+  // O estado vazio é a confirmação de que a pessoa entrou mesmo no app.
   await expect(
     page.getByRole("button", { name: "Criar meu primeiro grupo" }),
   ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Seu nome de usuário" })).toHaveCount(0);
 }
 
 /**
  * Cadastro INLINE, a partir da tela de convite.
  *
- * Terminar o cadastro por aqui NÃO leva direto à tela do convite — `decide()`
- * (main.ts) manda por e-mail confirmado, DEPOIS `@` escolhido, e só DEPOIS a
- * rota, convite incluso ("@ antes de tudo", como o comentário de lá mesmo
- * diz). Um comentário anterior deste arquivo afirmava o contrário; estava
- * errado, e foi assim que o passo do `@` ficou faltando aqui por uma volta
- * inteira — o teste ficava preso na tela de escolher nome, esperando um botão
- * de convite que só existe depois dela.
- *
- * Este caminho não existe pelo `Sair da conta` — não existe aqui — então não
- * reusa `signUpThroughUi` inteiro, mas repete os dois passos que ele também
- * faz: confirmar e-mail e reservar o `@`.
+ * `decide()` (main.ts) manda por e-mail confirmado, DEPOIS `@` reservado, e só
+ * DEPOIS a rota, convite incluso. Este caminho não termina no estado vazio
+ * (termina no convite), por isso não reusa `signUpThroughUi` inteiro.
  */
 export async function signUpFromInviteUi(
   page: Page,
   account: TestAccount,
 ): Promise<void> {
-  await page.getByRole("button", { name: "Criar conta" }).click();
-  await page.getByLabel("Nome de exibição").fill(account.displayName);
-  await page.getByLabel("E-mail").fill(account.email);
-  await page.getByLabel("Senha").fill(account.password);
-  await page.getByRole("button", { name: "Criar conta" }).click();
+  await fillSignUpForm(page, account);
+  // A conta precisa EXISTIR antes de marcar o e-mail: marcar cedo demais não
+  // acha a conta e não faz nada, calado — e a tela fica presa na confirmação.
+  await expect(page.getByText("Confirme seu e-mail")).toBeVisible({
+    timeout: 30_000,
+  });
   await markEmailVerified(account);
-
-  await expect(page.getByText("Como te encontram no Loft")).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.locator(".username__input").fill(usernameFor(account));
-  await page.locator(".username__submit").click();
-
-  const erro = page.locator(".username__error");
-  if ((await erro.textContent({ timeout: 5_000 }).catch(() => "")) !== "") {
-    throw new Error(
-      `a reserva do @ "${usernameFor(account)}" foi recusada: ${await erro.textContent()}`,
-    );
-  }
-
-  /*
-   * A checagem de erro acima é rápida (5s) e pode chegar cedo demais — a
-   * reserva ainda pode falhar DEPOIS dela (foi assim que um token velho
-   * escapou desta checagem e travou o teste esperando um botão de convite
-   * que nunca vinha). A tela do `@` sumir de verdade é a prova real: se a
-   * reserva falhar tarde, ela FICA, e isto estoura por timeout em vez de
-   * deixar passar.
-   */
-  await expect(page.getByText("Como te encontram no Loft")).toBeHidden({
-    timeout: 30_000,
-  });
+  await expectUsernameReservedAutomatically(page, account);
 }
 
 /**
@@ -228,7 +196,7 @@ export async function signInThroughUi(
   account: TestAccount,
 ): Promise<void> {
   await page.getByLabel("E-mail").fill(account.email);
-  await page.getByLabel("Senha").fill(account.password);
+  await page.getByLabel("Senha", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sair da conta" })).toBeVisible(
     {

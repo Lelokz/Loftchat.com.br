@@ -3,6 +3,7 @@ import './session-footer.css';
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { gearIcon, logoutIcon } from '../../lib/icons';
 import type { Member } from '../../types/models';
+import { showToast } from '../toast/toast';
 
 /**
  * Rodapé fixo com a IDENTIDADE DA SESSÃO — meu avatar, meu nome, e as ações
@@ -26,11 +27,35 @@ export function renderSessionFooter(member: Member, onSignOut: () => void): HTML
   signOutButton.append(iconEl(logoutIcon(17)), el('span', { class: 'sr-only' }, ['Sair da conta']));
   signOutButton.addEventListener('click', onSignOut);
 
+  /*
+   * O MEU CARTÃO: nome de exibição grande, `@` pequeno embaixo. O `@` é o que
+   * os amigos usam para me adicionar — por isso fica sempre à vista, e um
+   * clique copia. Antes ele não aparecia em lugar nenhum depois do cadastro.
+   */
+  const handle = member.username === undefined ? null : `@${member.username}`;
+  const identidade = el(
+    handle === null ? 'span' : 'button',
+    {
+      class: 'session-footer__identity',
+      ...(handle === null ? {} : { type: 'button', title: `Copiar ${handle}` }),
+    },
+    [
+      el('span', { class: 'session-footer__name' }, [member.displayName]),
+      handle !== null && el('span', { class: 'session-footer__handle' }, [handle]),
+    ],
+  );
+  if (handle !== null) {
+    identidade.addEventListener('click', () => {
+      void navigator.clipboard.writeText(handle).then(
+        () => showToast(`${handle} copiado. Mande para quem vai te adicionar.`),
+        () => showToast(`Seu nome de usuário é ${handle}.`),
+      );
+    });
+  }
+
   return el('footer', { class: 'session-footer' }, [
     avatarEl(member.initials, 'sm'),
-    el('span', { class: 'session-footer__name', title: member.displayName }, [
-      member.displayName,
-    ]),
+    identidade,
     el('button', { class: 'icon-button', type: 'button', title: 'Configurações' }, [
       iconEl(gearIcon(17)),
       el('span', { class: 'sr-only' }, ['Configurações']),

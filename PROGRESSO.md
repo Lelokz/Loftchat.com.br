@@ -21,6 +21,15 @@ Consequências combinadas:
 - O chat só sai do navegador quando programa e app estiverem prontos (o
   amigo que usa pelo celular perderia o acesso).
 
+**Marca e acabamento profissional (pedido do Leo, 15/11/2026 — entra no
+redesenho):** o nome é **Loftchat**, tudo junto, não "Loft". Hoje aparece
+"Loft" em: tela de entrar/cadastrar (`auth-screen.ts`), título da guia
+(`index.html`), `manifest.webmanifest` (name e short_name), topo da coluna sem
+grupo (`channel-list.ts`), avisos ("convite do Loft", "Use o Loft no
+computador"), `productName` do app de computador (`desktop/package.json`) e o
+remetente do e-mail de confirmação. O site ganha rodapé com "todos os
+direitos reservados", termos de uso e privacidade (como o site da NOVA).
+
 Fases, nesta ordem:
 
 1. **Tela com áudio**: seletor próprio (etapa 2), áudio no Linux (etapa 3) e
@@ -31,6 +40,63 @@ Fases, nesta ordem:
 4. **Repaginar o layout**: 2–3 propostas em imagem, diferentes do Discord.
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
+
+## Correção urgente — o `@` some depois do cadastro (15/11/2026)
+
+**O defeito, contado pelo Leo:** ele mandou para um amigo o `@` que tinha
+digitado na tela que aparecia DEPOIS do cadastro, errou um caractere e nunca
+mais conseguiu descobrir o nome certo. Causa no código: cada conta tinha dois
+nomes — "nome de exibição" (cadastro) e `@` (tela "Como te encontram no
+Loft", depois da confirmação do e-mail) — e **o próprio `@` não aparecia em
+lugar nenhum depois**: o rodapé só mostrava o nome de exibição.
+
+**O conserto (desenho do Leo):**
+
+- Cadastro com tudo junto: nome de exibição, nome de usuário (`@`), e-mail,
+  senha e **repetir senha**. Enquanto digita, o Loft avisa se o `@` está livre
+  (`usernameFree`). `@` ocupado é recusado ANTES de criar a conta.
+- As regras só deixam reservar `@` com e-mail confirmado (anti-spam, etapa
+  14) — isso continua. O `@` do cadastro fica em `users/{uid}.pendingUsername`
+  e `resolveUsername` (main.ts) reserva sozinho quando o e-mail é confirmado;
+  `claimUsername` apaga o pendente na mesma batch.
+- A tela de escolher `@` virou só o caso raro (alguém pegou o nome nesse
+  meio-tempo), com título "Seu nome de usuário", o motivo escrito e o nome já
+  no campo.
+- Cartão do rodapé: nome de exibição grande, `@` pequeno embaixo; um clique
+  copia o `@` (aviso "copiado. Mande para quem vai te adicionar.").
+- `firestore.rules`: `usernames/{name}` ganhou `allow get: if true` (um nome
+  só, até sem login — o aviso de "livre" do cadastro); `list` segue exigindo
+  login. **Precisa de `firebase deploy --only firestore:rules`.**
+- "Esqueci minha senha" sumiu do modo criar conta (o comentário do código já
+  dizia que era só do modo entrar, mas aparecia nos dois).
+
+**Dois defeitos da sala de voz achados pela suíte (anteriores a hoje):**
+
+- O aviso "O navegador bloqueou o áudio automático" aparecia SEM bloqueio:
+  reatribuir `srcObject` (quando chega o som da tela) interrompe o `play()`
+  anterior com `AbortError`, e o motor tratava qualquer erro como bloqueio.
+  Agora só `NotAllowedError` conta.
+- O aviso só aparecia/sumia quando OUTRA coisa mudava na sala:
+  `voiceAudioBlocked` e `voiceMicDenied` não estavam na lista de redesenho
+  (`voiceChanged` em app.ts). "Ativar áudio" resolvia o som e o aviso ficava.
+- Teste: `play()` respondendo `NotAllowedError` (aviso aparece e "Ativar
+  áudio" tira) e `AbortError` (nada de aviso). Bloqueio REAL não dá para
+  provocar com a suíte muda (o Chromium deixa tocar o que não faz som).
+  Contraprova feita: sem a correção, o teste falha.
+
+**Jeito de testar combinado com o Leo (15/11/2026):** suíte inteira só antes
+de PUBLICAR; nos commits do dia a dia, só os testes do que mudou.
+
+**Defeito achado no caminho:** `upsertUserProfile` rodava a cada login com
+`setDoc` SEM merge — reescrevia o perfil inteiro sem `username` e a regra
+(certa) recusava, calada (o login seguia porque a tela já tinha trocado).
+Agora é `merge: true`.
+
+Testes: `tests/cadastro.spec.ts` (aviso livre/ocupado e `@` ocupado não vira
+conta; senhas diferentes; `@` reservado sozinho + cartão + copiar + banco
+limpo + entrar de novo mantém; alguém pega o `@` antes da confirmação → tela
+explica e pede outro). `signUpThroughUi`/`signUpFromInviteUi` usam o
+formulário novo e FALHAM se a tela de escolher `@` aparecer.
 
 ## App de computador — etapa 3: som do PC na transmissão (Linux)
 
