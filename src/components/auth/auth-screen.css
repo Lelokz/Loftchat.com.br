@@ -203,3 +203,9 @@
   color: var(--accent-text);
   text-decoration: underline;
 }
+
+/* Marca: "Loft" no texto e "chat" no roxo de destaque. */
+.auth__title b {
+  color: var(--accent-text);
+  font-weight: inherit;
+}

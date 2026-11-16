@@ -1,6 +1,6 @@
 {
-  "name": "Loft",
-  "short_name": "Loft",
+  "name": "Loftchat",
+  "short_name": "Loftchat",
   "description": "Seus grupos, canais e conversas em um lugar só.",
   "start_url": "/",
   "scope": "/",

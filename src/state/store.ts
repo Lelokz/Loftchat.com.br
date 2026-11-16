@@ -1190,7 +1190,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       }
 
       if (!screenShareSupported()) {
-        return 'Este navegador não permite compartilhar tela. Use o Loft no computador.';
+        return 'Este navegador não permite compartilhar tela. Use o Loftchat no computador.';
       }
 
       const other = state.voiceParticipants.find(

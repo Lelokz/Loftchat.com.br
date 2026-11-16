@@ -147,7 +147,7 @@ function criarJanela() {
     height: 800,
     minWidth: 400,
     minHeight: 500,
-    title: 'Loft',
+    title: 'Loftchat',
     icon: join(import.meta.dirname, 'icone.png'),
     backgroundColor: '#140f26',
     show: false,

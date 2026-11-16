@@ -5,8 +5,7 @@ import { chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
 import { renderCallBar } from '../call-bar/call-bar';
 import type { CallBarProps } from '../call-bar/call-bar';
 import { renderLoading } from '../empty-state/empty-state';
-import { renderSessionFooter } from '../session-footer/session-footer';
-import type { Channel, ChannelId, Group, Member } from '../../types/models';
+import type { Channel, ChannelId, Group } from '../../types/models';
 
 export interface ChannelListProps {
   /** Grupo ativo; `null` enquanto nenhum está selecionado. */
@@ -18,14 +17,11 @@ export interface ChannelListProps {
   activeChannelId: ChannelId | null;
   /** Canal de VOZ em que estou conectado. Seleção independente da de texto. */
   activeVoiceChannelId: ChannelId | null;
-  /** Identidade da sessão (usuário autenticado). */
-  currentMember: Member;
   onSelectChannel: (channelId: ChannelId) => void;
   /** Conecta na voz e abre a sala; no canal já conectado, só volta para a sala. */
   onEnterVoice: (channelId: ChannelId) => void;
   /** Recebe o próprio botão, para o menu se ancorar nele. */
   onOpenGroupMenu: (anchor: HTMLElement) => void;
-  onSignOut: () => void;
   /** Faixa de chamada em andamento; ausente quando a sala está na tela. */
   callBar?: CallBarProps;
   /** Quem está em cada canal de voz, por id de canal. */
@@ -116,11 +112,9 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
     channelsLoaded,
     activeChannelId,
     activeVoiceChannelId,
-    currentMember,
     onSelectChannel,
     onEnterVoice,
     onOpenGroupMenu,
-    onSignOut,
   } = props;
 
   const menuButton = el(
@@ -187,15 +181,14 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
   return el('aside', { class: 'channels', 'aria-label': 'Canais' }, [
     el('header', { class: 'channels__header' }, [
       el('span', { class: 'channels__group-name', title: group?.name ?? '' }, [
-        group?.name ?? 'Loft',
+        group?.name ?? 'Loftchat',
       ]),
       menuButton,
     ]),
 
     el('div', { class: 'channels__body column-scroll scroll-area' }, body),
 
+    // O meu cartão (nome, @, sair) mora na barra de cima desde a proposta A.
     props.callBar !== undefined && renderCallBar(props.callBar, 'desktop'),
-
-    renderSessionFooter(currentMember, onSignOut),
   ]);
 }

@@ -1,6 +1,6 @@
 {
   "name": "loft-desktop",
-  "productName": "Loft",
+  "productName": "Loftchat",
   "version": "0.1.0",
   "private": true,
   "description": "Loft em janela própria, para Linux e Windows",

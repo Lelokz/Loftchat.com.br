@@ -2,8 +2,7 @@ import './home-column.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { peopleIcon } from '../../lib/icons';
-import { renderSessionFooter } from '../session-footer/session-footer';
-import type { DmThread, Member, MemberId, UserProfile } from '../../types/models';
+import type { DmThread, MemberId, UserProfile } from '../../types/models';
 
 export interface HomeColumnProps {
   dmThreads: DmThread[];
@@ -16,14 +15,6 @@ export interface HomeColumnProps {
   onSelectDm: (uid: MemberId) => void;
   /** Clicar em "Amigos" fecha o PV aberto, se houver. */
   onOpenFriends: () => void;
-  /**
-   * A sessão — rodapé com avatar, nome e sair. Mesmo prop que
-   * `channel-list.ts` já usa para a mesma coisa: esta coluna é o que
-   * mostra a tela inicial E o PV (abrir uma conversa não troca a coluna 2),
-   * então o rodapé precisa existir aqui do mesmo jeito que existe no grupo.
-   */
-  currentMember: Member;
-  onSignOut: () => void;
 }
 
 export interface HomeColumnParts {
@@ -69,9 +60,9 @@ export function renderHomeColumn(props: HomeColumnProps): HomeColumnParts {
    * simplesmente não existia aqui) ficaria dentro da área que rola junto
    * com a lista de conversas, em vez de fixo como no grupo.
    */
-  const element = el('nav', { class: 'home-column', 'aria-label': 'Tela inicial' }, [
+  const element = el('nav', { class: 'home-column', 'aria-label': 'Privado' }, [
     el('div', { class: 'home-column__header' }, [
-      el('h2', { class: 'home-column__title' }, ['Início']),
+      el('h2', { class: 'home-column__title' }, ['Privado']),
     ]),
 
     el('div', { class: 'home-column__body column-scroll scroll-area' }, [
@@ -80,8 +71,6 @@ export function renderHomeColumn(props: HomeColumnProps): HomeColumnParts {
     ]),
 
     callBarSlot,
-
-    renderSessionFooter(props.currentMember, props.onSignOut),
   ]);
 
   return { element, callBarSlot };

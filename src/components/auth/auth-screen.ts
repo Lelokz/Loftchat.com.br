@@ -344,7 +344,7 @@ export function renderAuthScreen({
   const card = el('section', { class: 'auth' }, [
     el('header', { class: 'auth__header' }, [
       el('div', { class: 'auth__mark' }, [iconEl(logoIcon(24))]),
-      el('h1', { class: 'auth__title' }, ['Loft']),
+      el('h1', { class: 'auth__title' }, ['Loft', el('b', {}, ['chat'])]),
       el('p', { class: 'auth__subtitle' }, [
         'Seus grupos, canais e conversas em um lugar só.',
       ]),

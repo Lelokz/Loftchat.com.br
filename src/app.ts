@@ -484,7 +484,7 @@ export function mountApp(
 
     const code = extractInviteCode(raw);
     if (!isWellFormedInviteCode(code)) {
-      return 'Isso não parece um convite do Loft. Confira o link ou o código.';
+      return 'Isso não parece um convite do Loftchat. Confira o link ou o código.';
     }
 
     navigate(invitePath(code));
@@ -623,6 +623,8 @@ export function mountApp(
         store.focusGroup(groupId);
       },
       onCreateGroup: handleCreateGroup,
+      me,
+      onSignOut,
     });
   }
 
@@ -701,8 +703,6 @@ export function mountApp(
         setDrawer(null);
         store.closeDm();
       },
-      currentMember: me,
-      onSignOut,
     });
     const bar = buildCallBar(state);
     /*
@@ -778,7 +778,6 @@ export function mountApp(
         state.voice !== null && state.voice.groupId === state.activeGroupId
           ? state.voice.channelId
           : null,
-      currentMember: me,
       // Escolher fecha a gaveta: no celular ela cobre a tela, e deixá-la aberta
       // depois de escolher um canal esconderia justamente o que você foi ver.
       onSelectChannel: (channelId) => {
@@ -790,7 +789,6 @@ export function mountApp(
         handleEnterVoice(channelId);
       },
       onOpenGroupMenu: handleOpenGroupMenu,
-      onSignOut,
       voiceRosters: voiceRosters(state),
       // No mobile a faixa vai para cima do composer, e SÓ para lá: dois
       // `.callbar` no DOM ao mesmo tempo mudariam o documento do desktop, que

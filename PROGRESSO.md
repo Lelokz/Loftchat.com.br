@@ -94,6 +94,27 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 1a — a barra de cima (16/11/2026)
+
+- `group-bar` deixou de ser a coluna vertical: é a BARRA DE CIMA (linha 1 do
+  grid, `grid-column: 1 / -1`), com a marca **Loftchat**, a aba **Privado**
+  (antes a casinha "Tela inicial"), uma aba por grupo (foto + nome; rola para
+  o lado quando não cabe), o "+" e o MEU CARTÃO (o `session-footer`, que saiu
+  do pé de `channel-list` e `home-column`).
+- `--rail-w` virou `--topbar-h: 60px`. Grid: 2 linhas × 3 colunas (canais,
+  centro, painel).
+- Celular: a barra fica fixa em cima (as abas rolam; o cartão mostra só a
+  foto e o sair); a gaveta da esquerda tem só os canais e começa abaixo da
+  barra; o véu também.
+- A coluna da tela inicial agora se chama "Privado".
+- Marca Loftchat: tela de login, título da guia, manifest, avisos ("convite
+  do Loftchat", "Use o Loftchat no computador"), `productName` e título da
+  janela do programa.
+- Testes: "Tela inicial" → aba "Privado" (`exact`); no celular o chat começa
+  em y=60 e "Sair da conta"/"Privado" ficam à mão sem gaveta. Rodados os
+  arquivos afetados (cadastro, dm, friends, identidade, mobile, pins e o de
+  sair da conta): 31/31.
+
 ## O chat saiu do ar; `loftchat.com.br` virou o SITE (16/11/2026)
 
 Pedido do Leo, aproveitando que as contas tinham acabado de ser apagadas: o

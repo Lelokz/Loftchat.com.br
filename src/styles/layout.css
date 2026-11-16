@@ -10,8 +10,9 @@
   height: 100vh; /* fallback para navegador sem dvh */
   height: 100dvh;
   display: grid;
+  /* Proposta A: a barra de grupos ocupa a linha de cima inteira. */
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr);
   grid-template-columns:
-    var(--rail-w)
     var(--channels-w)
     minmax(0, 1fr) /* o minmax(0,...) impede mensagem longa de esticar a página */
     var(--members-w);
@@ -43,7 +44,11 @@
  * — barato mesmo se nunca disparar.
  */
 @media (min-width: 721px) {
-  .app.no-member-column .chat__header,
+  .app > .group-bar {
+  grid-column: 1 / -1;
+}
+
+.app.no-member-column .chat__header,
   .app.no-member-column .friends__header,
   .app.no-member-column .friends__tabs {
     width: calc(100% + var(--members-w));
@@ -100,11 +105,24 @@
     --layout: mobile;
   }
 
-  /* Só a coluna do meio ocupa a tela; as outras viram gaveta. */
+  /* A barra de cima fica; só a coluna do meio ocupa o resto; as outras viram gaveta. */
   .app {
-    display: block;
+    grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     /* --app-height vem da visualViewport: é a altura REAL com o teclado aberto. */
     height: var(--app-height, 100dvh);
+  }
+
+  /* No celular o cartão mostra só a foto, para sobrar lugar para as abas. */
+  .app > .group-bar {
+    gap: var(--space-2);
+    padding-left: var(--space-2);
+  }
+
+  .app > .group-bar .group-bar__word,
+  .app > .group-bar .session-footer__identity,
+  .app > .group-bar .session-footer > .icon-button:not(.session-footer__signout) {
+    display: none;
   }
 
   .chat,
@@ -122,12 +140,11 @@
    * flex }` venceria `.channels { display: none }` só pela ordem — e a gaveta
    * ficaria permanentemente aberta.
    */
-  .app > .group-bar,
   .app > .channels,
   .app > .home-column,
   .app > .members {
     position: fixed;
-    top: 0;
+    top: var(--topbar-h);
     bottom: 0;
     z-index: 20;
     display: none;
@@ -138,15 +155,10 @@
       display 200ms allow-discrete;
   }
 
-  .app > .group-bar {
-    left: 0;
-    width: var(--rail-w);
-  }
-
   .app > .channels,
   .app > .home-column {
-    left: var(--rail-w);
-    width: min(var(--channels-w), calc(100vw - var(--rail-w) - var(--space-6)));
+    left: 0;
+    width: min(var(--channels-w), calc(100vw - var(--space-6)));
   }
 
   .app > .home-column {
@@ -160,7 +172,6 @@
   }
 
   /* Aberta, cada coluna volta ao display que ela tem no desktop. */
-  .app.drawer-left > .group-bar,
   .app.drawer-right > .members {
     display: grid;
   }
@@ -170,7 +181,6 @@
     display: flex;
   }
 
-  .app.drawer-left > .group-bar,
   .app.drawer-left > .channels,
   .app.drawer-left > .home-column,
   .app.drawer-right > .members {
@@ -178,7 +188,6 @@
   }
 
   @starting-style {
-    .app.drawer-left > .group-bar,
     .app.drawer-left > .channels,
     .app.drawer-left > .home-column,
     .app.drawer-right > .members {
@@ -199,7 +208,7 @@
   .app::before {
     content: '';
     position: fixed;
-    inset: 0;
+    inset: var(--topbar-h) 0 0;
     z-index: 19;
     background-color: var(--backdrop);
     opacity: 0;

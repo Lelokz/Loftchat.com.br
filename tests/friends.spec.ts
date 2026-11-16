@@ -51,7 +51,7 @@ async function signedIn(
 
 /** Abre a tela inicial e a aba pedida. */
 async function openFriends(page: Page, tab: string): Promise<void> {
-  await page.getByRole('button', { name: 'Tela inicial' }).click();
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
   await expect(page.locator('.friends')).toBeVisible({ timeout: 15_000 });
   await page.locator(`.friends__tab[data-tab="${tab}"]`).click();
 }
@@ -250,7 +250,7 @@ test('a tela inicial não derruba a chamada de voz', async ({ browser }) => {
     document.querySelector('#voice-audio')?.setAttribute('data-marca', 'antes');
   });
 
-  await a.page.getByRole('button', { name: 'Tela inicial' }).click();
+  await a.page.getByRole('button', { name: 'Privado', exact: true }).click();
   await expect(a.page.locator('.friends')).toBeVisible({ timeout: 15_000 });
 
   // A faixa de chamada continua visível na tela inicial — ponto de montagem 1.

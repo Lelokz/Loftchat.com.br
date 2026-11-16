@@ -109,7 +109,7 @@ async function signedIn(
 }
 
 async function openFriends(page: Page, tab: string): Promise<void> {
-  await page.getByRole('button', { name: 'Tela inicial' }).click();
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
   await page.getByRole('button', { name: 'Amigos', exact: true }).click();
   await expect(page.locator('.friends')).toBeVisible({ timeout: 15_000 });
   await page.locator(`.friends__tab[data-tab="${tab}"]`).click();

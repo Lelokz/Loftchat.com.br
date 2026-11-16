@@ -97,14 +97,14 @@ test('as gavetas abrem por botão e fecham por toque fora; o chat ocupa a tela',
   const composer = (await page.locator('.composer').boundingBox())!;
   expect(Math.round(composer.y + composer.height)).toBeLessThanOrEqual(780);
 
-  // Gaveta da esquerda: grupos + canais juntos.
+  // Gaveta da esquerda: os canais. A barra de grupos (proposta A) fica sempre
+  // em cima, fora da gaveta.
+  await expect(page.locator('.group-bar')).toBeVisible();
   await page.getByRole('button', { name: 'Abrir canais' }).click();
   await expect(app).toHaveClass(/drawer-left/);
   await expect(channels).toBeVisible();
-  await expect(page.locator('.group-bar')).toBeVisible();
 
-  // Toque fora fecha. x=360 está à DIREITA da gaveta, que vai até 324px
-  // (rail 64 + canais 260) — clicar em 195 seria dentro dela.
+  // Toque fora fecha. x=360 está à DIREITA da gaveta, que vai até 260px.
   await page.mouse.click(360, 400);
   await expect(app).not.toHaveClass(/drawer-left/);
   await expect(channels).toBeHidden();
@@ -121,29 +121,18 @@ test('as gavetas abrem por botão e fecham por toque fora; o chat ocupa a tela',
   expect(new URL(page.url()).pathname).toBe('/');
 });
 
-test('sem grupo nenhum, o botão de gaveta leva à tela inicial e ao sair da conta', async ({
+test('sem grupo nenhum, a barra de cima leva ao Privado e ao sair da conta', async ({
   page,
 }) => {
   const account = track('mob-sem-grupo');
   await page.goto('/');
   await signUpThroughUi(page, account);
 
-  const app = page.locator('.app');
-  const cabecalho = page.locator('.chat__header--mobile-only');
+  // Antes (rail lateral) isso exigia abrir uma gaveta; na proposta A a barra
+  // de cima, com a aba Privado e o meu cartão, está sempre na tela.
   await expect(page.getByText('Nenhum grupo por aqui ainda')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tela inicial' })).toBeHidden();
-  await expect(cabecalho).toBeVisible();
-
-  // No desktop o cabeçalho que só carrega o botão não aparece.
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(cabecalho).toBeHidden();
-  await page.setViewportSize({ width: 390, height: 780 });
-
-  await page.getByRole('button', { name: 'Abrir menu' }).click();
-  await expect(app).toHaveClass(/drawer-left/);
   await expect(page.getByRole('button', { name: 'Sair da conta' })).toBeVisible();
-  await page.getByRole('button', { name: 'Tela inicial' }).click();
-  await expect(app).not.toHaveClass(/drawer-left/);
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
   await expect(page.locator('.friends')).toBeVisible();
 });
 
@@ -164,7 +153,7 @@ test('na tela inicial a coluna Início é gaveta, e a gaveta do PV empilha cart�
   await signUpThroughUi(paginaLeo, leo);
 
   const abrirAmigos = async (page: Page, aba: string): Promise<void> => {
-    await page.getByRole('button', { name: 'Tela inicial' }).click();
+    await page.getByRole('button', { name: 'Privado', exact: true }).click();
     await page.getByRole('button', { name: 'Amigos', exact: true }).click();
     await page.locator(`.friends__tab[data-tab="${aba}"]`).click();
   };
@@ -190,11 +179,12 @@ test('na tela inicial a coluna Início é gaveta, e a gaveta do PV empilha cart�
 
   // A coluna Início não fica empilhada em cima do PV: está escondida na gaveta.
   await expect(inicio).toBeHidden();
+  // O chat começa logo abaixo da barra de cima (60px).
   const chatBox = (await paginaLeo.locator('.chat').boundingBox())!;
-  expect(Math.round(chatBox.y)).toBe(0);
+  expect(Math.round(chatBox.y)).toBe(60);
   expect(Math.round(chatBox.width)).toBe(390);
 
-  // Abre pela gaveta da esquerda, junto com a barra de grupos.
+  // Abre pela gaveta da esquerda (a barra de grupos fica sempre em cima).
   await paginaLeo.locator('.chat .chat__mobile-button--left').click();
   await expect(app).toHaveClass(/drawer-left/);
   await expect(inicio).toBeVisible();
@@ -207,7 +197,7 @@ test('na tela inicial a coluna Início é gaveta, e a gaveta do PV empilha cart�
   await expect(inicio).toBeHidden();
 
   // Da tela de Amigos também dá para abrir a gaveta, e toque fora fecha.
-  // x=360 está à direita da gaveta (rail 64 + coluna 260 = 324px).
+  // x=360 está à direita da gaveta (260px).
   await paginaLeo.getByRole('button', { name: 'Abrir menu' }).click();
   await expect(app).toHaveClass(/drawer-left/);
   await paginaLeo.mouse.click(360, 400);

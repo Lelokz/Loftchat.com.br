@@ -82,7 +82,7 @@ test('troca de visão: a tela velha esmaece por cima da nova e some; com movimen
   await createGroupThroughUi(page, 'Grupo da transição');
 
   await vigiarFantasmas(page);
-  await page.getByRole('button', { name: 'Tela inicial' }).click();
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
   // A tela nova chega na hora — a transição não segura a troca.
   await expect(page.locator('.home-column')).toBeVisible();
 
@@ -107,7 +107,7 @@ test('troca de visão: a tela velha esmaece por cima da nova e some; com movimen
   await vigiarFantasmas(page);
   await page.locator('.group-bar__button').first().click();
   await expect(page.locator('.channels__group-name')).toHaveText('Grupo da transição');
-  await page.getByRole('button', { name: 'Tela inicial' }).click();
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
   await expect(page.locator('.home-column')).toBeVisible();
   expect(await fantasmas(page)).toEqual([]);
 });

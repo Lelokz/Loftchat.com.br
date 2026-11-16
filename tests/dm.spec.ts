@@ -56,7 +56,7 @@ async function signedIn(
  * item "Amigos" da coluna 2 (`home-column.ts`), por isso os dois cliques.
  */
 async function openFriends(page: Page, tab: string): Promise<void> {
-  await page.getByRole('button', { name: 'Tela inicial' }).click();
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
   await page.getByRole('button', { name: 'Amigos', exact: true }).click();
   await expect(page.locator('.friends')).toBeVisible({ timeout: 15_000 });
   await page.locator(`.friends__tab[data-tab="${tab}"]`).click();
@@ -171,7 +171,7 @@ test('a lista de conversas mostra os dois lados, com o trecho certo, e reordena 
   await expect(rows.nth(0)).toContainText('de novo, b');
 
   // Do lado de B: a mesma conversa, com o trecho certo.
-  await b.page.getByRole('button', { name: 'Tela inicial' }).click();
+  await b.page.getByRole('button', { name: 'Privado', exact: true }).click();
   await expect(b.page.locator('.home-column__dm')).toHaveCount(1, { timeout: 15_000 });
   await expect(b.page.locator('.home-column__dm')).toContainText(a.account.displayName);
   await expect(b.page.locator('.home-column__dm')).toContainText('de novo, b');

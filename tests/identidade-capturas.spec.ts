@@ -141,7 +141,7 @@ for (const tamanho of ['desktop', 'mobile'] as const) {
 
     /* --- tela inicial ---------------------------------------------------- */
     if (mobile) await page.locator('.room .chat__mobile-button--left').click();
-    await page.getByRole('button', { name: 'Tela inicial' }).click();
+    await page.getByRole('button', { name: 'Privado', exact: true }).click();
     if (mobile) await page.mouse.click(TAMANHOS.mobile.width - 10, TAMANHOS.mobile.height / 2);
     await expect(page.locator('.friends')).toBeVisible({ timeout: 15_000 });
     for (const aba of ['amigos', 'pendentes', 'adicionar', 'bloqueados'] as const) {
@@ -168,7 +168,7 @@ test('capturas — PV com cartão de perfil e fixada (desktop e mobile)', async 
 
   // Amizade: Ana pede, Leo aceita.
   const abrirAmigos = async (page: Page, aba: string): Promise<void> => {
-    await page.getByRole('button', { name: 'Tela inicial' }).click();
+    await page.getByRole('button', { name: 'Privado', exact: true }).click();
     await page.getByRole('button', { name: 'Amigos', exact: true }).click();
     await page.locator(`.friends__tab[data-tab="${aba}"]`).click();
   };
