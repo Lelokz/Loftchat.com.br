@@ -21,8 +21,9 @@ import { MEDIA_ARGS } from '../playwright.config';
 /**
  * Janela do Loft (desktop/, Electron) — etapa 1 do app de computador.
  *
- * A janela é aberta de verdade, apontada para o Vite do teste (que já está
- * dentro do emulador), com uma pasta de dados descartável.
+ * A janela é aberta de verdade, com uma pasta de dados descartável. Desde a
+ * etapa 9a ela abre o chat EMBUTIDO (`app://loftchat/`), como o programa
+ * instalado: o `vite build` é feito uma vez aqui, apontado para o emulador.
  */
 
 const PASTA = join(import.meta.dirname, '..', 'desktop');
@@ -44,11 +45,26 @@ test.skip(!existsSync(BINARIO), 'Electron não instalado em desktop/');
 test.use({ launchOptions: { args: MEDIA_ARGS } });
 
 const accounts: TestAccount[] = [];
+let chatEmbutido: string;
+
+test.beforeAll(() => {
+  // O mesmo build do programa, mas falando com o emulador deste teste.
+  chatEmbutido = mkdtempSync(join(process.env['LOFT_TMP'] ?? tmpdir(), 'loft-chat-'));
+  execFileSync('npx', ['vite', 'build', '--outDir', chatEmbutido, '--emptyOutDir', '--logLevel', 'error'], {
+    cwd: join(import.meta.dirname, '..'),
+    env: {
+      ...process.env,
+      VITE_USE_EMULATOR: `${process.env['FIREBASE_AUTH_EMULATOR_HOST']}|${process.env['FIRESTORE_EMULATOR_HOST']}`,
+    },
+    stdio: 'inherit',
+  });
+});
+
 let app: ElectronApplication;
 let janela: Page;
 let dados: string;
 
-test.beforeEach(async ({ baseURL }) => {
+test.beforeEach(async () => {
   dados = mkdtempSync(join(process.env['LOFT_TMP'] ?? tmpdir(), 'loft-janela-'));
   // O terminal do VS Code define ELECTRON_RUN_AS_NODE, que faz o Electron
   // rodar como Node em vez de abrir janela.
@@ -66,7 +82,7 @@ test.beforeEach(async ({ baseURL }) => {
     args: semFalso ? [PASTA] : [PASTA, '--use-fake-device-for-media-stream', '--mute-audio'],
     env: {
       ...ambiente,
-      LOFT_URL: baseURL!,
+      LOFT_PASTA: chatEmbutido,
       LOFT_DADOS: dados,
       // O tom de teste toca num alto-falante de mentira, que não é o padrão.
       LOFT_AUDIO_TESTE: '1',
@@ -94,6 +110,7 @@ test.afterEach(async () => {
 
 test.afterAll(async () => {
   await limparTudo(accounts, 'desktop — limpeza');
+  rmSync(chatEmbutido, { recursive: true, force: true });
 });
 
 test('a janela abre o Loft', async () => {
@@ -101,8 +118,18 @@ test('a janela abre o Loft', async () => {
     timeout: 30_000,
   });
   expect(await janela.title()).toContain('Loft');
+  // O chat embutido (etapa 9a), não um site.
+  expect(janela.url()).toMatch(/^app:\/\/loftchat\//);
   // Sem barra de menu do Electron.
   expect(await app.evaluate(({ Menu }) => Menu.getApplicationMenu())).toBeNull();
+
+  // Rota interna (o chat tem /convite/…): o programa entrega o chat, não um erro.
+  await janela.goto('app://loftchat/convite/ABCD2345');
+  await expect(janela.locator('body')).not.toBeEmpty();
+  await expect(janela.locator('#app, .auth, .invite, main').first()).toBeVisible({ timeout: 30_000 });
+  // Arquivo que não existe fora da pasta: nada vaza.
+  const fora = await janela.evaluate(async () => (await fetch('app://loftchat/..%2F..%2Fpackage.json')).text());
+  expect(fora).not.toContain('"loft-desktop"');
 });
 
 test('janela e navegador conversam: a mesma conta troca mensagens nos dois sentidos', async ({
@@ -250,6 +277,8 @@ test.describe('seletor: transmitir pela janela', () => {
     await janela.getByRole('menuitem', { name: 'Convidar pessoas' }).click();
     const link = janela.locator('.modal__link');
     await expect(link).toBeVisible({ timeout: 30_000 });
+    // No programa o link de convite é o do SITE público (etapa 9a), nunca o app://.
+    expect(await link.inputValue()).toMatch(/^https:\/\/loftchat\.com\.br\/convite\//);
     const convite = new URL(await link.inputValue()).pathname;
     await janela.getByRole('button', { name: 'Fechar' }).first().click();
 

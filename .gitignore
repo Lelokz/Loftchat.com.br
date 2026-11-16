@@ -1,4 +1,6 @@
 node_modules
+# o chat embutido no programa (npm run build:desktop) -- gerado, nao e fonte
+desktop/app
 dist
 dist-ssr
 *.local

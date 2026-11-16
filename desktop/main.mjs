@@ -1,25 +1,65 @@
 /*
- * Loft em janela — etapa 1.
+ * Loftchat — o programa (Linux e Windows).
  *
- * A janela abre o SITE do Loft, não uma cópia dele: o que muda no site vale
- * aqui na hora, e navegador e janela são o mesmo Loft conversando.
+ * Etapa 9a: o chat mora DENTRO do programa. A pasta `app/` (o `vite build`,
+ * ver `npm run build:desktop`) é servida pelo endereço próprio
+ * `app://loftchat/`, que só existe aqui dentro: abre sem internet para a
+ * tela, e cada versão do programa leva o chat daquela versão.
+ *
+ * Fora do instalador (desenvolvimento e testes) dá para trocar a pasta
+ * (`LOFT_PASTA`), apontar para um servidor (`LOFT_URL`, o Vite) e guardar os
+ * dados em outra pasta (`LOFT_DADOS`). No programa instalado, nunca.
  */
 
-import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, session, shell } from 'electron';
+import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, net, protocol, session, shell } from 'electron';
+import { existsSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
+import { join, normalize, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
-const SITE = 'https://loft-3d6c0f.web.app';
-
-// Fora do instalador (desenvolvimento e testes) dá para apontar para outro
-// endereço e guardar os dados em outra pasta. No app instalado, nunca.
-const endereco = (!app.isPackaged && process.env.LOFT_URL) || SITE;
+const ESQUEMA = 'app';
+const CASA = 'loftchat';
+const PASTA_DO_CHAT = (!app.isPackaged && process.env.LOFT_PASTA) || join(import.meta.dirname, 'app');
+const endereco = (!app.isPackaged && process.env.LOFT_URL) || `${ESQUEMA}://${CASA}/`;
 if (!app.isPackaged && process.env.LOFT_DADOS) {
   app.setPath('userData', process.env.LOFT_DADOS);
 }
-const origem = new URL(endereco).origin;
+
+// "Seguro" e "padrão": o chat se comporta como num site https (guarda a
+// sessão, pede microfone, usa fetch). Tem que vir antes do app ficar pronto.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: ESQUEMA,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true },
+  },
+]);
+
+/** `protocolo//casa` — o `URL.origin` do Node dá "null" para esquemas que ele não conhece. */
+function origemDe(url) {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return '';
+  }
+}
+const origem = origemDe(endereco);
+
+/** Serve a pasta do chat. Caminho que não é arquivo cai no index.html (o chat tem rotas, como /convite/…). */
+function servirChat() {
+  const raiz = normalize(PASTA_DO_CHAT);
+  protocol.handle(ESQUEMA, (pedido) => {
+    const url = new URL(pedido.url);
+    if (url.host !== CASA) return new Response('', { status: 404 });
+    const arquivo = normalize(join(raiz, decodeURIComponent(url.pathname)));
+    // Nada fora da pasta (../).
+    if (arquivo !== raiz && !arquivo.startsWith(raiz + sep)) return new Response('', { status: 404 });
+    const existe = existsSync(arquivo) && statSync(arquivo).isFile();
+    return net.fetch(pathToFileURL(existe ? arquivo : join(raiz, 'index.html')).toString());
+  });
+}
 
 const PERMITIDAS = new Set([
   'media',
@@ -30,11 +70,7 @@ const PERMITIDAS = new Set([
 ]);
 
 function doLoft(url) {
-  try {
-    return new URL(url).origin === origem;
-  } catch {
-    return false;
-  }
+  return typeof url === 'string' && origemDe(url) === origem;
 }
 
 function abrirNoNavegador(url) {
@@ -192,6 +228,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
+    servirChat();
 
     // Microfone, notificação etc. só para o próprio Loft.
     session.defaultSession.setPermissionRequestHandler((conteudo, permissao, responder) => {

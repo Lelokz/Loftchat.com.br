@@ -182,8 +182,13 @@ cd desktop
 npm install
 electron_config_cache=<pasta de cache> node node_modules/electron/install.js
 cd ..
-npm run janela      # abre a janela apontando para o site publicado
+npm run janela      # monta o chat (npm run build:desktop → desktop/app) e abre o programa
 ```
+
+Desde a etapa 9a o chat mora DENTRO do programa: `desktop/app/` (gerado, fora
+do git) é servido em `app://loftchat/`, falando com o projeto real. Os testes
+montam o seu próprio, apontado para o emulador, e abrem com `LOFT_PASTA`.
+`LOFT_URL` (um servidor, ex.: o Vite) continua valendo para desenvolver.
 
 No PC do Leo, `desktop/node_modules` NÃO fica no SSD: é um atalho para
 `/mnt/cab1286d-6765-4c73-9c77-8d3119b4b644/Arquivo/Loft-desktop/instalar/node_modules`.

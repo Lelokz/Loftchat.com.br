@@ -541,7 +541,8 @@ onAuthStateChanged(auth, (user) => {
  * em `file://`, em navegador sem suporte ou com o registro bloqueado, o app tem
  * que continuar funcionando igual — instalável é um extra, não um requisito.
  */
-if ('serviceWorker' in navigator) {
+// No programa (etapa 9a, endereço `app://`) não existe service worker nem "instalar".
+if ('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js').catch(() => {});
   });

@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:emu": "node scripts/emulator.mjs vite",
     "build": "tsc --noEmit && vite build",
+    "build:desktop": "tsc --noEmit && vite build --outDir desktop/app --emptyOutDir",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/emulator.mjs playwright test",
@@ -14,7 +15,7 @@
     "check:indexes": "node scripts/real.mjs playwright test --grep @indices",
     "test:real": "node scripts/real.mjs playwright test tests/loft.spec.ts tests/mobile.spec.ts tests/screenshots.spec.ts",
     "deploy": "firebase deploy --only hosting",
-    "janela": "node scripts/janela.mjs"
+    "janela": "npm run build:desktop && node scripts/janela.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

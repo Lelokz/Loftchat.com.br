@@ -63,8 +63,16 @@ function parseRouteCode(pathname: string): string {
   return route.name === 'invite' ? route.code : '';
 }
 
+/**
+ * O endereço PÚBLICO do site — o link de convite que se manda para alguém. No
+ * programa (etapa 9a) a página mora em `app://loftchat`, que ninguém de fora
+ * abre; o link vai sempre para o site, e o site leva ao programa (etapa 9b).
+ */
+export const SITE_PUBLICO = 'https://loftchat.com.br';
+
 export function inviteUrl(code: string): string {
-  return `${window.location.origin}${invitePath(code)}`;
+  const base = /^https?:$/.test(window.location.protocol) ? window.location.origin : SITE_PUBLICO;
+  return `${base}${invitePath(code)}`;
 }
 
 type RouteListener = (route: Route) => void;

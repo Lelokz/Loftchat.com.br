@@ -147,6 +147,31 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 9a — o chat dentro do programa (16/11/2026)
+
+- O programa não abre mais o site: leva o chat dentro (`desktop/app/`, o
+  `vite build`; `npm run build:desktop`, fora do git) e serve pelo endereço
+  próprio `app://loftchat/` (`protocol.handle`, esquema "seguro" e "padrão"
+  registrado antes do app ficar pronto: sessão guardada, microfone, fetch).
+  Caminho que não é arquivo cai no `index.html` (rotas como /convite/…);
+  nada fora da pasta é servido.
+- `doLoft` compara `protocolo//casa` (o `URL.origin` do Node dá "null" para
+  esquema desconhecido); permissões e ponte só para o próprio chat.
+- Link de convite gerado no programa = `https://loftchat.com.br/convite/…`
+  (o `app://` ninguém de fora abre); no navegador continua a origem dele.
+- Sem service worker no programa (não existe em `app://`).
+- Firebase real conferido numa tela invisível: o programa abre e responde
+  "E-mail ou senha incorretos" para uma conta que não existe. A chave do
+  Firebase não tem restrição de origem (conferido pela REST).
+- `npm run janela` monta o chat e abre o programa. `LOFT_URL` segue para
+  desenvolver; os testes montam um chat apontado para o emulador
+  (`LOFT_PASTA`).
+- Testes: `tests/desktop.spec.ts` agora roda no chat embutido (6/6), com
+  rota interna, nada vaza da pasta, e convite com o link do site.
+- ACHADO: as regressões anteriores rodaram o teste do programa SEM a tela
+  invisível (janelas mudas apareceram na tela do Leo). Sempre
+  `scripts/tela-de-teste.sh`.
+
 ## Proposta A, etapa 8c — Configurações → Voz e áudio (16/11/2026) — fim da etapa 8
 
 - Seção nova **Voz e áudio** nas Configurações (e a ENGRENAGEM no cabeçalho
