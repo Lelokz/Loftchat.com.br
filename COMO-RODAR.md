@@ -169,3 +169,30 @@ dessa conta em `--manter`, senão ela é apagada junto.
 `.env`, `.check-indexes.json`, `node_modules/`, `dist/`, `.firebase/`, dados
 exportados do emulador, `playwright-report/`, `test-results/`, `screenshots/`,
 logs e qualquer JSON de conta de serviço. Tudo isso já está no `.gitignore`.
+
+## 10. Janela do Loft (app de computador)
+
+O app fica em `desktop/` (Electron). O npm desta máquina não roda scripts de
+instalação, então o binário do Electron é baixado à parte:
+
+```bash
+cd desktop
+npm install
+electron_config_cache=<pasta de cache> node node_modules/electron/install.js
+cd ..
+npm run janela      # abre a janela apontando para o site publicado
+```
+
+No PC do Leo, `desktop/node_modules` NÃO fica no SSD: é um atalho para
+`/mnt/cab1286d-6765-4c73-9c77-8d3119b4b644/Arquivo/Loft-desktop/instalar/node_modules`.
+O `npm install` apaga o atalho e cria uma pasta de verdade — por isso a
+instalação é feita em `Arquivo/Loft-desktop/instalar/` (cópia do
+`package.json` e do `package-lock.json`) e o atalho é refeito depois:
+
+```bash
+ln -sfn /mnt/cab1286d-6765-4c73-9c77-8d3119b4b644/Arquivo/Loft-desktop/instalar/node_modules desktop/node_modules
+```
+
+Os testes da janela (`tests/desktop.spec.ts`) entram no `npm test` e pulam
+sozinhos sem o Electron instalado. Para não abrir janela na tela, rode a
+suíte dentro de `xvfb-run -a`.

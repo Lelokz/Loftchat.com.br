@@ -1,6 +1,77 @@
 # Loft — progresso
 
-Estado em 08/10/2026.
+Estado em 15/11/2026.
+
+## App de computador (janela) — etapa 1: a janela abre o Loft
+
+Plano combinado em 15/11/2026: o Loft ganha uma JANELA para Linux e Windows
+(fora do navegador) e depois um app de celular. Os dois pontos que precisam
+ser perfeitos: **compartilhar tela com áudio** e **baixa latência**.
+
+O motivo da janela, nas palavras do Leo: no Linux Mint, compartilhar a tela
+inteira (ou uma janela) pelo navegador sai SEM áudio — só a aba do navegador
+manda som. No Windows o navegador manda o som do sistema. A janela resolve o
+Linux pegando o som direto do PipeWire.
+
+Etapas do plano:
+
+1. Janela Electron abrindo o Loft (login, chat, voz) — **esta**.
+2. Seletor próprio de tela/janela + compartilhar só a imagem.
+3. Áudio no Linux: venmic (PipeWire), som do PC inteiro MENOS o do Loft (sem
+   isso os amigos ouvem a própria voz de volta).
+4. Áudio no Windows: captura do Windows que exclui um processo (Windows 10
+   2004+), peça em C++ compilada no GitHub Actions. Quem testa: o Lucas.
+5. Medidor (tempo da mensagem de um PC ao outro; chamada direta ou via TURN)
+   e ajustes de velocidade.
+6. Instalador (.exe e Linux), ícone, atualização automática, notificações.
+
+Regra do Leo para ferramentas: pode usar qualquer coisa do GitHub/npm, desde
+que seja **totalmente grátis e não seja gambiarra**.
+
+Latência das mensagens, já conferida: o Firestore do projeto está em
+`southamerica-east1` (São Paulo) e as mensagens chegam por escuta em tempo
+real. A janela não muda esse caminho.
+
+**O que foi feito**
+
+- `desktop/` — o app Electron (45.3.2). `main.mjs` abre o **site publicado**
+  (`https://loft-3d6c0f.web.app`), não uma cópia: o que muda no site vale na
+  janela sem reinstalar, e janela e navegador são o mesmo Loft. Sem barra de
+  menu, uma instância só (abrir de novo traz a janela pra frente), link de
+  fora abre no navegador do sistema, microfone/notificação só liberados para
+  o próprio Loft.
+- Fora do instalador, `LOFT_URL` troca o endereço e `LOFT_DADOS` a pasta de
+  dados — é assim que o teste aponta a janela para o Vite do emulador.
+- `npm run janela` (`scripts/janela.mjs`) abre a janela pelo código.
+- `tests/desktop.spec.ts` (3 testes, entram no `npm test`; pulam sozinhos se o
+  Electron não estiver instalado): a janela abre o Loft; **a mesma conta na
+  janela e no navegador troca mensagens nos dois sentidos**; link de fora vai
+  para o navegador e o microfone funciona.
+
+**Pegadinhas**
+
+- O terminal do VS Code define `ELECTRON_RUN_AS_NODE=1`: com ela o Electron
+  roda como Node e não abre janela. `scripts/janela.mjs` e o teste tiram a
+  variável.
+- O npm desta máquina não roda os scripts de instalação dos pacotes: o
+  binário do Electron não vem com `npm install`. Rodar o instalador do
+  próprio pacote (`node node_modules/electron/install.js`), com
+  `electron_config_cache` apontando para o HD (o `ELECTRON_CACHE` antigo é
+  ignorado e o zip de 119 MB ia para `~/.cache/electron`).
+- Neste PC, `desktop/node_modules` é um atalho para o HD
+  (`Arquivo/Loft-desktop/instalar/node_modules`) — ver COMO-RODAR.md.
+
+Ainda NÃO compartilha tela na janela: sem o seletor da etapa 2, o botão de
+tela falha. Nada publicado; o site não mudou nesta etapa.
+
+## Ajustes mobile pós-etapa 20 (19/10/2026, commits `ec26661` e `2dac443`)
+
+- A coluna Início (tela inicial) virou gaveta no celular, e a gaveta do PV
+  empilha cartão e fixadas em vez de pôr lado a lado.
+- Sem grupo nenhum, a tela ganhou o botão de gaveta (antes não havia como
+  chegar em Amigos nem em "Sair da conta" no celular).
+- Testes novos em `tests/mobile.spec.ts`. **Ainda não publicado** (falta
+  `npm run deploy`).
 
 ## Etapa 20 — Identidade visual
 
