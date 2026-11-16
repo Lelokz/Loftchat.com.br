@@ -5,7 +5,9 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { renderVoiceSection } from './voice-section';
+import type { VoiceSection } from './voice-section';
 import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveAppearance, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
 import { accountAppearance, previewAppearance, sameAppearance, setAccountAppearance } from '../../lib/appearance';
 import { renderAppearanceSection } from './appearance-section';
@@ -80,7 +82,7 @@ export interface SettingsOptions {
   fundoCanal?: { id: string; label: string };
 }
 
-export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia';
+export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -273,6 +275,7 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
+    itemDoMenu('voz', 'Voz e áudio', micIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
     sair,
   ]);
@@ -898,7 +901,12 @@ export function openSettings(options: SettingsOptions): void {
   /** Grupos com "Meu apelido" escolhido mas ainda sem texto (não viram "só o ícone" na hora). */
   const apelidoEmEdicao = new Set<string>();
 
+  /** A seção Voz e áudio aberta (o teste do microfone para ao sair dela). */
+  let secaoDeVoz: VoiceSection | null = null;
+
   function mostrar(secao: Secao): void {
+    secaoDeVoz?.parar();
+    secaoDeVoz = null;
     secaoAtual = secao;
     for (const [qual, botao] of botoesDoMenu) {
       botao.classList.toggle('is-active', qual === secao);
@@ -918,6 +926,9 @@ export function openSettings(options: SettingsOptions): void {
       desenharPrevia();
     } else if (secao === 'grupos') {
       conteudo.replaceChildren(...secaoGrupos());
+    } else if (secao === 'voz') {
+      secaoDeVoz = renderVoiceSection();
+      conteudo.replaceChildren(...secaoDeVoz.elementos);
     } else if (secao === 'aparencia') {
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });
       erroGeral.hidden = true;
@@ -1208,6 +1219,9 @@ export function openSettings(options: SettingsOptions): void {
 
   dialog.addEventListener('close', () => {
     document.removeEventListener('keydown', onKey);
+    // O teste do microfone não pode ficar ligado com a tela fechada.
+    secaoDeVoz?.parar();
+    secaoDeVoz = null;
     // Saiu sem salvar (sair da conta fecha à força): a prévia não fica.
     previewAppearance(null);
     dialog.remove();

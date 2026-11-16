@@ -31,6 +31,7 @@ import {
 import type { SignalDoc } from './voice-signaling';
 import { isPermissionDenied } from './firestore-errors';
 import { ICE_SERVERS, iceErrorMeaning } from './ice-servers';
+import { loadVoiceSettings, micConstraints, onVoiceSettings, outputChoiceSupported, sameMic } from './voice-settings';
 
 /**
  * Teto de banda de vídeo para par que fechou por RELAY.
@@ -350,8 +351,10 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
   let screenStream: MediaStream | null = null;
   let stopScreenAudioExtra: (() => void) | null = null;
   let denied = false;
+  // Etapa 8c: o microfone, a saída e os filtros escolhidos em Voz e áudio.
+  let ajustes = loadVoiceSettings();
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints(ajustes) });
   } catch (error) {
     // Sem microfone a sala NÃO fica ambígua: entro em modo só-recepção, ouço
     // todo mundo, e a tela diz isso com todas as letras.
@@ -438,6 +441,58 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
 
   if (localStream !== null) watch(myUid, localStream);
 
+  /* --- Voz e áudio (etapa 8c), com a chamada aberta ------------------------ */
+
+  /** Toca na saída escolhida (`''` = a padrão do sistema). */
+  function aplicarSaida(audio: HTMLAudioElement): void {
+    if (!outputChoiceSupported()) return;
+    const el = audio as HTMLAudioElement & { setSinkId: (id: string) => Promise<void> };
+    void el.setSinkId(ajustes.speakerId).catch((error: unknown) => {
+      // Saída que sumiu (fone desplugado): segue na que estava.
+      console.warn('[voz] não deu para trocar a saída de som.', error);
+    });
+  }
+
+  /**
+   * Troca o microfone SEM sair da sala: pede a faixa nova, põe no lugar da
+   * velha em cada conexão (`replaceTrack` não renegocia) e só então para a
+   * velha. O mudo continua valendo. Entrei sem microfone? Aí só na próxima
+   * entrada — ligar um microfone que não existia exige renegociar a sala.
+   */
+  async function trocarMicrofone(): Promise<void> {
+    if (localStream === null) return;
+    const velha = localStream.getAudioTracks()[0] ?? null;
+    let novo: MediaStream;
+    try {
+      novo = await navigator.mediaDevices.getUserMedia({ audio: micConstraints(ajustes) });
+    } catch (error) {
+      console.error('[voz] não deu para trocar o microfone.', error);
+      return;
+    }
+    if (destroyed) {
+      novo.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    const nova = novo.getAudioTracks()[0];
+    if (nova === undefined) return;
+    nova.enabled = !muted;
+    for (const peer of peers.values()) {
+      for (const sender of peer.pc.getSenders()) {
+        if (sender.track !== null && sender.track === velha) await sender.replaceTrack(nova).catch(onError);
+      }
+    }
+    velha?.stop();
+    localStream = novo;
+    watch(myUid, novo);
+  }
+
+  const pararAjustes = onVoiceSettings((v) => {
+    const antes = ajustes;
+    ajustes = v;
+    if (antes.speakerId !== v.speakerId) for (const peer of peers.values()) aplicarSaida(peer.audio);
+    if (!sameMic(antes, v)) void trocarMicrofone();
+  });
+
   /* --- conexões ------------------------------------------------------------ */
 
   function createPeer(peerUid: string): Peer {
@@ -486,6 +541,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     audio.autoplay = true;
     audio.dataset['uid'] = peerUid;
     audioHost.append(audio);
+    aplicarSaida(audio);
 
     const video = document.createElement('video');
     video.autoplay = true;
@@ -1258,6 +1314,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
 
     async destroy() {
       destroyed = true;
+      pararAjustes();
       stopSignals();
       // A tela para JUNTO com a chamada: é o terceiro caminho de parar.
       screenStream?.getTracks().forEach((track) => track.stop());

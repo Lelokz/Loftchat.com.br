@@ -1245,3 +1245,50 @@
 .aparencia-aba[aria-disabled='true'] {
   cursor: default;
 }
+
+/* --- voz e áudio (etapa 8c) ---------------------------------------------- */
+
+.voz__select {
+  max-width: 460px;
+  cursor: pointer;
+}
+
+.voz__teste {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 460px;
+}
+
+.voz__testar {
+  flex: none;
+}
+
+.voz__medidor {
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.voz__nivel {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--accent);
+  transition: width 60ms linear;
+}
+
+.voz__filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.voz__filtro .aparencia-aba {
+  align-self: flex-start;
+}

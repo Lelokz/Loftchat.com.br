@@ -1075,6 +1075,7 @@ export function mountApp(
       layout: jeitoDaSala,
       onToggleLayout: alternarJeitoDaSala,
       onTogglePanel: alternarPainel,
+      onOpenVoiceSettings: () => handleOpenSettings('voz'),
       participants,
       muted: state.voiceMuted,
       micDenied: state.voiceMicDenied,

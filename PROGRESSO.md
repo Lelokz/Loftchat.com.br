@@ -106,6 +106,31 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 8c — Configurações → Voz e áudio (16/11/2026) — fim da etapa 8
+
+- Seção nova **Voz e áudio** nas Configurações (e a ENGRENAGEM no cabeçalho
+  da sala abre direto nela): microfone, teste do microfone, saída de som e
+  três filtros (redução de ruído, cancelamento de eco, volume automático).
+- **Vale neste aparelho** (localStorage `loft.voz`, `lib/voice-settings.ts`),
+  não na conta: o microfone do PC não existe no celular e os ids dos
+  aparelhos mudam de navegador para navegador. Sem armazenamento, vale o
+  padrão (o mesmo de antes).
+- **Muda na hora, sem barra de salvar.** Com a chamada aberta o motor
+  acompanha: microfone/filtros novos = pede o microfone de novo e troca a
+  faixa em cada conexão (`replaceTrack`, sem renegociar e sem sair da sala;
+  o mudo continua); saída nova = `setSinkId` nos `<audio>` de cada pessoa.
+  O aparelho é pedido como `ideal`: fone desplugado cai no padrão em vez de
+  recusar a sala. Quem entrou sem microfone só ganha o novo na próxima
+  entrada (ligar um microfone que não existia exige renegociar).
+- **Teste do microfone**: só a BARRA de nível (`role=meter`) — não toca a
+  voz de volta (eco e barulho no PC). Para ao trocar de seção e ao fechar.
+  Os nomes dos aparelhos aparecem depois da primeira permissão.
+- Navegador sem escolha de saída (Safari, Firefox antigo): a tela diz isso.
+- Testes: `tests/voz-audio.spec.ts` (engrenagem, lista, barra mexe com o
+  microfone falso, trocar o microfone e desligar o ruído com a chamada
+  aberta = o motor pede de novo com o aparelho/filtro novos, continua na
+  sala, recarregar mantém).
+
 ## Proposta A, etapa 8b — o chat da sala (16/11/2026)
 
 - Com a sala de voz na tela, o painel da direita vira **Chat da sala /
