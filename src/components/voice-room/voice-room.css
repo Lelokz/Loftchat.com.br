@@ -445,3 +445,91 @@
   background-color: var(--danger-hover);
   border-color: var(--danger-hover);
 }
+
+/* --- etapa 8a: grade, palco + fila, relógio ------------------------------- */
+
+.room__header-spacer {
+  flex: 1;
+}
+
+.room__header-icon {
+  flex: none;
+}
+
+/* "· 12:04" — números da mesma largura, o relógio não treme. */
+.room__clock {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.room__layout-icon {
+  font-size: 17px;
+  line-height: 1;
+}
+
+/*
+ * GRADE: as pessoas (e a tela, quando ela vira bloco) ocupam a sala. As
+ * colunas dependem de quantos blocos há — 1 sozinho no meio, 2 lado a lado,
+ * 3–4 em 2×2, 5–9 em 3 colunas —, sempre 16:9.
+ */
+.room__people--grade {
+  flex: 1 1 auto;
+  align-content: center;
+  max-width: 1100px;
+  min-height: 0;
+  overflow-y: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.room__people--grade.room__people--n1 {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 560px;
+}
+
+.room__people--grade.room__people--n2,
+.room__people--grade.room__people--n3,
+.room__people--grade.room__people--n4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 900px;
+}
+
+.room__people--grade .room__person-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: var(--font-size-xl);
+}
+
+.room__people--grade .room__person-name {
+  font-size: var(--font-size-sm);
+}
+
+/* A tela como um bloco da grade. */
+.room__tile-tela {
+  display: grid;
+  aspect-ratio: 16 / 9;
+  min-width: 0;
+}
+
+.room__tile-tela > .room__screen {
+  min-height: 0;
+}
+
+/* FILA: com a tela no palco, as pessoas viram blocos pequenos embaixo. */
+.room__people--fila {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: none;
+}
+
+.room__people--fila > .room__person {
+  width: 150px;
+}
+
+.room__people--fila .room__person-avatar {
+  width: var(--avatar-md);
+  height: var(--avatar-md);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+}

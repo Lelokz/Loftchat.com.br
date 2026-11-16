@@ -2,13 +2,13 @@ import './voice-room.css';
 
 import { el, iconEl } from '../../lib/dom';
 import {
-  cameraIcon,
   hangupIcon,
   menuIcon,
   micIcon,
   monitorIcon,
   peopleIcon,
   screenShareIcon,
+  speakerIcon,
 } from '../../lib/icons';
 import type { Member } from '../../types/models';
 
@@ -64,8 +64,15 @@ export interface VoiceRoomParts {
   previewSlot: HTMLElement | null;
 }
 
+/** Etapa 8a: com transmissão, palco grande + fila de pessoas, ou tudo em grade. */
+export type RoomLayout = 'palco' | 'grade';
+
 export interface VoiceRoomProps {
   channelName: string;
+  /** Quando EU entrei nesta sala (ms) — o relógio do cabeçalho conta daqui. */
+  joinedAt: number;
+  layout: RoomLayout;
+  onToggleLayout: () => void;
   participants: VoiceParticipantView[];
   muted: boolean;
   /** Entrei sem microfone: ouço, mas não falo. */
@@ -95,13 +102,32 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
    * a tela inteira e canais e membros ficariam inalcançáveis. Somem por CSS
    * acima de 720px, como os do chat.
    */
+  const transmitindo = screen.sharerName !== null;
+  const emGrade = !transmitindo || props.layout === 'grade';
+
+  // Palco ↔ grade: só faz sentido com alguém transmitindo.
+  const trocarJeito =
+    transmitindo &&
+    (() => {
+      const rotulo = emGrade ? 'Ver a tela em destaque' : 'Ver todos em grade';
+      const b = el('button', { class: 'icon-button room__layout-button', type: 'button', title: rotulo }, [
+        el('span', { class: 'room__layout-icon', 'aria-hidden': 'true' }, [emGrade ? '▣' : '▦']),
+        el('span', { class: 'sr-only' }, [rotulo]),
+      ]);
+      b.addEventListener('click', props.onToggleLayout);
+      return b;
+    })();
+
   const header = el('header', { class: 'room__header' }, [
     drawerButton('Abrir canais', menuIcon(18), props.onOpenChannels, 'left'),
-    iconEl(monitorIcon(16), 'icon room__header-icon'),
+    iconEl(speakerIcon(16), 'icon room__header-icon'),
     el('h1', { class: 'room__title' }, [channelName]),
     el('span', { class: 'room__count' }, [
       participants.length === 1 ? 'só você' : `${participants.length} pessoas`,
     ]),
+    relogio(props.joinedAt),
+    el('span', { class: 'room__header-spacer' }),
+    trocarJeito,
     drawerButton('Abrir membros', peopleIcon(18), props.onOpenMembers, 'right'),
   ]);
 
@@ -109,7 +135,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
 
   let stageSlot: HTMLElement | null = null;
   let previewSlot: HTMLElement | null = null;
-  let stageInner: HTMLElement;
+  let stageInner: HTMLElement | null = null;
 
   if (screen.sharerName !== null && !screen.isMine) {
     // Alguém transmitindo: o vídeo ocupa o palco.
@@ -141,21 +167,11 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
         stop,
       ]),
     ]);
-  } else {
-    stageInner = el('div', { class: 'room__screen' }, [
-      el('div', { class: 'room__screen-empty' }, [
-        iconEl(monitorIcon(30), 'icon room__screen-icon'),
-        el('p', { class: 'room__screen-text' }, ['a tela compartilhada aparece aqui']),
-      ]),
-    ]);
   }
+  // Sem transmissão NÃO há palco: nada de caixa vazia "a tela aparece aqui" —
+  // as pessoas ocupam a sala (etapa 8a).
 
-  const stage = el('div', { class: 'room__stage' }, [stageInner]);
-
-  const grid = el(
-    'ul',
-    { class: 'room__people', 'aria-label': 'Participantes' },
-    participants.map((participant) =>
+  const pessoas = participants.map((participant) =>
       el(
         'li',
         {
@@ -183,8 +199,33 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
             ]),
         ],
       ),
-    ),
   );
+
+  /*
+   * O MIOLO da sala (etapa 8a):
+   *  - sem transmissão: as pessoas em grade, grandes;
+   *  - com transmissão, "palco": a tela grande e a fila de pessoas embaixo;
+   *  - com transmissão, "grade": a tela vira um bloco da grade, do lado das pessoas.
+   */
+  const miolo: HTMLElement[] = [];
+  if (stageInner !== null && !emGrade) {
+    miolo.push(
+      el('div', { class: 'room__stage' }, [stageInner]),
+      el('ul', { class: 'room__people room__people--fila', 'aria-label': 'Participantes' }, pessoas),
+    );
+  } else {
+    const blocos = stageInner === null ? pessoas : [el('li', { class: 'room__tile-tela' }, [stageInner]), ...pessoas];
+    miolo.push(
+      el(
+        'ul',
+        {
+          class: `room__people room__people--grade room__people--n${Math.min(blocos.length, 9)}`,
+          'aria-label': 'Participantes',
+        },
+        blocos,
+      ),
+    );
+  }
 
   /*
    * Avisos que NÃO podem ficar em silêncio.
@@ -268,7 +309,6 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
       props.muted,
       props.onToggleMute,
     ),
-    controlButton(cameraIcon(19), 'Câmera ainda não implementada', true, null),
     screenButton(props),
     controlButton(hangupIcon(19), 'Sair da chamada', false, props.onLeave, true),
   ]);
@@ -278,15 +318,43 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
     {
       class: `room${screen.maximized ? ' is-maximized' : ''}${
         screen.sharerName !== null && !screen.isMine ? ' has-video' : ''
-      }`,
+      }${emGrade ? ' room--grade' : ' room--palco'}`,
       'aria-label': `Sala de voz ${channelName}`,
       // Alvo do menu de contexto, que traz o diagnóstico da conexão.
       'data-context': 'room',
     },
-    [header, ...notices, stage, grid, controls],
+    [header, ...notices, ...miolo, controls],
   );
 
   return { element, stageSlot, previewSlot };
+}
+
+/*
+ * RELÓGIO DA CHAMADA: "· 12:04" desde que eu entrei. A sala é redesenhada a
+ * cada mudança de estado, então o tempo não pode morar nela: um intervalo só,
+ * para todas, atualiza qualquer relógio que estiver na tela.
+ */
+let relogioLigado = false;
+
+function tempo(desde: number): string {
+  const s = Math.max(0, Math.floor((Date.now() - desde) / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const seg = String(s % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${seg}` : `${m}:${seg}`;
+}
+
+function relogio(desde: number): HTMLElement {
+  const span = el('span', { class: 'room__clock', 'data-desde': String(desde), title: 'Tempo na chamada' }, [`· ${tempo(desde)}`]);
+  if (!relogioLigado) {
+    relogioLigado = true;
+    window.setInterval(() => {
+      for (const r of document.querySelectorAll<HTMLElement>('.room__clock[data-desde]')) {
+        r.textContent = `· ${tempo(Number(r.dataset['desde']))}`;
+      }
+    }, 1000);
+  }
+  return span;
 }
 
 /**

@@ -63,7 +63,7 @@ import {
 } from './components/modal/dialogs';
 import { openVoiceDiagnostics } from './components/voice-diagnostics/voice-diagnostics';
 import { renderVoiceRoom } from './components/voice-room/voice-room';
-import type { VoiceParticipantView } from './components/voice-room/voice-room';
+import type { RoomLayout, VoiceParticipantView } from './components/voice-room/voice-room';
 import { hideToast, showToast } from './components/toast/toast';
 import {
   createChannel,
@@ -948,10 +948,27 @@ export function mountApp(
     return byChannel;
   }
 
+  /*
+   * Etapa 8a: palco ou grade (escolha desta sessão) e a hora em que entrei na
+   * sala (o relógio do cabeçalho). Trocar de sala zera o relógio.
+   */
+  let jeitoDaSala: RoomLayout = 'palco';
+  let entradaNaSala: { canal: string; em: number } | null = null;
+
+  function alternarJeitoDaSala(): void {
+    jeitoDaSala = jeitoDaSala === 'palco' ? 'grade' : 'palco';
+    const room = buildVoiceRoom(store.getState());
+    if (room !== null && centerMode === 'voice' && centerEl !== null) {
+      centerEl.replaceWith(room);
+      centerEl = room;
+    }
+  }
+
   /** A sala, com quem está mesmo nela. */
   function buildVoiceRoom(state: AppState): HTMLElement | null {
     const voice = state.voice;
     if (voice === null || voice.groupId !== state.activeGroupId) return null;
+    if (entradaNaSala?.canal !== voice.channelId) entradaNaSala = { canal: voice.channelId, em: Date.now() };
 
     const here = state.voiceParticipants.filter((p) => p.channelId === voice.channelId);
 
@@ -987,6 +1004,9 @@ export function mountApp(
 
     const parts = renderVoiceRoom({
       channelName: voiceChannelName(state),
+      joinedAt: entradaNaSala.em,
+      layout: jeitoDaSala,
+      onToggleLayout: alternarJeitoDaSala,
       participants,
       muted: state.voiceMuted,
       micDenied: state.voiceMicDenied,
@@ -1671,6 +1691,8 @@ export function mountApp(
 
   function render(state: AppState): void {
     acompanharFundo(state);
+    // Saiu da chamada: a próxima entrada começa o relógio do zero.
+    if (state.voice === null) entradaNaSala = null;
     // Ainda carregando os grupos: não pinta nada; o splash de fora segue valendo.
     if (!state.groupsLoaded && groupBarEl === null) {
       previous = state;

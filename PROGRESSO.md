@@ -106,6 +106,31 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 8a — o jeito da sala de voz (16/11/2026)
+
+A sala de voz (item 8 do plano) dividida em **8a** (jeito da sala), **8b**
+(chat da sala no painel da direita, liga/desliga) e **8c** (Configurações →
+Voz e áudio, aberta pela engrenagem da sala).
+
+- **Sem transmissão não há palco**: sumiu a caixa vazia "a tela compartilhada
+  aparece aqui"; as pessoas ocupam a sala numa GRADE 16:9 que se ajusta ao
+  número de blocos (1 sozinho no meio, 2 lado a lado, 3–4 em 2×2, 5–9 em 3
+  colunas).
+- **Com transmissão**: a tela no PALCO grande e a FILA de pessoas em blocos
+  pequenos embaixo (como o desenho a-sala). Um botão no cabeçalho troca para
+  GRADE (a tela vira um bloco do lado das pessoas) e de volta — escolha da
+  sessão.
+- **Cabeçalho**: ícone de alto-falante (era o de monitor), "N pessoas" e o
+  RELÓGIO da chamada ("· 12:04", desde que eu entrei; zera ao sair). O
+  relógio é um intervalo só, fora da sala, porque a sala é redesenhada a cada
+  mudança.
+- **Saiu o botão de câmera** que vivia travado com "ainda não implementada"
+  — não estava no desenho e botão que não faz nada não fica.
+- O "AO VIVO" na lista de canais e o anel de quem fala já existiam.
+- Testes: `tests/sala.spec.ts` (sozinho em grade sem palco e sem câmera,
+  relógio andando, a Ana entra transmitindo → palco + fila, trocar para grade
+  e voltar).
+
 ## Proposta A, etapa 5d — o painel da direita do meu jeito (16/11/2026) — fim da etapa 5
 
 Configurações → Aparência → **Painel da direita** (mesmo `appearance`,

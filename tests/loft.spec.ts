@@ -1647,9 +1647,9 @@ test.describe("compartilhar tela — chegada da faixa de vídeo", () => {
           timeout: 30_000,
         },
       );
-      await expect(scene.guestPage.locator(".room__screen-text")).toContainText(
-        "a tela compartilhada aparece aqui",
-      );
+      // Etapa 8a: sem transmissão não há palco — a sala volta à grade.
+      await expect(scene.guestPage.locator(".room__stage")).toHaveCount(0);
+      await expect(scene.guestPage.locator(".room__people--grade")).toHaveCount(1);
       await expect(
         scene.guestPage.getByRole("button", { name: "Compartilhar tela" }),
       ).toBeEnabled({ timeout: 30_000 });
@@ -2151,9 +2151,9 @@ test("transmissão de participante que virou fantasma some do palco", async ({
   // Espera além da varredura de 5s, para não passar por sorte de tempo.
   await scene.ownerPage.waitForTimeout(7000);
   await expect(scene.ownerPage.locator(".room__person")).toHaveCount(1);
-  await expect(scene.ownerPage.locator(".room__screen-text")).toContainText(
-    "a tela compartilhada aparece aqui",
-  );
+  // Etapa 8a: sem transmissão não há palco — a sala volta à grade.
+  await expect(scene.ownerPage.locator(".room__stage")).toHaveCount(0);
+  await expect(scene.ownerPage.locator(".room__people--grade")).toHaveCount(1);
   await expect(
     scene.ownerPage.getByRole("button", { name: "Compartilhar tela" }),
     "o botão não pode ficar travado por uma transmissão fantasma",
