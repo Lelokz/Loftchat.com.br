@@ -307,17 +307,20 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
         "data-author-id": message.authorId,
       },
       [
-        // Avatar só nas mensagens dos OUTROS — nas minhas o elemento nem existe.
-        // Na primeira do bloco ele traz as iniciais; nas continuações fica vazio,
-        // reservando a largura para o texto não desalinhar.
-        !isMine &&
-          el(
-            "span",
-            continued
-              ? { class: "message__avatar" }
-              : { class: "message__avatar", "data-profile-uid": message.authorId },
-            [continued ? false : avatarEl(author.initials, "sm", "", author.photo)],
-          ),
+        // Avatar: na primeira do bloco ele traz as iniciais; nas continuações
+        // fica vazio, reservando a largura para o texto não desalinhar. Nas
+        // MINHAS ele existe mas fica escondido no jeito padrão (balão à
+        // direita) — aparece na lista e no balão à esquerda (Aparência, etapa 5b).
+        el(
+          "span",
+          continued
+            ? { class: isMine ? "message__avatar message__avatar--mine" : "message__avatar" }
+            : {
+                class: isMine ? "message__avatar message__avatar--mine" : "message__avatar",
+                "data-profile-uid": message.authorId,
+              },
+          [continued ? false : avatarEl(author.initials, "sm", "", author.photo)],
+        ),
 
         el("div", { class: "message__bubble" }, [
           // Nome e horário só na primeira mensagem do bloco.

@@ -1102,13 +1102,72 @@
 .aparencia-previa {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-color: var(--surface-chat);
 }
 
-.aparencia-previa .message + .message--start {
-  margin-top: 0;
+/* Miniaturas de "Balões" e "Lista": três linhas, a de baixo é a minha. */
+.aparencia-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-chat);
+}
+
+.aparencia-msg__linha {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.aparencia-msg__bola {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--border-strong);
+}
+
+.aparencia-msg__texto {
+  width: 60%;
+  height: 10px;
+  border-radius: 5px;
+  background-color: var(--surface-bubble);
+  border: 1px solid var(--border);
+}
+
+.aparencia-msg--baloes .is-minha {
+  justify-content: flex-end;
+}
+
+.aparencia-msg--baloes .is-minha .aparencia-msg__bola {
+  display: none;
+}
+
+.aparencia-msg--baloes .is-minha .aparencia-msg__texto {
+  width: 45%;
+  border-color: var(--accent);
+  background-color: var(--accent);
+}
+
+.aparencia-msg--lista .aparencia-msg__texto {
+  width: 75%;
+  height: 4px;
+  border: 0;
+  background-color: var(--text-muted);
+}
+
+.aparencia-msg--lista .is-minha .aparencia-msg__bola {
+  background-color: var(--accent);
+}
+
+/* Os três campos de "Mensagens" ficam no mesmo ritmo dos outros campos. */
+.aparencia-mensagens {
+  display: contents;
 }

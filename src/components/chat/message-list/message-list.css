@@ -406,3 +406,121 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* --- jeito das mensagens (Aparência, etapa 5b) ----------------------------- */
+/*
+ * Escolhas da PESSOA, postas no <html> por lib/appearance.ts:
+ *  - data-mensagens="lista": sem balão, tudo à esquerda, nome em cima;
+ *  - data-meu-lado="esquerda": no balão, as minhas também à esquerda;
+ *  - data-densidade="compacto": menos ar entre e dentro das mensagens.
+ * Sem atributo nenhum é o jeito de sempre (balões, minhas à direita).
+ */
+
+/* Minha calha de avatar só aparece quando as minhas ficam à esquerda. */
+.message__avatar--mine {
+  display: none;
+}
+
+:root[data-mensagens='lista'] .message__avatar--mine,
+:root[data-meu-lado='esquerda'] .message__avatar--mine {
+  display: block;
+}
+
+/* Balão à esquerda: o meu fica do lado de todo mundo, ainda na cor de destaque. */
+:root[data-meu-lado='esquerda'] .message--mine .message__bubble {
+  margin-left: 0;
+}
+
+:root[data-meu-lado='esquerda'] .message--mine.message--end .message__bubble {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+/* Lista: cada mensagem é uma linha de texto, sem caixa. */
+:root[data-mensagens='lista'] .message__bubble,
+:root[data-mensagens='lista'] .message--mine .message__bubble {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  margin-left: 0;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-primary);
+}
+
+:root[data-mensagens='lista'] .message + .message--start {
+  margin-top: var(--space-4);
+}
+
+:root[data-mensagens='lista'] .message__author {
+  font-size: var(--font-size-md);
+}
+
+/* Na lista, o meu nome vai na cor de destaque (o resto da minha mensagem é igual). */
+:root[data-mensagens='lista'] .message--mine .message__author {
+  color: var(--accent-text);
+  opacity: 1;
+}
+
+:root[data-mensagens='lista'] .message--mine .message__time {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+:root[data-mensagens='lista'] .message:hover {
+  background-color: var(--surface-hover);
+  border-radius: var(--radius-sm);
+}
+
+:root[data-mensagens='lista'] .message--mine .attachment {
+  border-color: var(--border);
+  background-color: var(--surface-chat);
+  color: var(--text-primary);
+}
+
+:root[data-mensagens='lista'] .message--mine .attachment__icon,
+:root[data-mensagens='lista'] .message--mine .attachment__meta,
+:root[data-mensagens='lista'] .message--mine .attachment__trailing {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+:root[data-mensagens='lista'] .message--mine .waveform__bar {
+  background-color: var(--border-strong);
+}
+
+/* Compacto: menos ar. */
+:root[data-densidade='compacto'] .message + .message {
+  margin-top: 1px;
+}
+
+:root[data-densidade='compacto'] .message + .message--start {
+  margin-top: var(--space-2);
+}
+
+:root[data-densidade='compacto'] .message__bubble {
+  padding: 3px var(--space-2);
+}
+
+:root[data-densidade='compacto'][data-mensagens='lista'] .message__bubble {
+  padding: 0 var(--space-1);
+}
+
+:root[data-densidade='compacto'] .message__meta {
+  margin-bottom: 0;
+}
+
+:root[data-densidade='compacto'] .messages__day {
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+:root[data-densidade='compacto'] .message__text {
+  line-height: 1.3;
+}
+
+:root[data-densidade='compacto'][data-mensagens='lista'] .message + .message--start {
+  margin-top: var(--space-2);
+}

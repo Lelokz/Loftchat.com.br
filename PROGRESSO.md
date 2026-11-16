@@ -94,6 +94,29 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 5b — jeito das mensagens: balões ou lista, lado das minhas, compacto (16/11/2026)
+
+Em Configurações → Aparência, bloco **Mensagens** (mesmo `appearance` da 5a,
+campos `messageStyle`, `mySide`, `density`). Vale em todo chat que usa a
+lista de mensagens (grupos e privado).
+
+- **Balões** (o de sempre) ou **Lista** (sem caixa, tudo à esquerda, nome em
+  cima, fundo leve ao passar o mouse; o meu nome na cor de destaque). Cada
+  opção tem uma miniatura.
+- **Suas mensagens à direita ou à esquerda** — só nos balões (na lista a
+  escolha some: todas já ficam à esquerda). À esquerda, o meu balão continua
+  na cor de destaque e ganha o meu avatar.
+- **Confortável ou compacto**: menos ar entre e dentro das mensagens e linhas
+  mais juntas.
+- Como funciona: `lib/appearance.ts` põe `data-mensagens`, `data-meu-lado` e
+  `data-densidade` no `<html>` (sem atributo = o padrão), e as regras ficam no
+  fim de message-list.css. As MINHAS mensagens agora também têm a calha do
+  avatar no DOM, escondida no jeito padrão — nada muda para quem não mexer.
+- A prévia das Configurações ganhou uma mensagem de continuação para o
+  espaçamento aparecer.
+- Testes: `tests/aparencia.spec.ts` (2º teste: esquerda, lista, compacto,
+  salvo e depois de recarregar).
+
 ## Proposta A, etapa 5a — aparência: tema, cor de destaque, fonte e tamanho do texto (16/11/2026)
 
 A etapa 5 (aparência pessoal) foi dividida em **5a** (cores e letras),

@@ -62,12 +62,23 @@ export const APP_FONTS: Record<AppFontId, { label: string; family: string }> = {
 export const TEXT_SIZES = [12, 13, 14, 15, 16, 18, 20] as const;
 export const DEFAULT_TEXT_SIZE = 14;
 
+export const MESSAGE_STYLES = ['baloes', 'lista'] as const;
+export type MessageStyle = (typeof MESSAGE_STYLES)[number];
+export const MY_SIDES = ['direita', 'esquerda'] as const;
+export type MySide = (typeof MY_SIDES)[number];
+export const DENSITIES = ['confortavel', 'compacto'] as const;
+export type Density = (typeof DENSITIES)[number];
+
 export interface Appearance {
   theme: ThemeId;
   /** '' = a cor do tema; senão `#rrggbb`. */
   accent: string;
   font: AppFontId;
   textSize: number;
+  /** Etapa 5b: balões ou lista; o lado das MINHAS (só nos balões); o ar entre elas. */
+  messageStyle: MessageStyle;
+  mySide: MySide;
+  density: Density;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -75,6 +86,9 @@ export const DEFAULT_APPEARANCE: Appearance = {
   accent: '',
   font: 'nunito',
   textSize: DEFAULT_TEXT_SIZE,
+  messageStyle: 'baloes',
+  mySide: 'direita',
+  density: 'confortavel',
 };
 
 const HEX_RE = /^#[0-9a-f]{6}$/;
@@ -90,11 +104,22 @@ export function parseAppearance(raw: unknown): Appearance {
     accent: HEX_RE.test(accent) ? accent : '',
     font: APP_FONT_IDS.includes(r['font'] as AppFontId) ? (r['font'] as AppFontId) : 'nunito',
     textSize: TEXT_SIZES.includes(size as (typeof TEXT_SIZES)[number]) ? (size as number) : DEFAULT_TEXT_SIZE,
+    messageStyle: MESSAGE_STYLES.includes(r['messageStyle'] as MessageStyle) ? (r['messageStyle'] as MessageStyle) : 'baloes',
+    mySide: MY_SIDES.includes(r['mySide'] as MySide) ? (r['mySide'] as MySide) : 'direita',
+    density: DENSITIES.includes(r['density'] as Density) ? (r['density'] as Density) : 'confortavel',
   };
 }
 
 export function sameAppearance(a: Appearance, b: Appearance): boolean {
-  return a.theme === b.theme && a.accent === b.accent && a.font === b.font && a.textSize === b.textSize;
+  return (
+    a.theme === b.theme &&
+    a.accent === b.accent &&
+    a.font === b.font &&
+    a.textSize === b.textSize &&
+    a.messageStyle === b.messageStyle &&
+    a.mySide === b.mySide &&
+    a.density === b.density
+  );
 }
 
 /* --- contas de cor ------------------------------------------------------- */
@@ -187,6 +212,16 @@ export function applyAppearance(a: Appearance): void {
 
   if (a.textSize === DEFAULT_TEXT_SIZE) raiz.style.removeProperty('--font-size-msg');
   else raiz.style.setProperty('--font-size-msg', `${a.textSize}px`);
+
+  // Jeito das mensagens (message-list.css): sem atributo = o de sempre.
+  const marcar = (nome: string, valor: string, padrao: string): void => {
+    if (valor === padrao) delete raiz.dataset[nome];
+    else raiz.dataset[nome] = valor;
+  };
+  marcar('mensagens', a.messageStyle, 'baloes');
+  // O lado só vale nos balões (na lista, todas ficam à esquerda de qualquer jeito).
+  marcar('meuLado', a.messageStyle === 'lista' ? 'direita' : a.mySide, 'direita');
+  marcar('densidade', a.density, 'confortavel');
 }
 
 /** Guarda no aparelho para o próximo carregamento já abrir certo. */

@@ -117,3 +117,68 @@ test('tema, cor, fonte e tamanho: prévia, desfazer, salvar e ao vivo no outro a
   await pc.context().close();
   await cel.context().close();
 });
+
+test('mensagens: lista, minhas à esquerda e compacto (prévia e chat de verdade)', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const eu = newAccount('Mensagens');
+  accounts.push(eu);
+  const pc = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await pc.goto('/');
+  await signUpThroughUi(pc, eu);
+  await resolveTokens(eu);
+  await createGroupThroughUi(pc, 'Jeitos');
+  await sendMessageThroughUi(pc, 'primeira minha');
+  await sendMessageThroughUi(pc, 'segunda minha');
+
+  const minha = pc.locator('.chat .message--mine').first();
+  const balao = minha.locator('.message__bubble');
+  const chat = pc.locator('.chat .messages');
+  // A lista pode estar sendo redesenhada (mensagem recém-confirmada): mede de novo até achar.
+  const xDoBalao = () => balao.boundingBox().then((b) => b?.x ?? -1);
+  // Padrão: balão na cor de destaque, à direita, sem o meu avatar.
+  await expect(minha.locator('.message__avatar--mine')).toBeHidden();
+  const caixaChat = (await chat.boundingBox())!;
+  await expect.poll(xDoBalao).toBeGreaterThan(caixaChat.x + caixaChat.width / 2);
+  const ar = async () =>
+    pc.locator('.chat .message--mine').nth(1).evaluate((n) => parseFloat(getComputedStyle(n).marginTop));
+  const arConfortavel = await ar();
+
+  await pc.getByRole('button', { name: 'Configurações', exact: true }).click();
+  const tela = pc.getByRole('dialog', { name: 'Configurações' });
+  await tela.getByRole('button', { name: 'Aparência' }).click();
+  const lado = tela.getByRole('radiogroup', { name: 'Lado das suas mensagens' });
+
+  // Balões, minhas à esquerda: meu avatar aparece e o balão vai para a esquerda.
+  await lado.getByRole('radio', { name: 'À esquerda' }).click();
+  expect(await pc.evaluate(() => document.documentElement.dataset['meuLado'])).toBe('esquerda');
+  await expect(minha.locator('.message__avatar--mine')).toBeVisible();
+  await expect.poll(xDoBalao).toBeGreaterThan(-1);
+  await expect.poll(xDoBalao).toBeLessThan(caixaChat.x + 100);
+
+  // Lista: sem caixa, o lado some (todas à esquerda).
+  await tela.getByRole('radiogroup', { name: 'Jeito das mensagens' }).getByRole('radio', { name: /Lista/ }).click();
+  await expect(lado).toBeHidden();
+  expect(await pc.evaluate(() => document.documentElement.dataset['mensagens'])).toBe('lista');
+  expect(await balao.evaluate((n) => getComputedStyle(n).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  await expect(minha.locator('.message__avatar--mine')).toBeVisible();
+
+  // Compacto: menos ar entre as mensagens do mesmo bloco.
+  await tela.getByRole('radiogroup', { name: 'Espaçamento das mensagens' }).getByRole('radio', { name: 'Compacto' }).click();
+  expect(await ar()).toBeLessThan(arConfortavel);
+
+  await tela.getByRole('region', { name: 'Alterações não salvas' }).getByRole('button', { name: 'Salvar' }).click();
+  await expect
+    .poll(async () => {
+      const priv = await readDocViaRest(eu, `userPrivate/${eu.uid}`);
+      const f = priv.fields?.['appearance']?.mapValue?.fields ?? {};
+      return [f['messageStyle']?.stringValue, f['mySide']?.stringValue, f['density']?.stringValue];
+    })
+    .toEqual(['lista', 'esquerda', 'compacto']);
+
+  // Recarregar: continua em lista e compacto.
+  await pc.keyboard.press('Escape');
+  await pc.reload();
+  await expect(pc.locator('.chat .message--mine').first()).toBeVisible({ timeout: 30_000 });
+  expect(await pc.evaluate(() => [document.documentElement.dataset['mensagens'], document.documentElement.dataset['densidade']])).toEqual(['lista', 'compacto']);
+  await pc.context().close();
+});

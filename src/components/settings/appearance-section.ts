@@ -4,11 +4,14 @@ import {
   APP_FONT_IDS,
   APP_FONTS,
   DEFAULT_TEXT_SIZE,
+  DENSITIES,
+  MESSAGE_STYLES,
+  MY_SIDES,
   TEXT_SIZES,
   THEME_IDS,
   THEME_LABELS,
 } from '../../lib/appearance';
-import type { Appearance } from '../../lib/appearance';
+import type { Appearance, Density, MessageStyle, MySide } from '../../lib/appearance';
 
 /**
  * CONFIGURAÇÕES → APARÊNCIA (proposta A, etapa 5).
@@ -39,6 +42,7 @@ export function renderAppearanceSection(atual: Appearance, aoMudar: () => void):
     cores,
     blocoDaFonte(atual, onChange),
     blocoDoTamanho(atual, onChange),
+    blocoDasMensagens(atual, onChange),
     previaDoChat(),
   ];
 }
@@ -226,6 +230,89 @@ function blocoDoTamanho(atual: Appearance, onChange: () => void): HTMLElement {
   ]);
 }
 
+/* --- jeito das mensagens (etapa 5b) -------------------------------------- */
+
+const ESTILOS: Record<MessageStyle, { titulo: string; texto: string }> = {
+  baloes: { titulo: 'Balões', texto: 'Cada mensagem num balão; as suas na cor de destaque.' },
+  lista: { titulo: 'Lista', texto: 'Sem balão, tudo à esquerda, nome em cima. Cabe mais.' },
+};
+const LADOS: Record<MySide, string> = { direita: 'À direita', esquerda: 'À esquerda' };
+const DENSIDADES: Record<Density, string> = { confortavel: 'Confortável', compacto: 'Compacto' };
+
+/** Botões de escolha simples (o mesmo visual das fontes). */
+function opcoes<T extends string>(
+  rotulo: string,
+  ids: readonly T[],
+  nomes: Record<T, string>,
+  valor: () => T,
+  escolher: (id: T) => void,
+): HTMLElement {
+  const grupo = el('div', { class: 'settings__fonts', role: 'radiogroup', 'aria-label': rotulo });
+  for (const id of ids) {
+    const botao = el(
+      'button',
+      { class: 'settings__font', type: 'button', role: 'radio', 'aria-checked': String(valor() === id) },
+      [nomes[id]],
+    );
+    botao.addEventListener('click', () => {
+      escolher(id);
+      marcar(grupo, botao);
+    });
+    grupo.append(botao);
+  }
+  return grupo;
+}
+
+function blocoDasMensagens(atual: Appearance, onChange: () => void): HTMLElement {
+  const lado = el('div', { class: 'settings__field' }, [
+    el('span', { class: 'settings__label' }, ['Suas mensagens']),
+    opcoes('Lado das suas mensagens', MY_SIDES, LADOS, () => atual.mySide, (id) => {
+      atual.mySide = id;
+      onChange();
+    }),
+  ]);
+  // Na lista todas já ficam à esquerda: a escolha do lado some.
+  lado.hidden = atual.messageStyle === 'lista';
+
+  const estilos = el('div', { class: 'settings-abas', role: 'radiogroup', 'aria-label': 'Jeito das mensagens' });
+  for (const id of MESSAGE_STYLES) {
+    const linhas = [0, 1, 2].map((i) =>
+      el('span', { class: `aparencia-msg__linha${i === 2 ? ' is-minha' : ''}` }, [
+        el('span', { class: 'aparencia-msg__bola' }),
+        el('span', { class: 'aparencia-msg__texto' }),
+      ]),
+    );
+    const botao = el(
+      'button',
+      { class: 'settings-abas__opcao', type: 'button', role: 'radio', 'aria-checked': String(atual.messageStyle === id) },
+      [
+        el('span', { class: `aparencia-msg aparencia-msg--${id}`, 'aria-hidden': 'true' }, linhas),
+        el('span', { class: 'settings-abas__titulo' }, [ESTILOS[id].titulo]),
+        el('span', { class: 'settings-abas__texto' }, [ESTILOS[id].texto]),
+      ],
+    );
+    botao.addEventListener('click', () => {
+      atual.messageStyle = id;
+      marcar(estilos, botao);
+      lado.hidden = id === 'lista';
+      onChange();
+    });
+    estilos.append(botao);
+  }
+
+  return el('div', { class: 'aparencia-mensagens' }, [
+    el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Mensagens']), estilos]),
+    lado,
+    el('div', { class: 'settings__field' }, [
+      el('span', { class: 'settings__label' }, ['Espaçamento']),
+      opcoes('Espaçamento das mensagens', DENSITIES, DENSIDADES, () => atual.density, (id) => {
+        atual.density = id;
+        onChange();
+      }),
+    ]),
+  ]);
+}
+
 /* --- prévia -------------------------------------------------------------- */
 
 /**
@@ -233,7 +320,7 @@ function blocoDoTamanho(atual: Appearance, onChange: () => void): HTMLElement {
  * (message-list.css): o que se vê aqui é exatamente o que o chat vai ser.
  */
 function previaDoChat(): HTMLElement {
-  const deles = el('div', { class: 'message message--start message--end' }, [
+  const deles = el('div', { class: 'message message--start' }, [
     el('span', { class: 'message__avatar' }, [avatarEl('AN', 'sm')]),
     el('div', { class: 'message__bubble' }, [
       el('div', { class: 'message__meta' }, [
@@ -243,7 +330,12 @@ function previaDoChat(): HTMLElement {
       el('p', { class: 'message__text' }, ['Alguém online pra uma partida?']),
     ]),
   ]);
+  const deles2 = el('div', { class: 'message message--end' }, [
+    el('span', { class: 'message__avatar' }),
+    el('div', { class: 'message__bubble' }, [el('p', { class: 'message__text' }, ['Pode ser depois das 20h'])]),
+  ]);
   const minha = el('div', { class: 'message message--mine message--start message--end' }, [
+    el('span', { class: 'message__avatar message__avatar--mine' }, [avatarEl('VC', 'sm')]),
     el('div', { class: 'message__bubble' }, [
       el('div', { class: 'message__meta' }, [
         el('span', { class: 'message__author' }, ['Você']),
@@ -254,6 +346,6 @@ function previaDoChat(): HTMLElement {
   ]);
   return el('div', { class: 'settings__field' }, [
     el('span', { class: 'settings__label' }, ['Prévia']),
-    el('div', { class: 'aparencia-previa', 'aria-hidden': 'true' }, [deles, minha]),
+    el('div', { class: 'aparencia-previa', 'aria-hidden': 'true' }, [deles, deles2, minha]),
   ]);
 }
