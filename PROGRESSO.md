@@ -147,6 +147,30 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 10a — o app Android com o chat (16/11/2026)
+
+- Capacitor 8.6.2 (`capacitor.config.ts`, pasta `android/`): o MESMO chat,
+  `br.com.loftchat`. `scripts/android.sh` monta o chat e o APK com as
+  ferramentas de Android do HD (as dos apps da NOVA; o Android 36 que o
+  Capacitor 8 pede foi instalado lá), Gradle SEM ficar na memória depois.
+- Dentro do app o chat sabe que é app (`emSite()` em router.ts): convite com
+  o endereço do site, sem service worker.
+- Marca: ícone adaptável com a casinha (vetor do `logoIcon`) no roxo
+  #7B3FE4 + PNGs para Android 7; abertura com a casinha no fundo escuro;
+  barras do sistema escuras com ícones claros (MainActivity).
+- Botão VOLTAR (`@capacitor/app`, `src/lib/android.ts`): fecha a janela
+  aberta (como o Esc), senão volta no histórico (fecha a gaveta), senão
+  MINIMIZA (nunca fecha — a chamada continua).
+- Permissão de microfone no manifesto (voz pela WebView até a 10b).
+- Testado num emulador de Android (`tests/android.spec.ts`, só roda com
+  `LOFT_ANDROID_APK` e um emulador ligado; a versão de teste fala com o
+  Firebase de teste do PC por `adb reverse`, liberado só no debug):
+  cadastro, grupo, mensagem nos dois sentidos com o navegador do PC, convite
+  com o link do site, VOLTAR fecha janela e gaveta, sala de voz com microfone.
+- **O EMULADOR DERRUBOU O PC DO LEO (16/11, ~17h20).** Ele pediu: nada de
+  emulador; o app Android eu só MONTO, quem testa é ele no celular. O último
+  ajuste (ícones claros na barra de cima) foi montado mas não visto.
+
 ## Etapa 9d — atualização automática (16/11/2026) — fim da etapa 9 (falta subir)
 
 - `electron-updater` 6.8.11 no programa instalado: ao abrir e a cada 4 h
