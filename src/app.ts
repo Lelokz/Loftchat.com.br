@@ -22,6 +22,9 @@ import {
 } from './components/empty-state/empty-state';
 import { renderGroupBar } from './components/group-bar/group-bar';
 import { openSettings } from './components/settings/settings';
+import { openGroupSettings } from './components/group-settings/group-settings';
+import { renderGroupCard } from './components/group-settings/group-card';
+import { watchGroupBanner } from './lib/group-profile';
 import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
 import type { Vinculo } from './components/person-card/person-popover';
 import { renderHomeColumn } from './components/home/home-column';
@@ -321,6 +324,42 @@ export function mountApp(
     });
   };
 
+  /**
+   * Banner do grupo ABERTO (etapa 3a), escutado ao vivo em `groupArt/` —
+   * uma escuta só, trocada quando o grupo muda. Ao vivo porque o dono pode
+   * trocar o banner com todo mundo dentro (e leitura única ficava velha).
+   */
+  let bannerAtual: { groupId: string; banner: string | undefined; parar: () => void } | null = null;
+
+  function bannerDoGrupo(groupId: string): string | undefined {
+    if (bannerAtual?.groupId === groupId) return bannerAtual.banner;
+    bannerAtual?.parar();
+    const escuta: { groupId: string; banner: string | undefined; parar: () => void } = {
+      groupId,
+      banner: undefined,
+      parar: () => undefined,
+    };
+    bannerAtual = escuta;
+    escuta.parar = watchGroupBanner(groupId, (banner) => {
+      if (bannerAtual !== escuta || escuta.banner === banner) return;
+      escuta.banner = banner;
+      if (store.getState().activeGroupId === groupId && memberListEl !== null) {
+        memberListEl = swap(memberListEl, buildMemberList(store.getState()));
+      }
+    });
+    return undefined;
+  }
+
+  const handleGroupSettings = (groupId?: string): void => {
+    const state = store.getState();
+    const group = groupId === undefined ? activeGroup(state) : groupById(groupId);
+    if (group === undefined || !isOwner(group, user.uid)) return;
+    openGroupSettings({
+      group,
+      memberCount: group.id === state.activeGroupId ? state.members.length : 0,
+    });
+  };
+
   const handleLeaveGroup = (groupId?: string): void => {
     const group = groupId === undefined ? activeGroup(store.getState()) : groupById(groupId);
     if (group === undefined) return;
@@ -470,6 +509,7 @@ export function mountApp(
 
     if (owner) {
       items.push(
+        { label: 'Configurações do grupo', onSelect: () => handleGroupSettings() },
         { label: 'Criar canal', onSelect: handleCreateChannel },
         { label: 'Convidar pessoas', onSelect: handleInvite },
         { label: 'Renomear grupo', onSelect: handleRenameGroup },
@@ -1006,6 +1046,19 @@ export function mountApp(
         ownerId: group?.ownerId ?? null,
       },
       fixadas: buildGroupPins(state, group !== null && isOwner(group, user.uid)),
+      // O cartão do grupo no topo da aba Agora (etapa 3a).
+      ...(group === null
+        ? {}
+        : {
+            cartao: renderGroupCard({
+              name: group.name,
+              description: group.description,
+              accentId: group.accentId,
+              photo: group.photo,
+              banner: bannerDoGrupo(group.id),
+              memberCount: state.members.length,
+            }),
+          }),
     });
   }
 
@@ -1916,6 +1969,7 @@ export function mountApp(
     uid: user.uid,
     copyInviteLink: handleCopyInvite,
     renameGroup: handleRenameGroup,
+    groupSettings: handleGroupSettings,
     leaveGroup: handleLeaveGroup,
     deleteGroup: handleDeleteGroup,
     deleteChannel: handleDeleteChannel,
@@ -2030,6 +2084,7 @@ export function mountApp(
       unsubscribeSpeaking();
       hideToast();
       unsubscribe();
+      bannerAtual?.parar();
       store.dispose();
     },
   };

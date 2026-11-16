@@ -1,0 +1,26 @@
+/* Configurações do grupo — a casca é a de settings.css. */
+
+.group-settings__nav-name {
+  overflow: hidden;
+  padding: 0 var(--space-3) var(--space-3);
+  color: var(--text-primary);
+  font-weight: 800;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Duas imagens (foto e banner) em vez das três do perfil. */
+.settings__images.group-settings__images {
+  grid-template-columns: 150px minmax(0, 1fr);
+}
+
+@media (max-width: 768px) {
+  .settings__images.group-settings__images {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* O avatar do cartão do grupo é quadrado de cantos redondos, mais que a pessoa. */
+.group-card .person-card__avatar.avatar--quadrado {
+  border-radius: 28%;
+}

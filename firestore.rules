@@ -460,9 +460,48 @@ service cloud.firestore {
     match /groups/{groupId} {
       allow read: if isMember(groupId);
       // `verified()` desde a etapa 14: conta com e-mail não confirmado não cria
-      // grupo, nem contornando a tela.
-      allow create: if verified() && request.resource.data.ownerId == uid();
-      allow update, delete: if isOwner(groupId);
+      // grupo, nem contornando a tela. Nome obrigatório (etapa 3a).
+      allow create: if verified() && request.resource.data.ownerId == uid()
+        && groupNameOk(request.resource.data.get('name', ''));
+      allow update: if isOwner(groupId)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && groupLookOk();
+      allow delete: if isOwner(groupId);
+
+      function groupNameOk(name) {
+        return name is string && name.trim().size() >= 1 && name.size() <= 60;
+      }
+      function groupChanged(field) {
+        return request.resource.data.get(field, null) != resource.data.get(field, null);
+      }
+      /*
+       * "PERFIL" DO GRUPO (etapa 3a). Como no perfil de pessoa, só o que
+       * MUDOU é cobrado — grupos antigos seguem editáveis. Cor é a lista
+       * fechada da cor do cartão; foto como a foto de perfil.
+       */
+      function groupLookOk() {
+        let d = request.resource.data;
+        return (!groupChanged('name') || groupNameOk(d.get('name', '')))
+          && (!groupChanged('description')
+                || !('description' in d)
+                || (d.description is string && d.description.size() <= 300))
+          && (!groupChanged('accentId')
+                || d.get('accentId', 'roxo') in ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'])
+          && (!groupChanged('photo') || !('photo' in d) || imageOk(d.photo, 90000));
+      }
+    }
+
+    /* ----------------------------- groupArt ----------------------------- */
+    // Banner do grupo (etapa 3a). Separado de `groups/` porque o grupo é lido
+    // inteiro para desenhar as abas — banner grande ali pesaria em toda tela.
+    // Membros leem; só o dono escreve, e só o banner.
+
+    match /groupArt/{groupId} {
+      allow read: if isMember(groupId);
+      allow create, update: if isOwner(groupId)
+        && request.resource.data.keys().hasOnly(['banner'])
+        && (!('banner' in request.resource.data) || imageOk(request.resource.data.banner, 300000));
+      allow delete: if isOwner(groupId);
     }
 
     /* --------------------------- memberships ---------------------------- */

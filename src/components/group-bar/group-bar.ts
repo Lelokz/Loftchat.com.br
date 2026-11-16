@@ -2,6 +2,7 @@ import './group-bar.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { logoIcon, plusIcon } from '../../lib/icons';
+import { CARD_COLORS, cardColorId } from '../../lib/person-theme';
 import type { Group, GroupId, Member } from '../../types/models';
 import { renderSessionFooter } from '../session-footer/session-footer';
 
@@ -62,7 +63,7 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
         'data-context': 'group',
         'data-group-id': group.id,
       },
-      [avatarEl(group.initials, 'sm', 'group-bar__avatar'), el('span', { class: 'group-bar__name' }, [group.name])],
+      [grupoAvatar(group), el('span', { class: 'group-bar__name' }, [group.name])],
     );
     button.addEventListener('click', () => onSelectGroup(group.id));
     return el('li', {}, [button]);
@@ -84,4 +85,17 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
     ]),
     renderSessionFooter(me, onSignOut, onOpenSettings),
   ]);
+}
+
+/**
+ * A foto do grupo (etapa 3a) ou as iniciais sobre a COR do grupo — o tom
+ * escuro da lista de cores do cartão, para as letras claras lerem bem.
+ */
+export function grupoAvatar(group: Group, size: 'sm' | 'xl' = 'sm', extra = 'group-bar__avatar'): HTMLElement {
+  const avatar = avatarEl(group.initials, size, `${extra} avatar--quadrado`, group.photo);
+  if (group.photo === undefined && group.accentId !== undefined) {
+    avatar.style.backgroundColor = CARD_COLORS[cardColorId(group.accentId)].fim;
+    avatar.style.color = 'var(--text-primary)';
+  }
+  return avatar;
 }

@@ -9,6 +9,8 @@ export interface PersonCardData {
   displayName: string;
   initials: string;
   username?: string | undefined;
+  /** Linha pequena embaixo do nome no lugar do `@` (o cartão do GRUPO usa: "3 membros"). */
+  subtitle?: string | undefined;
   bio?: string | undefined;
   accentId?: string | undefined;
   fontId?: string | undefined;
@@ -39,7 +41,11 @@ export function statusLine(status: CustomStatus | undefined, extraClass: string)
  * É a mesma peça na prévia de Configurações → Perfil e no PV — o que a
  * pessoa vê enquanto edita é exatamente o que os amigos veem.
  */
-export function renderPersonCard(data: PersonCardData, extra: HTMLElement[] = []): HTMLElement {
+export function renderPersonCard(
+  data: PersonCardData,
+  extra: HTMLElement[] = [],
+  avatarClass = 'person-card__avatar',
+): HTMLElement {
   const nome = el('span', { class: 'person-card__name' }, [data.displayName]);
   const bio = data.bio?.trim() ?? '';
 
@@ -49,12 +55,13 @@ export function renderPersonCard(data: PersonCardData, extra: HTMLElement[] = []
   const card = el('div', { class: `person-card${data.cardBg ? ' person-card--fundo' : ''}` }, [
     banner,
     el('div', { class: 'person-card__body' }, [
-      avatarEl(data.initials, 'xl', 'person-card__avatar', data.photo),
+      avatarEl(data.initials, 'xl', avatarClass, data.photo),
       el('div', { class: 'person-card__identity' }, [
         nome,
         data.username !== undefined &&
           data.username !== '' &&
           el('span', { class: 'person-card__handle' }, [`@${data.username}`]),
+        data.subtitle !== undefined && el('span', { class: 'person-card__handle' }, [data.subtitle]),
       ]),
       statusLine(data.customStatus, 'person-card__status') ?? false,
       bio !== '' && el('p', { class: 'person-card__bio' }, [bio]),

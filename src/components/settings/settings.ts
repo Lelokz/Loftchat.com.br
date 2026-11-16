@@ -33,9 +33,8 @@ import {
 } from '../../lib/profile-extras';
 import type { CustomStatus, StatusDurationId } from '../../lib/profile-extras';
 import type { ProfileArt } from '../../lib/profile';
-import { IMAGE_SPECS } from '../../lib/images';
 import type { ImageKind } from '../../lib/images';
-import { openImageAdjuster } from '../image-adjuster/image-adjuster';
+import { renderImageField } from './image-field';
 import {
   claimUsername,
   publicProfile,
@@ -305,82 +304,21 @@ export function openSettings(options: SettingsOptions): void {
 
   /* --- imagens ------------------------------------------------------------ */
 
-  /**
-   * O ARQUIVO ORIGINAL de cada imagem escolhida nesta visita. "Ajustar" usa
-   * ele (mais nítido); depois de fechar, ajusta-se o recorte salvo.
-   */
+  /** Os arquivos originais escolhidos nesta visita (ver image-field.ts). */
   const originais = new Map<ImageKind, File>();
 
-  function escolherArquivo(kind: ImageKind): void {
-    const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif' });
-    input.addEventListener('change', () => {
-      const arquivo = input.files?.[0];
-      if (arquivo === undefined) return;
-      originais.set(kind, arquivo);
-      ajustar(kind, arquivo);
-    });
-    input.click();
-  }
-
-  function ajustar(kind: ImageKind, source: File | string): void {
-    openImageAdjuster({
+  function blocoDeImagem(kind: 'foto' | 'banner' | 'fundo'): HTMLElement {
+    const campo = CAMPO_DA_IMAGEM[kind];
+    return renderImageField({
       kind,
-      source,
-      onApply: (url) => {
-        atual[CAMPO_DA_IMAGEM[kind]] = url;
+      value: atual[campo],
+      initials: initials(atual.displayName.trim() || 'Seu nome'),
+      originals: originais,
+      onChange: (url) => {
+        atual[campo] = url;
         mostrar('perfil');
       },
-      onPickAnother: () => escolherArquivo(kind),
-    }).catch((error: unknown) => {
-      showToast(error instanceof Error ? error.message : 'Não deu para abrir essa imagem.');
     });
-  }
-
-  function blocoDeImagem(kind: ImageKind): HTMLElement {
-    const spec = IMAGE_SPECS[kind];
-    const valor = atual[CAMPO_DA_IMAGEM[kind]];
-    const tem = valor !== '';
-
-    let amostra: HTMLElement;
-    if (kind === 'foto') {
-      const nome = atual.displayName.trim() || 'Seu nome';
-      amostra = avatarEl(initials(nome), 'xl', 'settings__image-avatar', tem ? valor : undefined);
-    } else {
-      amostra = el('div', { class: `settings__image-sample settings__image-sample--${kind}` });
-      if (tem) amostra.style.backgroundImage = `url("${valor}")`;
-      else amostra.classList.add('is-vazio');
-    }
-
-    const acoes = el('div', { class: 'settings__image-actions' });
-    const botao = (rotulo: string, aria: string, acao: () => void): HTMLButtonElement => {
-      const b = el('button', { class: 'settings__link', type: 'button', 'aria-label': aria }, [rotulo]);
-      b.addEventListener('click', acao);
-      return b;
-    };
-    const nomeMinusculo = spec.label.toLowerCase();
-    acoes.append(
-      botao(tem ? 'Trocar' : 'Escolher imagem', `${tem ? 'Trocar' : 'Escolher'} ${nomeMinusculo}`, () =>
-        escolherArquivo(kind),
-      ),
-    );
-    if (tem) {
-      acoes.append(
-        botao('Ajustar', `Ajustar ${nomeMinusculo}`, () => ajustar(kind, originais.get(kind) ?? valor)),
-        botao('Remover', `Remover ${nomeMinusculo}`, () => {
-          atual[CAMPO_DA_IMAGEM[kind]] = '';
-          originais.delete(kind);
-          mostrar('perfil');
-        }),
-      );
-    }
-
-    const formato = kind === 'foto' ? 'círculo' : kind === 'banner' ? 'faixa' : 'cartão inteiro';
-    return el('div', { class: `settings__image settings__image--${kind}` }, [
-      amostra,
-      el('span', { class: 'settings__image-title' }, [spec.label]),
-      el('span', { class: 'settings__image-spec' }, [`${formato} · ${spec.width}×${spec.height}`]),
-      acoes,
-    ]);
   }
 
   function mudou(): void {

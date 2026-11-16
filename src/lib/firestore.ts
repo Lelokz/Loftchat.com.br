@@ -132,12 +132,16 @@ function withTimeout<T>(operation: Promise<T>): Promise<T> {
 /* -------------------------------------------------------------------------- */
 
 function toGroup(id: string, data: DocumentData): Group {
+  const photo = safeImage(data['photo'], 'grupo');
   return {
     id,
     name: typeof data['name'] === 'string' ? data['name'] : 'Sem nome',
     initials: typeof data['initials'] === 'string' ? data['initials'] : '?',
     ownerId: typeof data['ownerId'] === 'string' ? data['ownerId'] : '',
     createdAt: typeof data['createdAt'] === 'string' ? data['createdAt'] : '',
+    ...(photo === undefined ? {} : { photo }),
+    ...(typeof data['description'] === 'string' ? { description: data['description'] } : {}),
+    ...(typeof data['accentId'] === 'string' ? { accentId: data['accentId'] } : {}),
   };
 }
 
@@ -959,8 +963,9 @@ export async function deleteGroupCascade(
     advance('members');
   }
 
-  // 5. O documento do grupo.
+  // 5. O banner (etapa 3a) e o documento do grupo.
   advance('group');
+  await withTimeout(deleteDoc(doc(db, 'groupArt', groupId)));
   await withTimeout(deleteDoc(doc(db, 'groups', groupId)));
   removed += 1;
 

@@ -152,6 +152,11 @@ hr {
 }
 
 /* Com foto: a imagem preenche o círculo (já vem recortada quadrada). */
+/* Avatar de GRUPO (etapa 3a): quadrado de cantos redondos, para não se confundir com pessoa. */
+.avatar--quadrado {
+  border-radius: 28%;
+}
+
 .avatar--foto {
   overflow: hidden;
 }

@@ -35,6 +35,8 @@ export interface GroupPanelProps {
   onEntrar: (channelId: ChannelId) => void;
   membros: MemberListProps;
   fixadas: PinnedListProps;
+  /** Cartão do grupo (etapa 3a), no topo da aba Agora. */
+  cartao?: HTMLElement;
 }
 
 const NOMES: Record<AbaDoPainel, string> = { agora: 'Agora', membros: 'Membros', fixadas: 'Fixadas' };
@@ -72,7 +74,7 @@ export function renderGroupPanel(props: GroupPanelProps): HTMLElement {
       ? memberListContent(props.membros)
       : props.aba === 'fixadas'
         ? [renderPinnedList(props.fixadas)]
-        : agora(props.salas, props.onEntrar);
+        : [...(props.cartao === undefined ? [] : [props.cartao]), ...agora(props.salas, props.onEntrar)];
 
   return el('aside', { class: 'members group-panel', 'aria-label': NOMES[props.aba] }, [
     abas,

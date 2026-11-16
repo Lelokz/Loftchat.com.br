@@ -144,7 +144,18 @@ export interface Group {
   /** uid de quem criou. Só o dono pode renomear. */
   ownerId: MemberId;
   createdAt: string;
+  /**
+   * Etapa 3a — escritos pelo dono em "Configurações do grupo". A cor segue a
+   * MESMA lista fechada da cor do cartão (lib/person-theme.ts).
+   */
+  photo?: string;
+  description?: string;
+  accentId?: string;
 }
+
+/** Tamanhos do grupo, cobrados também na regra (firestore.rules). */
+export const MAX_GROUP_NAME = 60;
+export const MAX_GROUP_DESCRIPTION = 300;
 
 /**
  * coleção: channels

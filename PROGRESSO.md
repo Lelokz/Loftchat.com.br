@@ -94,6 +94,35 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 3a — Configurações do grupo: foto, banner, nome, descrição, cor (16/11/2026)
+
+A etapa 3 (grupos) foi dividida: **3a** o "perfil" do grupo (esta); **3b**
+canais com emoji, ordem arrastando e categorias; **3c** boas-vindas; **3d**
+lado do membro (apelido do grupo ou "sem nome", notificações por
+grupo/canal).
+
+- Menu do grupo do dono (cabeçalho e botão direito na aba) ganhou
+  **"Configurações do grupo"**: tela inteira com a mesma casca das
+  Configurações pessoais (prévia à direita, barra de salvar, Esc que pisca
+  em vez de pop-up). Membro não vê o item.
+- **Foto do grupo** (256×256, QUADRADA de cantos redondos — pessoa é
+  círculo, grupo é quadrado) em `groups/{id}.photo`; **banner** (960×280) em
+  `groupArt/{id}`. As duas pelo ajustador. O bloco de imagem virou peça
+  comum (`components/settings/image-field.ts`), usada no perfil e no grupo.
+- **Nome obrigatório** (até 60, o teto que já existia), **descrição** (até
+  300) e **cor** (a mesma lista da cor do cartão).
+- Onde aparece: a **aba do grupo** mostra a foto, ou as iniciais sobre o tom
+  escuro da cor do grupo; o **cartão do grupo** (faixa/banner, foto, nome,
+  "N membros", descrição) fica no topo da aba **Agora**.
+- O banner do grupo ABERTO é escutado ao vivo (uma escuta só): o primeiro
+  jeito, ler uma vez, deixava o banner velho para quem já estava dentro —
+  o teste pegou.
+- **Regra**: criar grupo exige nome; editar só o dono, sem trocar o
+  `ownerId`, e só o que mudou é cobrado (nome 1–60 sem ser só espaço,
+  descrição <= 300, cor da lista, foto `imageOk`). `groupArt`: membros
+  leem, só o dono escreve, só `banner`. Apagar o grupo apaga o banner.
+- Testes: `tests/grupo-config.spec.ts`.
+
 ## Proposta A, etapa 2d — status, links e cor do nome (16/11/2026)
 
 - **Status** (Configurações → Perfil): emoji de uma grade própria (32
