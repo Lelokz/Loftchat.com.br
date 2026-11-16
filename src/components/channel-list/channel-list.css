@@ -166,6 +166,12 @@
   color: var(--text-muted);
 }
 
+.channel__emoji {
+  flex: none;
+  font-size: 14px;
+  line-height: 1;
+}
+
 .channel__name {
   overflow: hidden;
   white-space: nowrap;

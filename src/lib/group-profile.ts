@@ -1,4 +1,7 @@
-import { deleteField, doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteField, doc, getDoc, onSnapshot, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+
+import type { ChannelCategory } from './channel-layout';
+import { MAX_CATEGORY_NAME, MAX_CHANNEL_NAME } from './channel-layout';
 
 import { db } from './firebase';
 import { initials } from './format';
@@ -68,4 +71,69 @@ export async function saveGroupProfile(groupId: string, edit: GroupEdit, bannerC
   if (bannerChanged) {
     await setDoc(doc(db, 'groupArt', groupId), { banner: edit.banner === '' ? deleteField() : edit.banner }, { merge: true });
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Canais e categorias (etapa 3b)                                              */
+/* -------------------------------------------------------------------------- */
+
+/** Como um canal fica depois da tela "Canais" das Configurações do grupo. */
+export interface ChannelLayoutEntry {
+  id: string;
+  name: string;
+  /** '' = sem emoji. */
+  emoji: string;
+  /** '' = sem categoria. */
+  categoryId: string;
+  position: number;
+}
+
+export function channelNameProblem(nome: string): string | null {
+  const limpo = nome.trim();
+  if (limpo === '') return 'Todo canal precisa de um nome.';
+  if (limpo.length > MAX_CHANNEL_NAME) return `O nome do canal vai até ${MAX_CHANNEL_NAME} letras.`;
+  return null;
+}
+
+export function categoryNameProblem(nome: string): string | null {
+  const limpo = nome.trim();
+  if (limpo === '') return 'Toda categoria precisa de um nome.';
+  if (limpo.length > MAX_CATEGORY_NAME) return `O nome da categoria vai até ${MAX_CATEGORY_NAME} letras.`;
+  return null;
+}
+
+/**
+ * Grava categorias e canais NUM LOTE SÓ: ou a ordem nova inteira entra, ou
+ * nada muda — nunca metade dos canais na categoria nova e metade na velha.
+ * `changed` traz só os canais que mudaram de verdade.
+ */
+export async function saveChannelLayout(
+  groupId: string,
+  categories: ChannelCategory[],
+  categoriesChanged: boolean,
+  changed: ChannelLayoutEntry[],
+): Promise<void> {
+  for (const c of categories) {
+    const problema = categoryNameProblem(c.name);
+    if (problema !== null) throw new Error(problema);
+  }
+  for (const c of changed) {
+    const problema = channelNameProblem(c.name);
+    if (problema !== null) throw new Error(problema);
+  }
+  const batch = writeBatch(db);
+  if (categoriesChanged) {
+    batch.update(doc(db, 'groups', groupId), {
+      categories: categories.map((c) => ({ id: c.id, name: c.name.trim() })),
+    });
+  }
+  for (const c of changed) {
+    batch.update(doc(db, 'channels', c.id), {
+      name: c.name.trim(),
+      emoji: c.emoji === '' ? deleteField() : c.emoji,
+      categoryId: c.categoryId === '' ? deleteField() : c.categoryId,
+      position: c.position,
+    });
+  }
+  await batch.commit();
 }

@@ -5,6 +5,8 @@
  * saber que existem inscrições para cancelar.
  */
 
+import { firstTextChannel } from '../lib/channel-layout';
+import type { ChannelCategory } from '../lib/channel-layout';
 import type { User } from 'firebase/auth';
 import type { Unsubscribe } from 'firebase/firestore';
 
@@ -317,9 +319,12 @@ function describeSurface(surface: string, label: string): string {
   return label === '' || label.startsWith('screen:') ? kind : `${kind} — ${label}`;
 }
 
-/** Primeiro canal de texto por posição; se não houver, o primeiro de qualquer tipo. */
-function pickDefaultChannel(channels: Channel[]): string | null {
-  const firstText = channels.find((channel) => channel.kind === 'text');
+/**
+ * Primeiro canal de texto NA ORDEM DA TELA (categorias da etapa 3b
+ * incluídas); se não houver, o primeiro de qualquer tipo.
+ */
+function pickDefaultChannel(channels: Channel[], categories: ChannelCategory[] = []): string | null {
+  const firstText = firstTextChannel(channels, categories);
   return (firstText ?? channels[0])?.id ?? null;
 }
 
@@ -872,7 +877,10 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         //    foi apagado), escolhe de novo pela mesma regra
         const stillThere =
           activeChannelId !== null && channels.some((c) => c.id === activeChannelId);
-        if (!stillThere) activeChannelId = pickDefaultChannel(channels);
+        if (!stillThere) {
+          const grupo = state.groups.find((g) => g.id === state.activeGroupId);
+          activeChannelId = pickDefaultChannel(channels, grupo?.categories);
+        }
 
         // O canal da chamada pode ter sido apagado — mas só dá para saber isso
         // do grupo dela. Se a chamada é de outro grupo, ela fica como está.

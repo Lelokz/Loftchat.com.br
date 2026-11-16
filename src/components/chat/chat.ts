@@ -32,6 +32,12 @@ export interface ChatProps {
  */
 export interface ChatParts {
   element: HTMLElement;
+  /**
+   * Atualiza só o TÍTULO (nome e emoji do canal, etapa 3b) — a casca do chat
+   * não é remontada quando o canal é renomeado, para não apagar o que está
+   * sendo digitado.
+   */
+  setTitle: (channel: Channel | null) => void;
   /** Recebe a lista, o estado vazio, o carregando ou o erro de leitura. */
   messagesSlot: HTMLElement;
   /**
@@ -63,13 +69,24 @@ export function renderChat(props: ChatProps): ChatParts {
   const callBarSlot = el('div', { class: 'chat__callbar-slot' });
 
   const pin = pinButton(props.pinnedCount, props.onOpenPins);
+  const titulo = el('h1', { class: 'chat__title' });
+  const setTitle = (canal: Channel | null): void => {
+    titulo.textContent = canal === null ? 'Nenhum canal' : canal.emoji !== undefined ? `${canal.emoji} ${canal.name}` : canal.name;
+    // A dica da caixa de mensagem acompanha o nome novo.
+    const caixa = titulo.closest('.chat')?.querySelector<HTMLTextAreaElement>('.composer__input');
+    if (caixa !== null && caixa !== undefined && canal !== null) {
+      caixa.placeholder = `Mensagem para #${canal.name}`;
+      caixa.setAttribute('aria-label', `Mensagem para ${canal.name}`);
+    }
+  };
+  setTitle(channel);
 
   const header = el('header', { class: 'chat__header' }, [
     drawerButton('Abrir canais', menuIcon(18), props.onOpenChannels, 'left'),
     channel === null || channel.kind === 'text'
       ? el('span', { class: 'chat__hash', 'aria-hidden': 'true' }, ['#'])
       : iconEl(speakerIcon(16), 'icon chat__hash'),
-    el('h1', { class: 'chat__title' }, [channel?.name ?? 'Nenhum canal']),
+    titulo,
     pin.element,
     drawerButton('Abrir membros', peopleIcon(18), props.onOpenMembers, 'right'),
   ]);
@@ -84,6 +101,7 @@ export function renderChat(props: ChatProps): ChatParts {
       callBarSlot,
       replySlot,
       setPinnedCount: pin.setCount,
+    setTitle,
     };
   }
 
@@ -99,6 +117,7 @@ export function renderChat(props: ChatProps): ChatParts {
     callBarSlot,
     replySlot,
     setPinnedCount: pin.setCount,
+    setTitle,
   };
 }
 

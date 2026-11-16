@@ -9,6 +9,7 @@
  * Nesta etapa nada disso é lido de rede: `src/data/mock.ts` monta tudo em memória.
  */
 
+import type { ChannelCategory } from '../lib/channel-layout';
 import type { CustomStatus } from '../lib/profile-extras';
 
 export type GroupId = string;
@@ -151,6 +152,8 @@ export interface Group {
   photo?: string;
   description?: string;
   accentId?: string;
+  /** Etapa 3b: categorias de canais, na ordem da tela. Ver lib/channel-layout.ts. */
+  categories?: ChannelCategory[];
 }
 
 /** Tamanhos do grupo, cobrados também na regra (firestore.rules). */
@@ -169,9 +172,12 @@ export interface Channel {
   /** Sem o "#": o prefixo é decoração da UI, não faz parte do nome. */
   name: string;
   kind: ChannelKind;
-  /** Ordem dentro da própria seção (texto ou voz). */
+  /** Ordem dentro da própria seção (texto ou voz) do seu bloco. */
   position: number;
   createdAt: string;
+  /** Etapa 3b: emoji na frente do nome e a categoria (ausente = sem categoria). */
+  emoji?: string;
+  categoryId?: string;
 }
 
 /**

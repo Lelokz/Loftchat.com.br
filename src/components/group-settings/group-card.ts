@@ -21,7 +21,9 @@ export function renderGroupCard(data: GroupCardData, extra: HTMLElement[] = []):
     {
       displayName: data.name,
       initials: initials(data.name),
-      subtitle: data.memberCount === 1 ? '1 membro' : `${data.memberCount} membros`,
+      // 0 = não sei (grupo que não está aberto): sem a linha.
+      subtitle:
+        data.memberCount === 0 ? undefined : data.memberCount === 1 ? '1 membro' : `${data.memberCount} membros`,
       bio: data.description,
       accentId: data.accentId,
       photo: data.photo === '' ? undefined : data.photo,

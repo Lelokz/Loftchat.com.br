@@ -2,19 +2,24 @@ import '../settings/settings.css';
 import './group-settings.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, gearIcon } from '../../lib/icons';
+import { arrowLeftIcon, closeIcon, gearIcon, menuIcon } from '../../lib/icons';
 import { CARD_COLOR_IDS, CARD_COLORS, cardColorId } from '../../lib/person-theme';
 import type { CardColorId } from '../../lib/person-theme';
 import {
+  categoryNameProblem,
+  channelNameProblem,
   groupDescriptionProblem,
   groupNameProblem,
   loadGroupBanner,
+  saveChannelLayout,
   saveGroupProfile,
 } from '../../lib/group-profile';
+import { draftsEqual, normalizeDraft, renderChannelsEditor } from './channels-editor';
+import type { ChannelsDraft } from './channels-editor';
 import type { ImageKind } from '../../lib/images';
 import { initials } from '../../lib/format';
 import { MAX_GROUP_DESCRIPTION, MAX_GROUP_NAME } from '../../types/models';
-import type { Group } from '../../types/models';
+import type { Channel, Group } from '../../types/models';
 import { renderImageField } from '../settings/image-field';
 import { renderGroupCard } from './group-card';
 import { showToast } from '../toast/toast';
@@ -22,7 +27,11 @@ import { showToast } from '../toast/toast';
 export interface GroupSettingsOptions {
   group: Group;
   memberCount: number;
+  /** Os canais do grupo, para a seção "Canais" (etapa 3b). */
+  channels: Channel[];
 }
+
+type Secao = 'visao' | 'canais';
 
 interface Rascunho {
   name: string;
@@ -42,6 +51,10 @@ function iguais(a: Rascunho, b: Rascunho): boolean {
   );
 }
 
+function copiaCanais(d: ChannelsDraft): ChannelsDraft {
+  return { categories: d.categories.map((c) => ({ ...c })), channels: d.channels.map((c) => ({ ...c })) };
+}
+
 let aberta: HTMLDialogElement | null = null;
 
 /**
@@ -56,6 +69,17 @@ let aberta: HTMLDialogElement | null = null;
 export function openGroupSettings(options: GroupSettingsOptions): void {
   if (aberta !== null) return;
   const { group, memberCount } = options;
+  let secao: Secao = 'visao';
+
+  /* --- rascunho da seção Canais (etapa 3b) --- */
+  let salvoCanais: ChannelsDraft = normalizeDraft({
+    categories: group.categories ?? [],
+    channels: options.channels.map((c) => ({ ...c })),
+  });
+  let atualCanais: ChannelsDraft = copiaCanais(salvoCanais);
+  /** Como cada canal está NO BANCO — para gravar só o que mudou de verdade. */
+  const noBanco = new Map(options.channels.map((c) => [c.id, { ...c }]));
+  let categoriasNoBanco = (group.categories ?? []).map((c) => ({ ...c }));
 
   const dialog = el('dialog', {
     class: 'settings settings--com-previa settings--secao-aberta group-settings',
@@ -77,15 +101,28 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
 
   /* --- casca --------------------------------------------------------------- */
 
-  const visao = el('button', { class: 'settings__nav-item is-active', type: 'button', 'aria-current': 'page' }, [
+  const visao = el('button', { class: 'settings__nav-item', type: 'button' }, [
     iconEl(gearIcon(18)),
     el('span', {}, ['Visão geral']),
   ]);
+  const canaisBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    iconEl(menuIcon(18)),
+    el('span', {}, ['Canais']),
+  ]);
+  visao.addEventListener('click', () => irPara('visao'));
+  canaisBotao.addEventListener('click', () => irPara('canais'));
+
+  function irPara(nova: Secao): void {
+    secao = nova;
+    dialog.classList.add('settings--secao-aberta');
+    desenhar();
+  }
   const nomeNoMenu = el('span', { class: 'group-settings__nav-name' }, [group.name]);
   const menu = el('nav', { class: 'settings__nav', 'aria-label': 'Seções do grupo' }, [
     el('span', { class: 'settings__nav-label' }, ['Grupo']),
     nomeNoMenu,
     visao,
+    canaisBotao,
   ]);
 
   const conteudo = el('div', { class: 'settings__content' });
@@ -97,12 +134,12 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   ]);
   fecharBotao.addEventListener('click', () => fechar());
 
-  // No celular só há uma seção: "voltar" fecha.
+  // No celular, "voltar" mostra a lista de seções.
   const voltar = el('button', { class: 'settings__back icon-button', type: 'button', title: 'Voltar' }, [
     iconEl(arrowLeftIcon(18)),
-    el('span', { class: 'sr-only' }, ['Voltar para o grupo']),
+    el('span', { class: 'sr-only' }, ['Voltar para as seções']),
   ]);
-  voltar.addEventListener('click', () => fechar());
+  voltar.addEventListener('click', () => dialog.classList.remove('settings--secao-aberta'));
 
   const desfazer = el('button', { class: 'settings__bar-undo', type: 'button' }, ['Desfazer']);
   const salvar = el('button', { class: 'settings__bar-save', type: 'button' }, ['Salvar']);
@@ -113,6 +150,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   barra.hidden = true;
   desfazer.addEventListener('click', () => {
     atual = { ...salvo };
+    atualCanais = copiaCanais(salvoCanais);
     desenhar();
   });
   salvar.addEventListener('click', () => void salvarGrupo());
@@ -124,7 +162,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   let erroGeral: HTMLElement | null = null;
 
   function atualizarBarra(): void {
-    barra.hidden = !(carregado && !iguais(atual, salvo));
+    barra.hidden = !(carregado && (!iguais(atual, salvo) || !draftsEqual(atualCanais, salvoCanais)));
     salvar.disabled = salvando;
     desfazer.disabled = salvando;
     salvar.textContent = salvando ? 'Salvando…' : 'Salvar';
@@ -255,11 +293,43 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     ];
   }
 
-  function desenhar(): void {
+  function desenhar(refocus?: string): void {
     erroGeral = null;
-    conteudo.replaceChildren(
-      ...(carregado ? visaoGeral() : [el('p', { class: 'settings__help' }, ['Carregando o grupo…'])]),
-    );
+    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao]] as const) {
+      botao.classList.toggle('is-active', qual === secao);
+      if (qual === secao) botao.setAttribute('aria-current', 'page');
+      else botao.removeAttribute('aria-current');
+    }
+    dialog.classList.toggle('settings--com-previa', secao === 'visao');
+    const rolagem = conteudo.scrollTop;
+    if (!carregado) {
+      conteudo.replaceChildren(el('p', { class: 'settings__help' }, ['Carregando o grupo…']));
+    } else if (secao === 'visao') {
+      conteudo.replaceChildren(...visaoGeral());
+    } else {
+      erroGeral = el('p', { class: 'settings__error', role: 'alert' });
+      erroGeral.hidden = true;
+      conteudo.replaceChildren(
+        ...renderChannelsEditor({
+          draft: atualCanais,
+          onChange: (draft, foco) => {
+            atualCanais = draft;
+            desenhar(foco);
+          },
+          onTextChange: () => atualizarBarra(),
+        }),
+        erroGeral,
+      );
+      conteudo.scrollTop = rolagem;
+      if (refocus === 'cat-nova') {
+        const nomes = conteudo.querySelectorAll<HTMLInputElement>('.gc-cat-name');
+        const ultimo = nomes[nomes.length - 1];
+        ultimo?.focus();
+        ultimo?.select();
+      } else if (refocus !== undefined) {
+        document.getElementById(refocus)?.focus();
+      }
+    }
     desenharPrevia();
     atualizarBarra();
   }
@@ -272,7 +342,12 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
 
   async function salvarGrupo(): Promise<void> {
     if (salvando) return;
-    const problema = groupNameProblem(atual.name) ?? groupDescriptionProblem(atual.description);
+    const problema =
+      groupNameProblem(atual.name) ??
+      groupDescriptionProblem(atual.description) ??
+      atualCanais.categories.map((c) => categoryNameProblem(c.name)).find((p) => p !== null) ??
+      atualCanais.channels.map((c) => channelNameProblem(c.name)).find((p) => p !== null) ??
+      null;
     if (problema !== null) {
       mostrarErro(problema);
       return;
@@ -281,7 +356,35 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     atualizarBarra();
     mostrarErro(null);
     try {
-      await saveGroupProfile(group.id, atual, atual.banner !== salvo.banner);
+      if (!iguais(atual, salvo)) await saveGroupProfile(group.id, atual, atual.banner !== salvo.banner);
+      if (!draftsEqual(atualCanais, salvoCanais)) {
+        const categoriasMudaram =
+          JSON.stringify(atualCanais.categories.map((c) => [c.id, c.name.trim()])) !==
+          JSON.stringify(categoriasNoBanco.map((c) => [c.id, c.name]));
+        const mudados = atualCanais.channels
+          .filter((c) => {
+            const antes = noBanco.get(c.id);
+            return (
+              antes === undefined ||
+              antes.name !== c.name.trim() ||
+              (antes.emoji ?? '') !== (c.emoji ?? '') ||
+              (antes.categoryId ?? '') !== (c.categoryId ?? '') ||
+              antes.position !== c.position
+            );
+          })
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            emoji: c.emoji ?? '',
+            categoryId: c.categoryId ?? '',
+            position: c.position,
+          }));
+        await saveChannelLayout(group.id, atualCanais.categories, categoriasMudaram, mudados);
+        for (const c of atualCanais.channels) noBanco.set(c.id, { ...c, name: c.name.trim() });
+        categoriasNoBanco = atualCanais.categories.map((c) => ({ id: c.id, name: c.name.trim() }));
+        salvoCanais = normalizeDraft({ categories: categoriasNoBanco, channels: [...noBanco.values()] });
+        atualCanais = copiaCanais(salvoCanais);
+      }
       salvo = { ...atual, name: atual.name.trim(), description: atual.description.trim() };
       atual = { ...salvo };
       nomeNoMenu.textContent = salvo.name;

@@ -487,7 +487,11 @@ service cloud.firestore {
                 || (d.description is string && d.description.size() <= 300))
           && (!groupChanged('accentId')
                 || d.get('accentId', 'roxo') in ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'])
-          && (!groupChanged('photo') || !('photo' in d) || imageOk(d.photo, 90000));
+          && (!groupChanged('photo') || !('photo' in d) || imageOk(d.photo, 90000))
+          // Etapa 3b: categorias de canais — lista de até 20 (cada uma {id, name};
+          // a regra não percorre listas, então o cliente lê com cuidado).
+          && (!groupChanged('categories') || !('categories' in d)
+                || (d.categories is list && d.categories.size() <= 20));
       }
     }
 
@@ -561,9 +565,26 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.groupId)
         || groupBeingCreated(request.resource.data.groupId);
 
-      // Renomear canal não pode mudá-lo de grupo.
+      // Renomear canal não pode mudá-lo de grupo nem de tipo. Etapa 3b: nome,
+      // emoji, categoria e posição são cobrados quando mudam.
       allow update: if isOwner(resource.data.groupId)
-        && request.resource.data.groupId == resource.data.groupId;
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.kind == resource.data.kind
+        && channelLookOk();
+
+      function channelChanged(field) {
+        return request.resource.data.get(field, null) != resource.data.get(field, null);
+      }
+      function channelLookOk() {
+        let d = request.resource.data;
+        return (!channelChanged('name')
+                  || (d.name is string && d.name.trim().size() >= 1 && d.name.size() <= 60))
+          && (!channelChanged('emoji') || !('emoji' in d)
+                || (d.emoji is string && d.emoji.size() <= 16))
+          && (!channelChanged('categoryId') || !('categoryId' in d)
+                || (d.categoryId is string && d.categoryId.size() <= 40))
+          && (!channelChanged('position') || (d.position is int && d.position >= 0 && d.position < 1000));
+      }
 
       allow delete: if isOwner(resource.data.groupId);
     }

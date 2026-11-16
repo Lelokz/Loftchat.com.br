@@ -47,6 +47,7 @@ import { pairId } from './friends';
 import { initials } from './format';
 import { safeImage } from './images';
 import { parseStatus } from './profile-extras';
+import { parseCategories } from './channel-layout';
 import { generateInviteCode } from './invite-code';
 import type {
   Attachment,
@@ -142,6 +143,7 @@ function toGroup(id: string, data: DocumentData): Group {
     ...(photo === undefined ? {} : { photo }),
     ...(typeof data['description'] === 'string' ? { description: data['description'] } : {}),
     ...(typeof data['accentId'] === 'string' ? { accentId: data['accentId'] } : {}),
+    ...(Array.isArray(data['categories']) ? { categories: parseCategories(data['categories']) } : {}),
   };
 }
 
@@ -154,6 +156,8 @@ function toChannel(id: string, data: DocumentData): Channel {
     kind,
     position: typeof data['position'] === 'number' ? data['position'] : 0,
     createdAt: typeof data['createdAt'] === 'string' ? data['createdAt'] : '',
+    ...(typeof data['emoji'] === 'string' && data['emoji'] !== '' ? { emoji: data['emoji'].slice(0, 16) } : {}),
+    ...(typeof data['categoryId'] === 'string' && data['categoryId'] !== '' ? { categoryId: data['categoryId'] } : {}),
   };
 }
 
@@ -439,6 +443,12 @@ export function subscribeMyGroups(
 }
 
 /** Canais do grupo, ordenados no cliente para não exigir índice composto. */
+/** Os canais de um grupo, lidos uma vez (Configurações do grupo aberto pela aba de outro grupo). */
+export async function loadChannels(groupId: string): Promise<Channel[]> {
+  const snapshot = await getDocs(query(collection(db, 'channels'), where('groupId', '==', groupId)));
+  return snapshot.docs.map((entry) => toChannel(entry.id, entry.data()));
+}
+
 export function subscribeChannels(
   groupId: string,
   onChange: (channels: Channel[], loaded: boolean) => void,

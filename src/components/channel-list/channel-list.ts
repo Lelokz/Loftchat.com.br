@@ -5,6 +5,7 @@ import { chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
 import { renderCallBar } from '../call-bar/call-bar';
 import type { CallBarProps } from '../call-bar/call-bar';
 import { renderLoading } from '../empty-state/empty-state';
+import { channelSections } from '../../lib/channel-layout';
 import type { Channel, ChannelId, Group } from '../../types/models';
 
 export interface ChannelListProps {
@@ -77,6 +78,7 @@ function channelButton(
       isVoice
         ? iconEl(speakerIcon(15), 'icon channel__icon')
         : el('span', { class: 'channel__hash', 'aria-hidden': 'true' }, ['#']),
+      channel.emoji !== undefined && el('span', { class: 'channel__emoji', 'aria-hidden': 'true' }, [channel.emoji]),
       el('span', { class: 'channel__name' }, [channel.name]),
       roster?.some((person) => person.sharingScreen) === true &&
         el('span', { class: 'channel__on-air' }, ['AO VIVO']),
@@ -138,44 +140,43 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
   menuButton.addEventListener('click', () => onOpenGroupMenu(menuButton));
   menuButton.disabled = group === null;
 
-  const textChannels = channels.filter((channel) => channel.kind === 'text');
-  const voiceChannels = channels.filter((channel) => channel.kind === 'voice');
-
-  const sections: (HTMLElement | false)[] = [
-    textChannels.length > 0 &&
-      el('section', { class: 'channels__section' }, [
-        el('h2', { class: 'section-title' }, ['texto']),
-        el(
-          'ul',
-          {},
-          textChannels.map((channel) =>
-            channelButton(
-              channel,
-              channel.id === activeChannelId ? 'active' : 'idle',
-              onSelectChannel,
-            ),
-          ),
-        ),
-      ]),
-
-    voiceChannels.length > 0 &&
-      el('section', { class: 'channels__section' }, [
-        el('h2', { class: 'section-title' }, ['voz']),
-        el(
-          'ul',
-          {},
-          voiceChannels.map((channel) =>
-            // Canal de voz NÃO troca o canal de texto: ele conecta e abre a sala.
+  // Blocos (etapa 3b): sem categoria em cima ("texto"/"voz", como sempre);
+  // depois cada categoria do grupo, com texto primeiro e voz depois.
+  const lista = (canais: Channel[]): HTMLElement =>
+    el(
+      'ul',
+      {},
+      canais.map((channel) =>
+        channel.kind === 'voice'
+          ? // Canal de voz NÃO troca o canal de texto: ele conecta e abre a sala.
             channelButton(
               channel,
               channel.id === activeVoiceChannelId ? 'connected' : 'idle',
               onEnterVoice,
               props.voiceRosters.get(channel.id) ?? [],
-            ),
-          ),
-        ),
+            )
+          : channelButton(channel, channel.id === activeChannelId ? 'active' : 'idle', onSelectChannel),
+      ),
+    );
+
+  const sections: (HTMLElement | false)[] = channelSections(channels, group?.categories ?? []).flatMap((bloco) => {
+    if (bloco.category === null) {
+      return [
+        bloco.text.length > 0 &&
+          el('section', { class: 'channels__section' }, [el('h2', { class: 'section-title' }, ['texto']), lista(bloco.text)]),
+        bloco.voice.length > 0 &&
+          el('section', { class: 'channels__section' }, [el('h2', { class: 'section-title' }, ['voz']), lista(bloco.voice)]),
+      ];
+    }
+    // Categoria vazia não aparece na coluna (só nas Configurações do grupo).
+    if (bloco.text.length + bloco.voice.length === 0) return [];
+    return [
+      el('section', { class: 'channels__section channels__section--category', 'data-category-id': bloco.category.id }, [
+        el('h2', { class: 'section-title' }, [bloco.category.name]),
+        lista([...bloco.text, ...bloco.voice]),
       ]),
-  ];
+    ];
+  });
 
   // Enquanto os canais não chegam, mostra "carregando" em vez de piscar vazio.
   const body =

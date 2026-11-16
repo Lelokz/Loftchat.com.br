@@ -94,6 +94,43 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 3b — canais com emoji, ordem arrastando e categorias (16/11/2026)
+
+- Configurações do grupo ganhou a seção **Canais** (dono). Para cada canal:
+  alça ⠿ para arrastar, emoji (grade de 24, sem janela por cima), nome
+  (renomear canal não existia até agora) e o seletor "Categoria de…".
+- **Arrastar** pela alça, com mouse ou dedo (a alça tem `touch-action:
+  none`; o resto da página continua rolando). Os movimentos são ouvidos no
+  documento: o primeiro jeito, ouvir só na alça, travava — mover a linha de
+  lugar no DOM solta a captura do ponteiro (o teste pegou). Perto da borda a
+  lista rola sozinha. **Teclado**: setas na alça sobem e descem.
+- **Categorias** do próprio grupo: "Nova categoria", renomear, Subir/Descer,
+  Apagar (os canais voltam para "Sem categoria"). Até 20. Moram em
+  `groups/{id}.categories` (lista na ordem da tela); o canal aponta com
+  `categoryId`. Na coluna de canais: o bloco sem categoria em cima
+  ("texto"/"voz", como sempre), depois cada categoria com texto e voz
+  juntos. Categoria vazia não aparece na coluna.
+- Tudo vai pelo mesmo Salvar das Configurações do grupo, num lote só
+  (`saveChannelLayout`): ou a ordem nova entra inteira, ou nada muda. Só os
+  canais que mudaram de verdade são gravados; as posições são renumeradas
+  0, 1, 2... por lista, então arrastar e devolver não conta como mudança.
+- O grupo abre no primeiro canal de texto NA ORDEM DA TELA
+  (`firstTextChannel`, em `lib/channel-layout.ts`).
+- O emoji aparece na coluna e no título do chat.
+- **Defeito achado e corrigido**: renomear uma categoria não atualizava o
+  nome dela nos seletores das linhas (mostrava "Nova categoria").
+- **Defeito achado e corrigido**: o título do chat (e a dica "Mensagem para
+  #…") ficava com o nome/emoji velho para quem já estava no canal — a casca
+  do chat só é remontada ao TROCAR de canal, para não apagar o que está sendo
+  digitado. Agora `ChatParts.setTitle` atualiza só o título e a dica.
+- Abrir as configurações pelo botão direito na aba de OUTRO grupo lê os
+  canais dele uma vez (`loadChannels`).
+- **Regra**: canal — só o dono, sem trocar grupo nem tipo; nome 1–60 (não
+  só espaço), emoji <= 16, `categoryId` <= 40, posição inteira 0–999.
+  Grupo — `categories` lista de até 20.
+- Testes: `tests/canais.spec.ts` (computador com mouse e teclado; celular
+  com dedo).
+
 ## Proposta A, etapa 3a — Configurações do grupo: foto, banner, nome, descrição, cor (16/11/2026)
 
 A etapa 3 (grupos) foi dividida: **3a** o "perfil" do grupo (esta); **3b**

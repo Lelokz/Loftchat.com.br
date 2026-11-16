@@ -70,6 +70,7 @@ import {
   pinDmMessage,
   removeMember,
   renameGroup,
+  loadChannels,
   buildReplyTo,
   editDmMessage,
   editMessage,
@@ -354,10 +355,17 @@ export function mountApp(
     const state = store.getState();
     const group = groupId === undefined ? activeGroup(state) : groupById(groupId);
     if (group === undefined || !isOwner(group, user.uid)) return;
-    openGroupSettings({
-      group,
-      memberCount: group.id === state.activeGroupId ? state.members.length : 0,
-    });
+    const aberto = group.id === state.activeGroupId;
+    void (aberto ? Promise.resolve(state.channels) : loadChannels(group.id)).then(
+      (channels) =>
+        openGroupSettings({
+          group,
+          // De outro grupo o app não tem a lista de membros: a prévia mostra só o resto.
+          memberCount: aberto ? state.members.length : 0,
+          channels,
+        }),
+      () => showToast('Não deu para abrir as configurações do grupo agora.'),
+    );
   };
 
   const handleLeaveGroup = (groupId?: string): void => {
@@ -1788,6 +1796,8 @@ export function mountApp(
       if (channelChanged || prev === null || prev.pinnedMessages !== state.pinnedMessages) {
         parts.setPinnedCount(state.pinnedMessages.length);
       }
+      // Canal renomeado ou com emoji novo (etapa 3b): só o título muda.
+      if (!channelChanged && prev !== null && prev.channels !== state.channels) parts.setTitle(channel);
 
       // A edição é estado LOCAL: o store não muda quando entro em edição, então
       // a comparação de `prev` não perceberia — e o balão não viraria campo.
