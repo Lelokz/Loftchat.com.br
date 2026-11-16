@@ -7,6 +7,7 @@ import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
 import { renderVoiceSection } from './voice-section';
+import { loftDesktop } from '../../lib/desktop';
 import type { VoiceSection } from './voice-section';
 import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveAppearance, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
 import { accountAppearance, previewAppearance, sameAppearance, setAccountAppearance } from '../../lib/appearance';
@@ -265,6 +266,14 @@ export function openSettings(options: SettingsOptions): void {
     onSignOut();
   });
 
+  // No programa (etapa 9d): qual versão está rodando.
+  const versao = el('span', { class: 'settings__versao' });
+  versao.hidden = true;
+  void loftDesktop()?.versao?.().then((v) => {
+    versao.textContent = `Loftchat ${v} (beta)`;
+    versao.hidden = false;
+  });
+
   const menu = el('nav', { class: 'settings__nav', 'aria-label': 'Seções das configurações' }, [
     el('span', { class: 'settings__brand' }, [
       el('span', { class: 'settings__mark' }, [iconEl(logoIcon(17))]),
@@ -277,6 +286,7 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
     itemDoMenu('voz', 'Voz e áudio', micIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
+    versao,
     sair,
   ]);
 

@@ -106,6 +106,41 @@ function integrarNoLinux() {
   }
 }
 
+/*
+ * ATUALIZAÇÃO AUTOMÁTICA (etapa 9d), pelas Releases do GitHub (o endereço
+ * sai do `publish` do package.json, gravado no pacote pelo electron-builder).
+ *
+ * Ao abrir e a cada 4 horas: procura versão nova e baixa por trás. Pronta,
+ * o chat mostra a faixa "Atualização pronta / Reiniciar" (sem pop-up). Se a
+ * pessoa não reiniciar, ela entra sozinha quando o programa fechar.
+ * Windows (NSIS por usuário) e Linux (AppImage) instalam sem pedir senha.
+ */
+const QUATRO_HORAS = 4 * 60 * 60 * 1000;
+let atualizacaoPronta = null; // a versão baixada, ou null
+
+function ligarAtualizacao() {
+  if (!app.isPackaged) return;
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    atualizacaoPronta = String(info.version);
+    janela?.webContents.send('loft:atualizacao-pronta', atualizacaoPronta);
+  });
+  // Sem internet, GitHub fora do ar etc.: tenta de novo na próxima rodada.
+  autoUpdater.on('error', (erro) => console.warn('[atualização]', erro?.message ?? erro));
+  const procurar = () => void autoUpdater.checkForUpdates().catch(() => {});
+  procurar();
+  setInterval(procurar, QUATRO_HORAS);
+
+  ipcMain.handle('loft:atualizacao-estado', () => atualizacaoPronta);
+  ipcMain.handle('loft:atualizar-agora', (evento) => {
+    if (!doLoft(evento.senderFrame?.url) || atualizacaoPronta === null) return;
+    // Fecha a janela e reabre na versão nova.
+    autoUpdater.quitAndInstall(false, true);
+  });
+}
+
 /** Serve a pasta do chat. Caminho que não é arquivo cai no index.html (o chat tem rotas, como /convite/…). */
 function servirChat() {
   const raiz = normalize(PASTA_DO_CHAT);
@@ -221,6 +256,8 @@ function ligarCompartilhamentoDeTela() {
     }));
   });
 
+  ipcMain.handle('loft:versao', () => app.getVersion());
+
   ipcMain.handle('loft:escolher-fonte', (evento, id) => {
     if (doLoft(evento.senderFrame?.url)) fonteEscolhida = id;
   });
@@ -312,6 +349,7 @@ if (!app.requestSingleInstanceLock()) {
 
     ligarCompartilhamentoDeTela();
     criarJanela();
+    ligarAtualizacao();
   });
 
   app.on('window-all-closed', () => app.quit());

@@ -65,7 +65,6 @@
       ],
       "icon": "icone.png",
       "artifactName": "Loftchat-Setup.exe",
-      "signAndEditExecutable": false,
       "files": [
         "!node_modules/@vencord/**"
       ]

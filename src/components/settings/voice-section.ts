@@ -134,6 +134,9 @@ export function renderVoiceSection(): VoiceSection {
     void listarAparelhos();
 
     const contexto = new AudioContext();
+    // Criado DEPOIS de esperar a permissão: o clique já "venceu", e o navegador
+    // pode deixar o contexto pausado — a barra ficaria parada em zero.
+    void contexto.resume().catch(() => {});
     const analisador = contexto.createAnalyser();
     analisador.fftSize = 512;
     // Só a análise: nada vai para os alto-falantes.

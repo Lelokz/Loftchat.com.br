@@ -1,0 +1,72 @@
+/* Faixa de atualização do programa (etapa 9d): embaixo, no meio, sem tampar o chat. */
+
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(640px, calc(100vw - var(--space-6)));
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  transform: translateX(-50%);
+  animation: update-bar-entra 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.update-bar__ponto {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent);
+}
+
+.update-bar__texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-bar__depois,
+.update-bar__reiniciar {
+  flex: none;
+  padding: 7px var(--space-3);
+  border-radius: var(--radius-md);
+  font-weight: 700;
+}
+
+.update-bar__depois {
+  color: var(--text-muted);
+}
+
+.update-bar__depois:hover {
+  color: var(--text-primary);
+}
+
+.update-bar__reiniciar {
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.update-bar__reiniciar:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+@keyframes update-bar-entra {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-bar {
+    animation: none;
+  }
+}

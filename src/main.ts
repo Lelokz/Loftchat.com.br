@@ -25,6 +25,7 @@ import { closeGroupMenu } from './components/group-menu/group-menu';
 import { renderInviteScreen } from './components/invite-screen/invite-screen';
 import { USING_EMULATOR } from './lib/firebase';
 import { loftDesktop } from './lib/desktop';
+import { ligarFaixaDeAtualizacao } from './components/update-bar/update-bar';
 import { authErrorMessage } from './lib/auth-errors';
 import { auth } from './lib/firebase';
 import { getInvite, isMemberOf, joinGroup, upsertUserProfile } from './lib/firestore';
@@ -510,6 +511,12 @@ onRouteChange((next) => {
 
 // Programa (etapa 9b): link de convite com a janela já aberta.
 loftDesktop()?.aoAbrirConvite?.((codigo) => navigate(`/convite/${codigo}`));
+
+// Programa (etapa 9d): a faixa "Atualização pronta / Reiniciar".
+{
+  const desktop = loftDesktop();
+  if (desktop !== null) ligarFaixaDeAtualizacao(desktop);
+}
 
 onAuthStateChanged(auth, (user) => {
   if (signingUp) return;

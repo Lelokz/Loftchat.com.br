@@ -1292,3 +1292,10 @@
 .voz__filtro .aparencia-aba {
   align-self: flex-start;
 }
+
+/* Versão do programa (etapa 9d), acima de "Sair da conta". */
+.settings__versao {
+  padding: 0 var(--space-3) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}

@@ -26,6 +26,13 @@ export interface LoftDesktop {
   /** Começa a passar som pelo microfone virtual (ele nasce mudo). */
   soltarAudioDoPc(): Promise<void>;
   desligarAudioDoPc(): Promise<void>;
+  /** Etapa 9d: a versão do programa (ex.: "0.1.0"). */
+  versao?(): Promise<string>;
+  /** Etapa 9d: a versão nova já baixada, ou null. */
+  atualizacaoPronta?(): Promise<string | null>;
+  aoAtualizacaoPronta?(ouvinte: (versao: string) => void): void;
+  /** Fecha e reabre na versão nova. */
+  atualizarAgora?(): Promise<void>;
   /** Etapa 9b: um link `loftchat://convite/…` chegou com o programa aberto. */
   aoAbrirConvite?(ouvinte: (codigo: string) => void): void;
 }

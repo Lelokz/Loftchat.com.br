@@ -147,6 +147,30 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 9d — atualização automática (16/11/2026) — fim da etapa 9 (falta subir)
+
+- `electron-updater` 6.8.11 no programa instalado: ao abrir e a cada 4 h
+  procura versão nova nas Releases do GitHub (o `publish` do package.json) e
+  baixa por trás. Pronta: a FAIXA embaixo, no meio — "Atualização pronta ·
+  versão X" com Depois e Reiniciar (não é pop-up, não rouba o foco). Sem
+  reiniciar, entra sozinha quando o programa fechar.
+- **Testado de ponta a ponta no Linux** (tela invisível, pasta pessoal
+  falsa, servidor local no lugar do GitHub): uma 0.1.0 de verdade abriu,
+  achou e baixou a 0.1.1, mostrou a faixa; Reiniciar fechou a 0.1.0, trocou
+  o arquivo do AppImage pelo da 0.1.1 e reabriu sozinho. O Windows (NSIS)
+  usa o mesmo caminho; conferir no teste com o Lucas.
+- A versão aparece nas Configurações, embaixo do menu ("Loftchat 0.1.0
+  (beta)") — ajuda no teste com o Lucas.
+- `.exe` do Windows com o ícone do átomo (o Actions roda num Windows de
+  verdade, então o `signAndEditExecutable` voltou ao padrão).
+- Achado no caminho: a barra do teste do microfone (8c) às vezes ficava em
+  zero — o AudioContext nascia pausado depois de esperar a permissão.
+  `resume()`; 3/3 depois.
+- Regressão: desktop, convite, configurações, voz e áudio (14 + a corrigida).
+- **Para valer de verdade falta:** push (com o OK do Leo), os 2 segredos do
+  TURN no GitHub, e a primeira etiqueta de versão (`v0.1.0`) — o Actions
+  monta os dois instaladores e publica nas Releases.
+
 ## Etapa 9c — instaladores (16/11/2026)
 
 - electron-builder 26.18.0 (configuração em `desktop/package.json` → `build`)

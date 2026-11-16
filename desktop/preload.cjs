@@ -14,6 +14,13 @@ contextBridge.exposeInMainWorld('loftDesktop', {
   ligarAudioDoPc: () => ipcRenderer.invoke('loft:audio-do-pc-ligar'),
   soltarAudioDoPc: () => ipcRenderer.invoke('loft:audio-do-pc-soltar'),
   desligarAudioDoPc: () => ipcRenderer.invoke('loft:audio-do-pc-desligar'),
+  // Atualização automática (etapa 9d): versão nova baixada e pronta.
+  versao: () => ipcRenderer.invoke('loft:versao'),
+  atualizacaoPronta: () => ipcRenderer.invoke('loft:atualizacao-estado'),
+  aoAtualizacaoPronta: (ouvinte) => {
+    ipcRenderer.on('loft:atualizacao-pronta', (_evento, versao) => ouvinte(String(versao)));
+  },
+  atualizarAgora: () => ipcRenderer.invoke('loft:atualizar-agora'),
   // Link de convite com o programa já aberto (etapa 9b): só o código chega.
   aoAbrirConvite: (ouvinte) => {
     ipcRenderer.on('loft:convite', (_evento, codigo) => ouvinte(String(codigo)));
