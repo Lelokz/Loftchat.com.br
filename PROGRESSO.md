@@ -84,6 +84,13 @@ salvas na conta (valem no PC e no celular).
 por pessoa, sons, atalhos editáveis e "jogando agora". "Extra é extra, não é
 prioridade." Primeiro o que falta para publicar.
 
+**ORDEM ATÉ PUBLICAR (Leo, 16/11/2026):** (1) sala de voz (palco + fila ou
+grade, chat da sala; junto: Configurações → Voz e áudio); (2) programa
+independente (chat dentro do programa, instaladores Linux/Windows,
+atualização automática); (3) caça às gambiarras; (4) pendências — que são o
+teste real do Leo com o Lucas (som do PC no Windows, vídeo que às vezes não
+chega); (5) publicar.
+
 Ordem de construção: (1) estrutura da A com o que existe + marca Loftchat;
 (2) configurações e perfil; (3) grupos; (4) aparência pessoal; (5) extras
 (busca, notificações por grupo, atividade, volume por pessoa, atalhos).
