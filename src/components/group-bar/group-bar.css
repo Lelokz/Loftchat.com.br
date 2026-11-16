@@ -70,6 +70,11 @@
   white-space: nowrap;
 }
 
+/* "Sem nome" (etapa 3d): a aba vira só o ícone, quadradinha. */
+.group-bar__tab--icone {
+  padding: 0 6px;
+}
+
 .group-bar__tab:hover {
   background-color: var(--surface-hover);
   color: var(--text-primary);

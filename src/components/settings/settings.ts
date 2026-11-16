@@ -5,7 +5,9 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, shieldIcon } from '../../lib/icons';
+import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { MAX_GROUP_LABEL, saveGroupLabels } from '../../lib/private-prefs';
+import { grupoAvatar } from '../group-bar/group-bar';
 import {
   CARD_COLOR_IDS,
   CARD_COLORS,
@@ -44,7 +46,7 @@ import {
 } from '../../lib/friends';
 import { initials } from '../../lib/format';
 import { MAX_BIO, MAX_DISPLAY_NAME, MAX_USERNAME_CHANGES } from '../../types/models';
-import type { UserProfile } from '../../types/models';
+import type { Group, UserProfile } from '../../types/models';
 import { renderPersonCard } from '../person-card/person-card';
 import { showToast } from '../toast/toast';
 
@@ -58,9 +60,14 @@ export interface SettingsOptions {
     username: string | undefined;
     photo: string | undefined;
   }) => void;
+  /** Etapa 3d: meus grupos e como eu chamo cada um (apelido, '' = só o ícone). */
+  groups: Group[];
+  groupLabels: Map<string, string>;
+  /** Abrir direto numa seção (o menu do grupo abre em "Grupos"). */
+  section?: Secao;
 }
 
-type Secao = 'perfil' | 'conta';
+export type Secao = 'perfil' | 'conta' | 'grupos';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -167,6 +174,12 @@ let aberta: HTMLDialogElement | null = null;
 export function openSettings(options: SettingsOptions): void {
   if (aberta !== null) return;
   const { user, onSignOut, onSaved } = options;
+  /* Rótulos dos grupos (etapa 3d): ausente = nome do grupo; '' = só o ícone. */
+  let rotulosSalvos = new Map(options.groupLabels);
+  let rotulosAtual = new Map(rotulosSalvos);
+  const rotulosMudaram = (): boolean =>
+    rotulosAtual.size !== rotulosSalvos.size ||
+    [...rotulosAtual].some(([id, v]) => rotulosSalvos.get(id)?.trim() !== v.trim());
 
   const dialog = el('dialog', { class: 'settings', 'aria-label': 'Configurações' });
   aberta = dialog;
@@ -207,6 +220,7 @@ export function openSettings(options: SettingsOptions): void {
     el('span', { class: 'settings__nav-label' }, ['Você']),
     itemDoMenu('perfil', 'Perfil', faceIcon(18)),
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
+    itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
     sair,
   ]);
@@ -241,7 +255,8 @@ export function openSettings(options: SettingsOptions): void {
 
   desfazer.addEventListener('click', () => {
     atual = copia(salvo);
-    mostrar('perfil');
+    rotulosAtual = new Map(rotulosSalvos);
+    mostrar(secaoAtual);
   });
   salvar.addEventListener('click', () => void salvarPerfil());
 
@@ -260,7 +275,7 @@ export function openSettings(options: SettingsOptions): void {
   let erroGeral: HTMLElement | null = null;
 
   function atualizarBarra(): void {
-    const sujo = carregado && !iguais(atual, salvo);
+    const sujo = (carregado && !iguais(atual, salvo)) || rotulosMudaram();
     barra.hidden = !sujo;
     salvar.disabled = salvando || erroDoArroba !== null;
     desfazer.disabled = salvando;
@@ -670,10 +685,12 @@ export function openSettings(options: SettingsOptions): void {
 
   async function salvarPerfil(): Promise<void> {
     if (salvando) return;
-    const problema =
-      displayNameProblem(atual.displayName) ??
-      bioProblem(atual.bio) ??
-      extrasProblem({ customStatus: statusDoRascunho(atual), links: linksDoRascunho(atual) });
+    const perfilMudou = carregado && !iguais(atual, salvo);
+    const problema = perfilMudou
+      ? (displayNameProblem(atual.displayName) ??
+        bioProblem(atual.bio) ??
+        extrasProblem({ customStatus: statusDoRascunho(atual), links: linksDoRascunho(atual) }))
+      : null;
     if (problema !== null) {
       mostrarErro(problema);
       return;
@@ -682,6 +699,21 @@ export function openSettings(options: SettingsOptions): void {
     atualizarBarra();
     mostrarErro(null);
     try {
+      if (rotulosMudaram()) {
+        // Só o que mudou: texto = apelido, '' = só o ícone, null = nome do grupo.
+        const mudancas = new Map<string, string | null>();
+        for (const [id, v] of rotulosAtual) if (rotulosSalvos.get(id) !== v) mudancas.set(id, v);
+        for (const id of rotulosSalvos.keys()) if (!rotulosAtual.has(id)) mudancas.set(id, null);
+        await saveGroupLabels(user.uid, mudancas);
+        rotulosSalvos = new Map([...rotulosAtual].map(([id, v]) => [id, v.trim()]));
+        rotulosAtual = new Map(rotulosSalvos);
+      }
+      if (!perfilMudou) {
+        showToast('Salvo.');
+        salvando = false;
+        mostrar(secaoAtual);
+        return;
+      }
       if (atual.username !== salvo.username) {
         await claimUsername(user.uid, atual.username, salvo.username, trocasFeitas);
         trocasFeitas += 1;
@@ -712,7 +744,7 @@ export function openSettings(options: SettingsOptions): void {
       });
       showToast('Perfil salvo.');
       salvando = false;
-      mostrar('perfil');
+      mostrar(secaoAtual);
     } catch (error) {
       salvando = false;
       mostrarErro(
@@ -778,6 +810,8 @@ export function openSettings(options: SettingsOptions): void {
   /* --- navegação ---------------------------------------------------------- */
 
   let secaoAtual: Secao = 'perfil';
+  /** Grupos com "Meu apelido" escolhido mas ainda sem texto (não viram "só o ícone" na hora). */
+  const apelidoEmEdicao = new Set<string>();
 
   function mostrar(secao: Secao): void {
     secaoAtual = secao;
@@ -797,10 +831,84 @@ export function openSettings(options: SettingsOptions): void {
         ...(carregado ? secaoPerfil() : [el('p', { class: 'settings__help' }, ['Carregando seu perfil…'])]),
       );
       desenharPrevia();
+    } else if (secao === 'grupos') {
+      conteudo.replaceChildren(...secaoGrupos());
     } else {
       conteudo.replaceChildren(...secaoConta());
     }
     atualizarBarra();
+  }
+
+  /* --- seção Grupos (etapa 3d) -------------------------------------------- */
+
+  function secaoGrupos(): HTMLElement[] {
+    erroGeral = el('p', { class: 'settings__error', role: 'alert' });
+    erroGeral.hidden = true;
+    const linhas = options.groups.map((group) => {
+      const atualDoGrupo = rotulosAtual.get(group.id);
+      const modo: 'nome' | 'apelido' | 'icone' =
+        atualDoGrupo === undefined ? 'nome' : atualDoGrupo.trim() === '' && !apelidoEmEdicao.has(group.id) ? 'icone' : 'apelido';
+      const escolha = el(
+        'select',
+        { class: 'settings__input settings__select', 'aria-label': `Como mostrar ${group.name} na aba` },
+        [
+          el('option', { value: 'nome' }, ['Nome do grupo']),
+          el('option', { value: 'apelido' }, ['Meu apelido']),
+          el('option', { value: 'icone' }, ['Sem nome (só o ícone)']),
+        ],
+      );
+      escolha.value = modo;
+      const apelido = el('input', {
+        class: 'settings__input settings-grupos__apelido',
+        type: 'text',
+        maxlength: MAX_GROUP_LABEL,
+        placeholder: group.name,
+        'aria-label': `Apelido de ${group.name}`,
+      });
+      apelido.value = modo === 'apelido' ? (atualDoGrupo ?? '') : '';
+      apelido.hidden = modo !== 'apelido';
+      escolha.addEventListener('change', () => {
+        if (escolha.value === 'nome') {
+          rotulosAtual.delete(group.id);
+          apelidoEmEdicao.delete(group.id);
+        } else if (escolha.value === 'icone') {
+          rotulosAtual.set(group.id, '');
+          apelidoEmEdicao.delete(group.id);
+        } else {
+          rotulosAtual.set(group.id, apelido.value);
+          apelidoEmEdicao.add(group.id);
+        }
+        mostrar('grupos');
+        if (escolha.value === 'apelido') {
+          conteudo.querySelector<HTMLInputElement>(`[aria-label="Apelido de ${CSS.escape(group.name)}"]`)?.focus();
+        }
+      });
+      apelido.addEventListener('input', () => {
+        rotulosAtual.set(group.id, apelido.value);
+        apelidoEmEdicao.add(group.id);
+        atualizarBarra();
+      });
+      return el('li', { class: 'settings-grupos__row' }, [
+        grupoAvatar(group, 'sm', 'settings-grupos__avatar'),
+        el('span', { class: 'settings-grupos__name', title: group.name }, [group.name]),
+        el('span', { class: 'settings-grupos__controls' }, [escolha, apelido]),
+      ]);
+    });
+    return [
+      el('header', { class: 'settings__header' }, [
+        el('h2', { class: 'settings__title' }, ['Grupos']),
+        el('p', { class: 'settings__subtitle' }, [
+          'Como cada grupo aparece na SUA barra de cima. Só você vê o apelido.',
+        ]),
+      ]),
+      options.groups.length === 0
+        ? el('p', { class: 'settings__help' }, ['Você ainda não está em nenhum grupo.'])
+        : el('ul', { class: 'settings-grupos' }, linhas),
+      el('p', { class: 'settings__help' }, [
+        'Apelido vazio vira "sem nome". Notificações por grupo e por canal chegam junto com as notificações do app.',
+      ]),
+      erroGeral,
+    ];
   }
 
   /* --- abrir e fechar ----------------------------------------------------- */
@@ -846,9 +954,12 @@ export function openSettings(options: SettingsOptions): void {
 
   document.body.append(dialog);
   dialog.showModal();
-  mostrar('perfil');
-  // No celular, abre na lista de seções; no computador, já no Perfil.
-  if (window.matchMedia('(max-width: 768px)').matches) dialog.classList.remove('settings--secao-aberta');
+  mostrar(options.section ?? 'perfil');
+  // No celular, abre na lista de seções; no computador, já no Perfil. Quem
+  // pediu uma seção (o menu do grupo pede "Grupos") abre direto nela.
+  if (options.section === undefined && window.matchMedia('(max-width: 768px)').matches) {
+    dialog.classList.remove('settings--secao-aberta');
+  }
 
   void Promise.all([
     publicProfile(user.uid).catch(() => null),

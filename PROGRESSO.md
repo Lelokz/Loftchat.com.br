@@ -94,6 +94,31 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 3d — apelido do grupo / sem nome (16/11/2026) — fim da etapa 3
+
+- Configurações (pessoais) ganhou a seção **Grupos**: para cada grupo,
+  "Nome do grupo", "Meu apelido" (até 32) ou "Sem nome (só o ícone)". Só
+  muda a MINHA barra de cima; o cabeçalho da coluna continua com o nome de
+  verdade, e o nome de verdade fica no `title` e no nome acessível da aba
+  (leitor de tela nunca fica sem nome). Apelido vazio vira "sem nome".
+- Atalho: **"Apelido do grupo"** no menu do grupo (cabeçalho e botão direito
+  na aba), para qualquer membro — abre as Configurações direto em Grupos
+  (também no celular, sem passar pela lista de seções).
+- Mora em `userPrivate/{uid}.groupLabels.{groupId}`. A parte privada da
+  conta agora é **escutada ao vivo** (`lib/private-prefs.ts`): mudar no PC
+  aparece no celular sem recarregar. As boas-vindas da 3c passaram a usar a
+  mesma escuta (antes era uma leitura só).
+- O Salvar das Configurações salva o que mudou: só os apelidos, só o perfil,
+  ou os dois.
+- **Notificações por grupo/canal** ficaram para a **etapa 5**: o app ainda
+  não tem notificação nenhuma (nem contador de não lidas — ver "Mensagens
+  não lidas" mais abaixo), e no plano aprovado as notificações estão nos
+  extras da etapa 5. Botão que não faz nada não entra.
+- Testes: `tests/apelido-grupo.spec.ts` (mesma conta no PC e no celular).
+- **Defeito antigo corrigido**: as iniciais contavam símbolo como palavra
+  ("Escola - 3º ano B" virava "E-"). Agora só palavra que começa com letra
+  ou número conta ("E3"); vale para grupos criados/renomeados daqui em diante.
+
 ## Proposta A, etapa 3c — boas-vindas do grupo (16/11/2026)
 
 - Configurações do grupo ganhou a seção **Boas-vindas**: texto até 500

@@ -22,10 +22,12 @@ import {
 } from './components/empty-state/empty-state';
 import { renderGroupBar } from './components/group-bar/group-bar';
 import { openSettings } from './components/settings/settings';
+import type { Secao as SettingsSection } from './components/settings/settings';
 import { openGroupSettings } from './components/group-settings/group-settings';
 import { renderGroupCard } from './components/group-settings/group-card';
 import { watchGroupBanner } from './lib/group-profile';
-import { loadWelcomeSeen, markWelcomeSeen } from './lib/welcome';
+import { markWelcomeSeen } from './lib/welcome';
+import { watchPrivatePrefs } from './lib/private-prefs';
 import { renderWelcomeCard } from './components/welcome-card/welcome-card';
 import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
 import type { Vinculo } from './components/person-card/person-popover';
@@ -526,6 +528,9 @@ export function mountApp(
       );
     }
 
+    // Etapa 3d: qualquer membro (dono também) dá apelido ou tira o nome da aba.
+    items.push({ label: 'Apelido do grupo', onSelect: () => handleOpenSettings('grupos') });
+
     items.push({
       label: 'Sair do grupo',
       onSelect: handleLeaveGroup,
@@ -676,11 +681,15 @@ export function mountApp(
   }
 
   /** Configurações em tela inteira. Salvar o perfil atualiza o meu cartão na hora. */
-  function handleOpenSettings(): void {
+  function handleOpenSettings(section?: SettingsSection): void {
     setDrawer(null);
+    const state = store.getState();
     openSettings({
       user,
       onSignOut,
+      groups: state.groups,
+      groupLabels: rotulosDosGrupos,
+      ...(section === undefined ? {} : { section }),
       onSaved: (perfil) => {
         me.displayName = perfil.displayName;
         me.initials = perfil.initials;
@@ -699,6 +708,7 @@ export function mountApp(
   function buildGroupBar(state: AppState): HTMLElement {
     return renderGroupBar({
       groups: state.groups,
+      groupLabels: rotulosDosGrupos,
       activeGroupId: state.activeGroupId,
       homeActive: state.view === 'home',
       onOpenHome: () => {
@@ -715,7 +725,7 @@ export function mountApp(
       onCreateGroup: handleCreateGroup,
       me,
       onSignOut,
-      onOpenSettings: handleOpenSettings,
+      onOpenSettings: () => handleOpenSettings(),
     });
   }
 
@@ -1462,20 +1472,21 @@ export function mountApp(
   }
 
   /*
-   * BOAS-VINDAS (etapa 3c). Os grupos cujo cartão eu já dispensei vêm da
-   * parte privada da conta; até chegarem, nada aparece (sem piscar).
+   * PREFERÊNCIAS PRIVADAS, ao vivo (lib/private-prefs.ts): as boas-vindas já
+   * dispensadas (etapa 3c) e os apelidos dos grupos (etapa 3d). Até chegarem,
+   * o cartão de boas-vindas não aparece (sem piscar).
    */
   let boasVistas: Set<string> | null = null;
   let boasChave = '';
-  void loadWelcomeSeen(user.uid).then(
-    (vistos) => {
-      boasVistas = vistos;
-      render(store.getState());
-    },
-    () => {
-      boasVistas = new Set();
-    },
-  );
+  let rotulosDosGrupos = new Map<string, string>();
+  const pararPrefs = watchPrivatePrefs(user.uid, (prefs) => {
+    const rotulosMudaram =
+      JSON.stringify([...prefs.groupLabels]) !== JSON.stringify([...rotulosDosGrupos]);
+    boasVistas = prefs.welcomeSeen;
+    rotulosDosGrupos = prefs.groupLabels;
+    if (rotulosMudaram && groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
+    render(store.getState());
+  });
 
   function atualizarBoasVindas(state: AppState, parts: ChatParts, recriado: boolean): void {
     const group = state.view === 'group' ? activeGroup(state) : undefined;
@@ -2030,6 +2041,7 @@ export function mountApp(
     copyInviteLink: handleCopyInvite,
     renameGroup: handleRenameGroup,
     groupSettings: handleGroupSettings,
+    groupNickname: () => handleOpenSettings('grupos'),
     leaveGroup: handleLeaveGroup,
     deleteGroup: handleDeleteGroup,
     deleteChannel: handleDeleteChannel,
@@ -2100,7 +2112,7 @@ export function mountApp(
           throw error;
         }
       },
-      onEditProfile: handleOpenSettings,
+      onEditProfile: () => handleOpenSettings(),
     });
   }
 
@@ -2145,6 +2157,7 @@ export function mountApp(
       hideToast();
       unsubscribe();
       bannerAtual?.parar();
+      pararPrefs();
       store.dispose();
     },
   };

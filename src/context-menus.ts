@@ -34,6 +34,7 @@ export interface ContextMenuActions {
   copyInviteLink(groupId: string): void;
   renameGroup(groupId: string): void;
   groupSettings(groupId: string): void;
+  groupNickname(groupId: string): void;
   leaveGroup(groupId: string): void;
   deleteGroup(groupId: string): void;
   deleteChannel(channelId: string): void;
@@ -311,6 +312,8 @@ function groupItems(
       { label: 'Renomear grupo', onSelect: () => actions.renameGroup(groupId) },
     );
   }
+
+  items.push({ label: 'Apelido do grupo', onSelect: () => actions.groupNickname(groupId) });
 
   items.push({
     label: 'Sair do grupo',

@@ -5,7 +5,9 @@
  * ou as duas primeiras letras quando o nome tem uma palavra só.
  */
 export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  // Só palavras que começam com letra ou número: em "Escola - 3º ano B" o
+  // traço não vira inicial ("E3", não "E-").
+  const words = name.trim().split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w));
   if (words.length === 0) return "?";
   if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
   return (words[0]!.charAt(0) + words[1]!.charAt(0)).toUpperCase();

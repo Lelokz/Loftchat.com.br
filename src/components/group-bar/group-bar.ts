@@ -3,12 +3,15 @@ import './group-bar.css';
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { logoIcon, plusIcon } from '../../lib/icons';
 import { CARD_COLORS, cardColorId } from '../../lib/person-theme';
+import { tabLabel } from '../../lib/private-prefs';
 import type { Group, GroupId, Member } from '../../types/models';
 import { renderSessionFooter } from '../session-footer/session-footer';
 
 export interface GroupBarProps {
   /** Grupos em que sou membro, vindos do Firestore. */
   groups: Group[];
+  /** Como EU chamo cada grupo (etapa 3d): apelido, ou '' para só o ícone. */
+  groupLabels: Map<GroupId, string>;
   activeGroupId: GroupId | null;
   /** A aba Privado está ativa? Nenhum grupo fica marcado quando ela está. */
   homeActive: boolean;
@@ -53,17 +56,21 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
   const tabs = groups.map((group) => {
     // Com a aba Privado ativa, nenhum grupo aparece marcado.
     const isActive = !homeActive && group.id === activeGroupId;
+    // Apelido pessoal ou "sem nome" (etapa 3d). O nome de verdade continua
+    // no title e no nome acessível — o leitor de tela nunca fica sem nome.
+    const rotulo = tabLabel(group.name, props.groupLabels.get(group.id));
     const button = el(
       'button',
       {
-        class: `group-bar__tab group-bar__button${isActive ? ' is-active' : ''}`,
+        class: `group-bar__tab group-bar__button${isActive ? ' is-active' : ''}${rotulo === null ? ' group-bar__tab--icone' : ''}`,
         type: 'button',
-        title: group.name,
+        title: rotulo === group.name ? group.name : `${group.name}${rotulo === null ? '' : ` (seu apelido: ${rotulo})`}`,
+        'aria-label': rotulo === null || rotulo === group.name ? group.name : `${rotulo} — ${group.name}`,
         'aria-current': isActive ? 'true' : undefined,
         'data-context': 'group',
         'data-group-id': group.id,
       },
-      [grupoAvatar(group), el('span', { class: 'group-bar__name' }, [group.name])],
+      [grupoAvatar(group), rotulo !== null && el('span', { class: 'group-bar__name' }, [rotulo])],
     );
     button.addEventListener('click', () => onSelectGroup(group.id));
     return el('li', {}, [button]);
