@@ -12,7 +12,8 @@
  */
 
 import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, net, protocol, session, shell } from 'electron';
-import { existsSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, normalize, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -64,6 +65,45 @@ function conviteDosArgumentos(argv) {
     if (CODIGO.test(codigo)) return codigo;
   }
   return null;
+}
+
+/*
+ * LINUX (AppImage, etapa 9c): o AppImage é um arquivo solto, sem instalador.
+ * Na primeira vez (e sempre que o arquivo muda de lugar) o programa se
+ * apresenta ao sistema como um instalador faria: entrada no menu de
+ * aplicativos, ícone e o `loftchat://` dos convites. Só na pasta da PESSOA
+ * (~/.local/share), nada do sistema.
+ */
+function integrarNoLinux() {
+  const appimage = process.env.APPIMAGE;
+  if (process.platform !== 'linux' || !app.isPackaged || !appimage) return;
+  try {
+    const base = process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share');
+    const icones = join(base, 'icons', 'hicolor', '512x512', 'apps');
+    const aplicativos = join(base, 'applications');
+    mkdirSync(icones, { recursive: true });
+    mkdirSync(aplicativos, { recursive: true });
+    copyFileSync(join(import.meta.dirname, 'icone.png'), join(icones, 'loftchat.png'));
+    const aspas = (texto) => `"${texto.replace(/(["\\$`])/g, '\\$1')}"`;
+    const atalho = [
+      '[Desktop Entry]',
+      'Type=Application',
+      'Name=Loftchat',
+      'Comment=Chat, voz e tela com som para você e seus amigos',
+      `Exec=${aspas(appimage)} %U`,
+      'Icon=loftchat',
+      'Terminal=false',
+      'Categories=Network;Chat;',
+      'MimeType=x-scheme-handler/loftchat;',
+      'StartupWMClass=Loftchat',
+      '',
+    ].join('\n');
+    const arquivo = join(aplicativos, 'loftchat.desktop');
+    const antes = existsSync(arquivo) ? readFileSync(arquivo, 'utf8') : '';
+    if (antes !== atalho) writeFileSync(arquivo, atalho);
+  } catch (erro) {
+    console.error('Não deu para pôr o Loftchat no menu do sistema.', erro);
+  }
 }
 
 /** Serve a pasta do chat. Caminho que não é arquivo cai no index.html (o chat tem rotas, como /convite/…). */
@@ -253,7 +293,10 @@ if (!app.requestSingleInstanceLock()) {
 
   // O sistema passa a abrir `loftchat://` com este programa. Só no programa
   // instalado: em desenvolvimento e nos testes isto mexeria no sistema.
-  if (app.isPackaged) app.setAsDefaultProtocolClient(LINK);
+  if (app.isPackaged) {
+    integrarNoLinux();
+    app.setAsDefaultProtocolClient(LINK);
+  }
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);

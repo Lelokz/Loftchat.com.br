@@ -147,6 +147,37 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 9c — instaladores (16/11/2026)
+
+- electron-builder 26.18.0 (configuração em `desktop/package.json` → `build`)
+  e `scripts/instaladores.sh` (monta no HD: `Arquivo/Loft-desktop/dist`,
+  caches no HD; não publica nada).
+- **Linux: `Loftchat.AppImage` (128 MB) FEITO e testado** numa tela
+  invisível com uma pasta pessoal falsa: abre e roda (o bloqueio do Ubuntu
+  novo a AppImage do Electron NÃO aconteceu aqui — o `.deb` não foi preciso).
+  Como o AppImage não tem instalador, o programa se apresenta ao sistema na
+  primeira vez (e se o arquivo mudar de lugar): `~/.local/share/applications/
+  loftchat.desktop` (menu de aplicativos, `loftchat://` dos convites) e o
+  ícone em `~/.local/share/icons`. Conferido que o sistema de verdade do Leo
+  NÃO foi tocado nos testes.
+- **Windows: `Loftchat-Setup.exe`** (NSIS em um clique, sem administrador,
+  atalho na área de trabalho e no Menu Iniciar, abre ao terminar). Montar no
+  Linux NÃO dá sem Wine: o último passo (o desinstalador) roda um programa
+  do Windows. Saída: `.github/workflows/instaladores.yml` — o GitHub Actions
+  monta o Windows num Windows de verdade (e o Linux num Linux); à mão =
+  só "Artifacts"; etiqueta `v*` = publica nas Releases. Mesmo repositório,
+  então basta o `GITHUB_TOKEN` (sem chave extra). **Falta: push (só com o
+  OK do Leo) e os dois segredos do TURN no GitHub** (`VITE_TURN_USERNAME`,
+  `VITE_TURN_CREDENTIAL` — vão no bundle como em qualquer cliente).
+- venmic (som do PC, só Linux) virou dependência OPCIONAL: no Windows o
+  `npm ci` recusaria um pacote só de Linux. Fica fora do pacote do Windows.
+- Para a caça às gambiarras: o `npm audit` aponta 3 vulnerabilidades no
+  `tar`/`cmake-js`, que o venmic só usa para se montar — não rodam no
+  Loftchat, mas vão junto no pacote.
+- O exe do Windows sai com o ícone padrão do Electron por dentro
+  (`signAndEditExecutable: false`); no Actions (Windows de verdade) dá para
+  ligar e pôr o átomo — conferir na primeira montagem.
+
 ## Etapa 9b — link de convite (16/11/2026)
 
 - O link de convite é `https://loftchat.com.br/convite/CÓDIGO`. A página

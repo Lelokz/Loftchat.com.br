@@ -3,16 +3,93 @@
   "productName": "Loftchat",
   "version": "0.1.0",
   "private": true,
-  "description": "Loft em janela própria, para Linux e Windows",
+  "description": "Loftchat — chat, voz e tela com som, para Linux e Windows",
   "type": "module",
   "main": "main.mjs",
   "scripts": {
     "start": "electron ."
   },
   "devDependencies": {
-    "electron": "45.3.2"
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0"
   },
   "dependencies": {
+    "electron-updater": "6.8.11"
+  },
+  "author": {
+    "name": "Loftchat"
+  },
+  "homepage": "https://loftchat.com.br",
+  "build": {
+    "appId": "br.com.loftchat",
+    "productName": "Loftchat",
+    "executableName": "loftchat",
+    "copyright": "© 2026 Loftchat",
+    "files": [
+      "main.mjs",
+      "preload.cjs",
+      "icone.png",
+      "app/**/*",
+      "!node_modules/@vencord/venmic/{addon,cmake,include,CMakeLists.txt,*.md,flake.lock,flake.nix}"
+    ],
+    "asarUnpack": [
+      "node_modules/@vencord/venmic/prebuilds/**"
+    ],
+    "npmRebuild": false,
+    "protocols": [
+      {
+        "name": "Loftchat",
+        "schemes": [
+          "loftchat"
+        ]
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Network",
+      "icon": "icone.png",
+      "artifactName": "Loftchat.AppImage",
+      "synopsis": "Chat, voz e tela com som para você e seus amigos",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "Loftchat"
+        }
+      },
+      "syncDesktopName": true
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "icone.png",
+      "artifactName": "Loftchat-Setup.exe",
+      "signAndEditExecutable": false,
+      "files": [
+        "!node_modules/@vencord/**"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Loftchat",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Lelokz",
+        "repo": "Loftchat.com.br",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "desktopName": "loftchat.desktop",
+  "optionalDependencies": {
     "@vencord/venmic": "7.2.5"
   }
 }

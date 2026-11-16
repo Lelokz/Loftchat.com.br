@@ -1,0 +1,87 @@
+# Instaladores do Loftchat (etapa 9c/9d).
+#
+# - "Run workflow" (à mão, na aba Actions): monta os dois e deixa para baixar
+#   em "Artifacts", sem publicar nada.
+# - Etiqueta de versão (v0.1.0, v0.1.5…): monta e PUBLICA nas Releases — é de
+#   lá que o site baixa e que o programa se atualiza sozinho.
+#
+# O Windows é montado num Windows de verdade: no Linux, o instalador NSIS
+# exige o Wine para gerar o desinstalador.
+name: Instaladores
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instaladores-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Chat embutido
+        run: npm run build:desktop
+        env:
+          VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+          VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
+      - run: npm ci
+        working-directory: desktop
+      - name: Instalador do Windows
+        working-directory: desktop
+        run: npx electron-builder --win --x64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            desktop/dist/Loftchat-Setup.exe
+            desktop/dist/latest.yml
+
+  linux:
+    # Depois do Windows: os dois publicam na MESMA versão, um de cada vez.
+    needs: windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Chat embutido
+        run: npm run build:desktop
+        env:
+          VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
+          VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
+      - run: npm ci
+        working-directory: desktop
+      - name: Instalador do Linux
+        working-directory: desktop
+        run: npx electron-builder --linux --x64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            desktop/dist/Loftchat.AppImage
+            desktop/dist/latest-linux.yml
