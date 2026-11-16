@@ -106,6 +106,47 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## PLANO ÚNICO ATÉ PUBLICAR — Linux, Windows e Android (16/11/2026)
+
+O chat saiu do navegador: o Loftchat existe como programa (Linux e Windows)
+e app Android. Repositório `Lelokz/Loftchat.com.br` PÚBLICO desde 16/11 (o
+Leo abriu; histórico varrido, sem segredos) — no futuro ele quer integrar
+com a NOVA, que também é pública. Instaladores e atualizações nas RELEASES
+do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
+
+**Etapa 9 — programa do PC (Linux e Windows)**
+- 9a: o chat DENTRO do programa (hoje ele abre o site, que saiu do ar).
+- 9b: link de convite abre o programa no convite; sem programa, a página
+  do site com o botão de baixar.
+- 9c: instaladores — Windows `Loftchat-Setup.exe` (instala sozinho, sem
+  perguntas e sem administrador; o aviso do SmartScreen fica, só some com
+  certificado pago); Linux `Loftchat.AppImage` (e `.deb` se o Ubuntu novo
+  barrar o AppImage). Windows montado aqui sem Wine se der; senão GitHub
+  Actions.
+- 9d: atualização automática pelas Releases: baixa por trás e mostra a
+  faixa "Atualização pronta / Reiniciar" (sem pop-up).
+
+**Etapa 10 — app Android (como o Discord: tela do Loftchat + chamada nativa)**
+- 10a: o app com o chat (o mesmo Loftchat em Capacitor; ferramentas de
+  Android já estão no HD, `Arquivo/Android-Ferramentas`, as dos apps da NOVA).
+- 10b: chamada NATIVA em Kotlin (biblioteca WebRTC mantida, LiveKit/Stream)
+  com a notificação fixa "Em chamada" — não cai com a tela apagada; fala
+  com o PC na mesma sala.
+- 10c: transmitir a tela do celular (autorização do Android + notificação
+  "Transmitindo", serviço do tipo mediaProjection), aparecendo no palco do PC.
+- 10d: convites abrindo o app.
+- 10e: atualização pelo próprio app (baixa o APK das Releases e o Android
+  pergunta "Atualizar?", como o app do Painel do Canal).
+- Regra do Google: APK de site ainda não é afetado no Brasil; em 2027 vale
+  para todos → conta de distribuição limitada (grátis, sem documento, até
+  20 aparelhos) ou completa (US$ 25 uma vez).
+- Notificação com o app fechado precisa de servidor pago do Firebase: fica
+  com os extras, depois de publicar (pesquisar saída grátis).
+
+**Depois:** caça às gambiarras → teste com o Lucas (PC e celular; som do
+PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
+botões Windows, Linux e Android).
+
 ## Proposta A, etapa 8c — Configurações → Voz e áudio (16/11/2026) — fim da etapa 8
 
 - Seção nova **Voz e áudio** nas Configurações (e a ENGRENAGEM no cabeçalho
