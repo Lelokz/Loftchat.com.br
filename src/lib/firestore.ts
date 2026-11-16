@@ -144,6 +144,9 @@ function toGroup(id: string, data: DocumentData): Group {
     ...(typeof data['description'] === 'string' ? { description: data['description'] } : {}),
     ...(typeof data['accentId'] === 'string' ? { accentId: data['accentId'] } : {}),
     ...(Array.isArray(data['categories']) ? { categories: parseCategories(data['categories']) } : {}),
+    ...(typeof data['welcome'] === 'string' && data['welcome'].trim() !== ''
+      ? { welcome: data['welcome'].slice(0, 500) }
+      : {}),
   };
 }
 

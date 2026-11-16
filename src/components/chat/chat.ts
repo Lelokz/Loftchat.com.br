@@ -38,6 +38,8 @@ export interface ChatParts {
    * sendo digitado.
    */
   setTitle: (channel: Channel | null) => void;
+  /** Topo do chat: o cartão de boas-vindas do grupo (etapa 3c), quando houver. */
+  welcomeSlot: HTMLElement;
   /** Recebe a lista, o estado vazio, o carregando ou o erro de leitura. */
   messagesSlot: HTMLElement;
   /**
@@ -92,22 +94,25 @@ export function renderChat(props: ChatProps): ChatParts {
   ]);
 
   const replySlot = el('div', { class: 'chat__reply-slot' });
+  const welcomeSlot = el('div', { class: 'chat__welcome-slot' });
 
   // Sem canal de texto não há o que compor nem o que listar.
   if (channel === null) {
     return {
-      element: el('main', { class: 'chat' }, [header, renderNoChannel()]),
+      element: el('main', { class: 'chat' }, [header, welcomeSlot, renderNoChannel()]),
       messagesSlot,
       callBarSlot,
       replySlot,
       setPinnedCount: pin.setCount,
     setTitle,
+    welcomeSlot,
     };
   }
 
   return {
     element: el('main', { class: 'chat' }, [
       header,
+      welcomeSlot,
       messagesSlot,
       callBarSlot,
       replySlot,
@@ -118,6 +123,7 @@ export function renderChat(props: ChatProps): ChatParts {
     replySlot,
     setPinnedCount: pin.setCount,
     setTitle,
+    welcomeSlot,
   };
 }
 

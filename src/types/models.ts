@@ -154,6 +154,8 @@ export interface Group {
   accentId?: string;
   /** Etapa 3b: categorias de canais, na ordem da tela. Ver lib/channel-layout.ts. */
   categories?: ChannelCategory[];
+  /** Etapa 3c: texto de boas-vindas para quem entra. Ver lib/welcome.ts. */
+  welcome?: string;
 }
 
 /** Tamanhos do grupo, cobrados também na regra (firestore.rules). */

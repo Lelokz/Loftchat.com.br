@@ -1,0 +1,74 @@
+/* Cartão de boas-vindas — ver welcome-card.ts. */
+
+.welcome-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin: var(--space-3) var(--space-4) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-bubble);
+}
+
+.welcome-card__avatar {
+  flex: none;
+}
+
+.welcome-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.welcome-card__title {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.welcome-card__text {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.welcome-card__ok {
+  padding: 8px var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
+  color: var(--accent-on);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.welcome-card__ok:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.welcome-card__ok:disabled {
+  cursor: default;
+}
+
+.welcome-card__ok:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .welcome-card {
+    gap: var(--space-3);
+    margin: var(--space-2) var(--space-2) 0;
+    padding: var(--space-3);
+  }
+
+  .welcome-card__avatar {
+    width: 48px;
+    height: 48px;
+  }
+}

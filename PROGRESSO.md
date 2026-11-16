@@ -94,6 +94,27 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 3c — boas-vindas do grupo (16/11/2026)
+
+- Configurações do grupo ganhou a seção **Boas-vindas**: texto até 500
+  (`groups/{id}.welcome`), com a prévia do cartão à direita.
+- Quem entra (não o dono) vê um **cartão no topo do chat** — foto/cor e nome
+  do grupo, o texto e "Entendi". NÃO é pop-up: não cobre nada, não rouba o
+  foco, a caixa de mensagem continua usável; ocupa no máximo 45% da altura.
+  "Entendi" devolve o foco para a caixa de mensagem.
+- O "já vi" mora em `userPrivate/{uid}.welcomeSeen.{groupId}` — primeiro uso
+  do `userPrivate`: vale no PC e no celular e ninguém mais lê. Até a lista
+  chegar, o cartão não aparece (sem piscar).
+- **Defeito antigo achado e corrigido**: quem se cadastrava por um link de
+  convite via de novo "Convite para um grupo — você já faz parte" toda vez
+  que abria o app na mesma aba — o convite guardado "para depois do login"
+  nunca era apagado durante o cadastro. Agora é apagado quando o convite é
+  tratado (`main.ts`).
+- **Regra**: `welcome` <= 500, só o dono.
+- Testes: `tests/boas-vindas.spec.ts`. Rodados com teto de memória
+  (`systemd-run --scope -p MemoryMax=2400M`, `nice 19`): a NOVA estava
+  ligada e o PC tinha só 1 GB livre; o Leo desligou a voz da Friday.
+
 ## Proposta A, etapa 3b — canais com emoji, ordem arrastando e categorias (16/11/2026)
 
 - Configurações do grupo ganhou a seção **Canais** (dono). Para cada canal:

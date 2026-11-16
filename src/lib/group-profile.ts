@@ -1,6 +1,7 @@
 import { deleteField, doc, getDoc, onSnapshot, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 import type { ChannelCategory } from './channel-layout';
+import { welcomeProblem } from './welcome';
 import { MAX_CATEGORY_NAME, MAX_CHANNEL_NAME } from './channel-layout';
 
 import { db } from './firebase';
@@ -20,6 +21,8 @@ import { MAX_GROUP_DESCRIPTION, MAX_GROUP_NAME } from '../types/models';
 export interface GroupEdit {
   name: string;
   description: string;
+  /** Etapa 3c. '' = sem boas-vindas. */
+  welcome: string;
   accentId: CardColorId;
   /** Data URL já recortada; '' = sem imagem. */
   photo: string;
@@ -57,7 +60,7 @@ export function groupDescriptionProblem(texto: string): string | null {
 
 export async function saveGroupProfile(groupId: string, edit: GroupEdit, bannerChanged: boolean): Promise<void> {
   const name = edit.name.trim();
-  const problema = groupNameProblem(name) ?? groupDescriptionProblem(edit.description);
+  const problema = groupNameProblem(name) ?? groupDescriptionProblem(edit.description) ?? welcomeProblem(edit.welcome);
   if (problema !== null) throw new Error(problema);
   const description = edit.description.trim();
 
@@ -65,6 +68,7 @@ export async function saveGroupProfile(groupId: string, edit: GroupEdit, bannerC
     name,
     initials: initials(name),
     description: description === '' ? deleteField() : description,
+    welcome: edit.welcome.trim() === '' ? deleteField() : edit.welcome.trim(),
     accentId: edit.accentId,
     photo: edit.photo === '' ? deleteField() : edit.photo,
   });

@@ -25,6 +25,8 @@ import { openSettings } from './components/settings/settings';
 import { openGroupSettings } from './components/group-settings/group-settings';
 import { renderGroupCard } from './components/group-settings/group-card';
 import { watchGroupBanner } from './lib/group-profile';
+import { loadWelcomeSeen, markWelcomeSeen } from './lib/welcome';
+import { renderWelcomeCard } from './components/welcome-card/welcome-card';
 import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
 import type { Vinculo } from './components/person-card/person-popover';
 import { renderHomeColumn } from './components/home/home-column';
@@ -1459,6 +1461,53 @@ export function mountApp(
     window.setTimeout(() => alvo.classList.remove('is-highlighted'), HIGHLIGHT_MS);
   }
 
+  /*
+   * BOAS-VINDAS (etapa 3c). Os grupos cujo cartão eu já dispensei vêm da
+   * parte privada da conta; até chegarem, nada aparece (sem piscar).
+   */
+  let boasVistas: Set<string> | null = null;
+  let boasChave = '';
+  void loadWelcomeSeen(user.uid).then(
+    (vistos) => {
+      boasVistas = vistos;
+      render(store.getState());
+    },
+    () => {
+      boasVistas = new Set();
+    },
+  );
+
+  function atualizarBoasVindas(state: AppState, parts: ChatParts, recriado: boolean): void {
+    const group = state.view === 'group' ? activeGroup(state) : undefined;
+    const mostrar =
+      group !== undefined &&
+      group.welcome !== undefined &&
+      boasVistas !== null &&
+      !boasVistas.has(group.id) &&
+      !isOwner(group, user.uid);
+    const chave = mostrar ? `${group.id}|${group.welcome}|${group.name}|${group.photo ?? ''}` : '';
+    if (!recriado && chave === boasChave) return;
+    boasChave = chave;
+    if (!mostrar) {
+      parts.welcomeSlot.replaceChildren();
+      return;
+    }
+    parts.welcomeSlot.replaceChildren(
+      renderWelcomeCard({
+        group,
+        text: group.welcome!,
+        onDismiss: () => {
+          boasVistas?.add(group.id);
+          boasChave = '';
+          parts.welcomeSlot.replaceChildren();
+          // O "já vi" vai para a conta; se a rede falhar, some só nesta sessão.
+          void markWelcomeSeen(user.uid, group.id).catch(() => undefined);
+          document.querySelector<HTMLTextAreaElement>('.composer__input')?.focus();
+        },
+      }),
+    );
+  }
+
   function render(state: AppState): void {
     // Ainda carregando os grupos: não pinta nada; o splash de fora segue valendo.
     if (!state.groupsLoaded && groupBarEl === null) {
@@ -1796,6 +1845,7 @@ export function mountApp(
       if (channelChanged || prev === null || prev.pinnedMessages !== state.pinnedMessages) {
         parts.setPinnedCount(state.pinnedMessages.length);
       }
+      atualizarBoasVindas(state, parts, channelChanged);
       // Canal renomeado ou com emoji novo (etapa 3b): só o título muda.
       if (!channelChanged && prev !== null && prev.channels !== state.channels) parts.setTitle(channel);
 

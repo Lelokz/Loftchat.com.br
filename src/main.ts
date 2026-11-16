@@ -393,6 +393,10 @@ function decide(): void {
   }
 
   if (route.name === 'invite') {
+    // O convite está sendo tratado AGORA: o guardado para "depois do login"
+    // não serve mais. Sem isto, quem se cadastrou por um convite via a tela
+    // "você já faz parte" de novo a cada vez que abria o app na mesma aba.
+    takePendingInvite();
     void showInvite(currentUser, route.code);
     return;
   }

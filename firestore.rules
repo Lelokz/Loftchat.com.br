@@ -491,7 +491,10 @@ service cloud.firestore {
           // Etapa 3b: categorias de canais — lista de até 20 (cada uma {id, name};
           // a regra não percorre listas, então o cliente lê com cuidado).
           && (!groupChanged('categories') || !('categories' in d)
-                || (d.categories is list && d.categories.size() <= 20));
+                || (d.categories is list && d.categories.size() <= 20))
+          // Etapa 3c: boas-vindas até 500.
+          && (!groupChanged('welcome') || !('welcome' in d)
+                || (d.welcome is string && d.welcome.size() <= 500));
       }
     }
 

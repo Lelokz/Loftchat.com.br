@@ -2,7 +2,9 @@ import '../settings/settings.css';
 import './group-settings.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, gearIcon, menuIcon } from '../../lib/icons';
+import { arrowLeftIcon, closeIcon, faceIcon, gearIcon, menuIcon } from '../../lib/icons';
+import { MAX_WELCOME, welcomeProblem } from '../../lib/welcome';
+import { renderWelcomeCard } from '../welcome-card/welcome-card';
 import { CARD_COLOR_IDS, CARD_COLORS, cardColorId } from '../../lib/person-theme';
 import type { CardColorId } from '../../lib/person-theme';
 import {
@@ -31,11 +33,12 @@ export interface GroupSettingsOptions {
   channels: Channel[];
 }
 
-type Secao = 'visao' | 'canais';
+type Secao = 'visao' | 'canais' | 'boas';
 
 interface Rascunho {
   name: string;
   description: string;
+  welcome: string;
   accentId: CardColorId;
   photo: string;
   banner: string;
@@ -45,6 +48,7 @@ function iguais(a: Rascunho, b: Rascunho): boolean {
   return (
     a.name.trim() === b.name.trim() &&
     a.description.trim() === b.description.trim() &&
+    a.welcome.trim() === b.welcome.trim() &&
     a.accentId === b.accentId &&
     a.photo === b.photo &&
     a.banner === b.banner
@@ -90,6 +94,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   let salvo: Rascunho = {
     name: group.name,
     description: group.description ?? '',
+    welcome: group.welcome ?? '',
     accentId: cardColorId(group.accentId),
     photo: group.photo ?? '',
     banner: '',
@@ -109,6 +114,11 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     iconEl(menuIcon(18)),
     el('span', {}, ['Canais']),
   ]);
+  const boasBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    iconEl(faceIcon(18)),
+    el('span', {}, ['Boas-vindas']),
+  ]);
+  boasBotao.addEventListener('click', () => irPara('boas'));
   visao.addEventListener('click', () => irPara('visao'));
   canaisBotao.addEventListener('click', () => irPara('canais'));
 
@@ -123,6 +133,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     nomeNoMenu,
     visao,
     canaisBotao,
+    boasBotao,
   ]);
 
   const conteudo = el('div', { class: 'settings__content' });
@@ -169,6 +180,19 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   }
 
   function desenharPrevia(): void {
+    if (secao === 'boas') {
+      const nome = atual.name.trim() || 'Nome do grupo';
+      previa.replaceChildren(
+        el('span', { class: 'settings__preview-label' }, ['Quem entra vê no topo do chat']),
+        atual.welcome.trim() === ''
+          ? el('p', { class: 'settings__help' }, ['Sem texto, ninguém vê cartão nenhum.'])
+          : renderWelcomeCard({
+              group: { name: nome, initials: initials(nome), accentId: atual.accentId, ...(atual.photo === '' ? {} : { photo: atual.photo }) },
+              text: atual.welcome,
+            }),
+      );
+      return;
+    }
     previa.replaceChildren(
       el('span', { class: 'settings__preview-label' }, ['Prévia do grupo']),
       renderGroupCard({
@@ -293,19 +317,58 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     ];
   }
 
+  function boasVindas(): HTMLElement[] {
+    const contador = el('span', { class: 'settings__count' });
+    const texto = el('textarea', {
+      id: 'grupo-boas-vindas',
+      class: 'settings__input settings__textarea',
+      maxlength: MAX_WELCOME,
+      rows: 6,
+      placeholder: 'Ex.: Leia o #anúncios. Partida toda sexta às 20h na Sala Principal.',
+    });
+    texto.value = atual.welcome;
+    const contar = (): void => {
+      contador.textContent = `${texto.value.length}/${MAX_WELCOME}`;
+    };
+    contar();
+    texto.addEventListener('input', () => {
+      atual.welcome = texto.value;
+      contar();
+      mudou();
+    });
+    erroGeral = el('p', { class: 'settings__error', role: 'alert' });
+    erroGeral.hidden = true;
+    return [
+      el('header', { class: 'settings__header' }, [
+        el('h2', { class: 'settings__title' }, ['Boas-vindas']),
+        el('p', { class: 'settings__subtitle' }, [
+          'Quem entra no grupo vê este texto num cartão no topo do chat, até tocar em "Entendi".',
+        ]),
+      ]),
+      el('div', { class: 'settings__field' }, [
+        el('label', { class: 'settings__label', for: 'grupo-boas-vindas' }, ['Texto de boas-vindas']),
+        texto,
+        el('p', { class: 'settings__help' }, [`Até ${MAX_WELCOME} caracteres. Deixe vazio para não mostrar nada. `, contador]),
+      ]),
+      erroGeral,
+    ];
+  }
+
   function desenhar(refocus?: string): void {
     erroGeral = null;
-    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao]] as const) {
+    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['boas', boasBotao]] as const) {
       botao.classList.toggle('is-active', qual === secao);
       if (qual === secao) botao.setAttribute('aria-current', 'page');
       else botao.removeAttribute('aria-current');
     }
-    dialog.classList.toggle('settings--com-previa', secao === 'visao');
+    dialog.classList.toggle('settings--com-previa', secao !== 'canais');
     const rolagem = conteudo.scrollTop;
     if (!carregado) {
       conteudo.replaceChildren(el('p', { class: 'settings__help' }, ['Carregando o grupo…']));
     } else if (secao === 'visao') {
       conteudo.replaceChildren(...visaoGeral());
+    } else if (secao === 'boas') {
+      conteudo.replaceChildren(...boasVindas());
     } else {
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });
       erroGeral.hidden = true;
@@ -345,6 +408,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     const problema =
       groupNameProblem(atual.name) ??
       groupDescriptionProblem(atual.description) ??
+      welcomeProblem(atual.welcome) ??
       atualCanais.categories.map((c) => categoryNameProblem(c.name)).find((p) => p !== null) ??
       atualCanais.channels.map((c) => channelNameProblem(c.name)).find((p) => p !== null) ??
       null;
@@ -385,7 +449,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
         salvoCanais = normalizeDraft({ categories: categoriasNoBanco, channels: [...noBanco.values()] });
         atualCanais = copiaCanais(salvoCanais);
       }
-      salvo = { ...atual, name: atual.name.trim(), description: atual.description.trim() };
+      salvo = { ...atual, name: atual.name.trim(), description: atual.description.trim(), welcome: atual.welcome.trim() };
       atual = { ...salvo };
       nomeNoMenu.textContent = salvo.name;
       showToast('Grupo salvo.');
