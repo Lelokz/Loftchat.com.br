@@ -1,0 +1,84 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta B — Caixa de conversas</title>
+<link rel="stylesheet" href="base.css">
+<style>
+body { display: grid; grid-template-columns: 340px 1fr; }
+.inbox { background: var(--surface-side); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.ihead { padding: 16px 16px 12px; display: flex; flex-direction: column; gap: 14px; }
+.ihead .row { display: flex; align-items: center; justify-content: space-between; }
+.search { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; background: var(--surface-chat); border: 1px solid var(--border); color: var(--text-muted); font-size: 13px; }
+.chips { display: flex; gap: 6px; } .chips span { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--border); } .chips span.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.convs { flex: 1; overflow: hidden; padding: 4px 8px; display: flex; flex-direction: column; gap: 2px; }
+.conv { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 14px; }
+.conv.on { background: var(--accent-soft); }
+.conv .gav { width: 44px; height: 44px; border-radius: 14px; font-size: 14px; }
+.conv .txt { flex: 1; min-width: 0; } .conv .l1 { display: flex; align-items: baseline; gap: 6px; } .conv .l1 b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .conv .l1 em { font-style: normal; color: var(--text-muted); font-size: 12.5px; } .conv .l1 small { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+.conv .l2 { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; } .conv .l2 span.t { overflow: hidden; text-overflow: ellipsis; flex: 1; } .conv.unread .l1 b { color: #fff; } .conv.unread .l2 { color: var(--text-primary); }
+.sub { margin: -2px 0 4px 56px; display: flex; flex-direction: column; gap: 1px; }
+.sub > span { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 9px; font-size: 13px; color: var(--text-secondary); font-weight: 600; } .sub span.on { background: var(--surface-chat); color: var(--text-primary); } .sub .ico { width: 14px; color: var(--text-muted); } .sub .badge { margin-left: auto; }
+.mecard { margin: 8px; padding: 10px 12px; border-radius: 14px; background: var(--surface-chat); display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); }
+.mecard b { display: block; font-size: 13px; line-height: 1.2; } .mecard small { color: var(--text-muted); font-size: 11px; } .mecard .sp { flex: 1; }
+.center { display: flex; flex-direction: column; min-height: 0; position: relative; }
+.chead { height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+.chead .gav { width: 38px; height: 38px; border-radius: 12px; } .chead h3 { font-size: 15px; line-height: 1.2; } .chead p { font-size: 12px; color: var(--text-muted); } .chead .sp { flex: 1; }
+.float { position: absolute; left: 24px; bottom: 92px; width: 330px; border-radius: 18px; background: var(--surface-raised); border: 1px solid var(--border-strong); box-shadow: 0 18px 40px #00000066; overflow: hidden; }
+.float .screen { height: 170px; border-radius: 0; }
+.float .screen .tag { position: absolute; left: 10px; top: 10px; z-index: 2; } .float .screen .mx { position: absolute; right: 8px; top: 8px; z-index: 2; color: #fff; background: #00000055; border-radius: 9px; }
+.float .ppl { display: flex; align-items: center; gap: 8px; padding: 10px 12px 4px; } .float .ppl b { font-size: 13px; } .float .ppl small { font-size: 11px; color: var(--text-muted); }
+.float .ppl .stack { display: flex; } .float .ppl .stack .av { margin-left: -8px; box-shadow: 0 0 0 2px var(--surface-raised); } .float .ppl .stack .av:first-child { margin-left: 0; box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px #3ecf8e; }
+.float .btns { display: flex; gap: 6px; padding: 8px 12px 12px; } .float .btns span { flex: 1; height: 34px; border-radius: 11px; background: var(--surface-chat); display: grid; place-items: center; color: var(--text-secondary); } .float .btns span.x { background: var(--danger); color: var(--danger-on); }
+.msgs { padding-left: 380px; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+<symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol>
+<symbol id="i-mon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+<symbol id="i-off" viewBox="0 0 24 24"><path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.6A2 2 0 0 1 22 17v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.4 2.1L7.9 9.7"/><path d="M22 2 2 22"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 10.8V4h6v6.8l3 3.2H6z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 2.5a4 4 0 0 1 5.7 5.7L9.6 16.7a2 2 0 0 1-2.8-2.8l7.8-7.8"/></symbol>
+<symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+</svg>
+
+<aside class="inbox">
+  <div class="ihead">
+    <div class="row"><div class="brand"><span class="mark"><svg class="ico"><use href="#i-home"/></svg></span><span>Loft<b>chat</b></span></div><span style="display:flex;gap:2px"><span class="iconbtn"><svg class="ico"><use href="#i-plus"/></svg></span><span class="iconbtn"><svg class="ico"><use href="#i-bell"/></svg></span></span></div>
+    <div class="search"><svg class="ico" style="width:16px"><use href="#i-search"/></svg>Buscar conversas, pessoas ou @</div>
+    <div class="chips"><span class="on">Tudo</span><span>Grupos</span><span>Privado</span><span>Ao vivo</span></div>
+  </div>
+  <div class="convs">
+    <div class="conv on"><span class="av gav c1">OS</span><div class="txt"><div class="l1"><b>Os de sempre</b><small>21:52</small></div><div class="l2"><span class="pill live" style="padding:1px 7px;font-size:10.5px"><i></i>AO VIVO</span><span class="t">Lucas: tô transmitindo o boss…</span></div></div></div>
+    <div class="sub"><span class="on"><svg class="ico"><use href="#i-hash"/></svg>geral</span><span><svg class="ico"><use href="#i-hash"/></svg>jogatina<span class="badge">3</span></span><span><svg class="ico"><use href="#i-vol"/></svg>Sala Principal · 2</span></div>
+    <div class="conv unread"><span class="av gav c5">IS</span><div class="txt"><div class="l1"><b>Isadora</b><em>@isa.r</em><small>21:30</small></div><div class="l2"><span class="t">manda o trabalho de banco de dados</span><span class="badge">2</span></div></div></div>
+    <div class="conv unread"><span class="av gav c3">SE</span><div class="txt"><div class="l1"><b>SENAI 2ºB</b><small>20:15</small></div><div class="l2"><span class="t">Lorenzzo: prova amanhã é de HTML?</span><span class="badge">5</span></div></div></div>
+    <div class="conv"><span class="av gav c4">MC</span><div class="txt"><div class="l1"><b>Minecraft 100%</b><small>ontem</small></div><div class="l2"><span class="t">Você: conquista 37 de 126 🎉</span></div></div></div>
+    <div class="conv"><span class="av gav c6">GA</span><div class="txt"><div class="l1"><b>Gabriel</b><em>@gabpalota</em><small>sex</small></div><div class="l2"><span class="t">kkkkkkk</span></div></div></div>
+  </div>
+  <div class="mecard"><span class="av c2">LE<span class="on"></span></span><span><b>Lelokz</b><small>@lelokz</small></span><span class="sp"></span><span class="iconbtn"><svg class="ico"><use href="#i-gear"/></svg></span></div>
+</aside>
+<main class="center">
+  <div class="chead"><span class="av gav c1">OS</span><div><h3>Os de sempre · #geral</h3><p>6 membros · 3 online · bora jogar hoje?</p></div><span class="sp"></span><span class="iconbtn"><svg class="ico"><use href="#i-search"/></svg></span><span class="iconbtn"><svg class="ico"><use href="#i-pin"/></svg></span><span class="iconbtn"><svg class="ico"><use href="#i-users"/></svg></span></div>
+  <div class="msgs">
+    <span class="day">Hoje</span>
+    <div class="msg"><span class="av c3">LU</span><div><div class="who">Lucas<small>21:40</small></div><div class="bubble">alguém on hoje à noite?</div></div></div>
+    <div class="msg mine"><div class="meta"><div class="who"><small>21:41</small></div><div class="bubble">eu! depois das 20h</div></div></div>
+    <div class="msg"><span class="av c4">GA</span><div><div class="who">Gabriel<small>21:43</small></div><div class="bubble">bora, eu levo a pipoca 🍿</div></div></div>
+    <div class="msg"><span class="av c3">LU</span><div><div class="who">Lucas<small>21:52</small></div><div class="bubble">tô transmitindo o boss na Sala Principal, cola lá</div></div></div>
+  </div>
+  <div class="float">
+    <div class="screen"><span class="pill live tag"><i></i>LUCAS AO VIVO</span><span class="iconbtn mx"><svg class="ico"><use href="#i-max"/></svg></span></div>
+    <div class="ppl"><span class="stack"><span class="av sm c3">LU</span><span class="av sm c2">LE</span></span><span><b>Sala Principal</b> <small>· Os de sempre · 12:04</small></span></div>
+    <div class="btns"><span><svg class="ico"><use href="#i-mic"/></svg></span><span><svg class="ico"><use href="#i-mon"/></svg></span><span class="x"><svg class="ico"><use href="#i-off"/></svg></span></div>
+  </div>
+  <div class="composer"><svg class="ico"><use href="#i-clip"/></svg><span class="grow">Mensagem para #geral</span><svg class="ico"><use href="#i-smile"/></svg><span class="send"><svg class="ico"><use href="#i-send"/></svg></span></div>
+</main>
+</body></html>

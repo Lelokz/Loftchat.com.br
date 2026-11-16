@@ -1,0 +1,134 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>A — Sala de voz</title>
+<link rel="stylesheet" href="base.css">
+<style>
+body { display: grid; grid-template-rows: 60px 1fr; }
+.top { display: flex; align-items: center; gap: 18px; padding: 0 16px; background: var(--surface-rail); border-bottom: 1px solid var(--border); }
+.tabs { display: flex; gap: 6px; flex: 1; }
+.tab { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 6px; border-radius: 12px; color: var(--text-secondary); font-weight: 700; font-size: 13px; }
+.tab .av { width: 26px; height: 26px; border-radius: 8px; font-size: 10px; }
+.tab.on { background: var(--surface-chat); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.tab .badge { margin-left: 2px; }
+.tab.priv .av { background: var(--accent-soft); color: var(--accent-text); }
+.tab.add { padding: 6px; color: var(--text-muted); border: 1px dashed var(--border-strong); }
+.me { display: flex; align-items: center; gap: 10px; padding: 5px 12px 5px 5px; border-radius: 12px; background: var(--surface-side); }
+.me b { display: block; font-size: 13px; line-height: 1.2; } .me small { display: block; font-size: 11px; color: var(--text-muted); line-height: 1.2; }
+.main { display: grid; grid-template-columns: 250px 1fr 300px; min-height: 0; }
+.side { background: var(--surface-side); border-right: 1px solid var(--border); padding: 16px 10px; display: flex; flex-direction: column; gap: 18px; }
+.ghead { padding: 0 8px; } .ghead h2 { font-size: 17px; } .ghead p { font-size: 12px; color: var(--text-muted); }
+.list { display: flex; flex-direction: column; gap: 2px; }
+.list .label { padding: 0 8px 4px; }
+.ch { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; color: var(--text-secondary); font-weight: 600; }
+.ch.on { background: var(--accent-soft); color: var(--text-primary); }
+.ch .ico { width: 16px; color: var(--text-muted); }
+.ch .badge { margin-left: auto; }
+.vroom { margin: 2px 0 0 28px; display: flex; flex-direction: column; gap: 6px; }
+.vroom div { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.vroom .speaking .av { box-shadow: 0 0 0 2px var(--surface-side), 0 0 0 4px #3ecf8e; }
+.callbox { margin-top: auto; border: 1px solid var(--border-strong); border-radius: 14px; padding: 10px 12px; background: var(--surface-chat); }
+.callbox .row { display: flex; align-items: center; gap: 8px; } .callbox b { font-size: 13px; color: #3ecf8e; } .callbox small { font-size: 11px; color: var(--text-muted); }
+.callbox .btns { display: flex; gap: 6px; margin-top: 8px; } .callbox .btns span { flex: 1; height: 32px; border-radius: 10px; background: var(--surface-side); display: grid; place-items: center; color: var(--text-secondary); } .callbox .btns span.x { background: var(--danger); color: var(--danger-on); }
+.center { display: flex; flex-direction: column; min-height: 0; }
+.chead { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+.chead h3 { font-size: 15px; } .chead p { color: var(--text-muted); font-size: 12.5px; border-left: 1px solid var(--border); padding-left: 10px; }
+.chead .sp { flex: 1; }
+.panel { background: var(--surface-side); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.ptabs { display: flex; gap: 4px; padding: 12px; border-bottom: 1px solid var(--border); }
+.ptabs span { flex: 1; text-align: center; padding: 6px; border-radius: 9px; font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+.ptabs span.on { background: var(--surface-chat); color: var(--text-primary); }
+.pbody { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.pbody .person { display: flex; align-items: center; gap: 10px; } .person b { font-size: 13px; display: block; line-height: 1.2; } .person small { font-size: 11px; color: var(--text-muted); }
+.livecard { border-radius: 14px; border: 1px solid var(--border-strong); overflow: hidden; background: var(--surface-chat); }
+.livecard .screen { height: 140px; border-radius: 0; }
+.livecard .info { padding: 10px 12px; display: flex; align-items: center; gap: 8px; } .livecard .info b { font-size: 13px; }
+
+.stagewrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 22px; }
+.stage { flex: 1; min-height: 0; border-radius: 18px; position: relative; overflow: hidden; background: var(--surface-sunken); border: 1px solid var(--border); }
+.stage .screen { position: absolute; inset: 0; border-radius: 0; }
+.stage .top { position: absolute; left: 14px; top: 14px; right: 14px; z-index: 2; display: flex; align-items: center; gap: 8px; background: none; border: 0; height: auto; padding: 0; }
+.stage .top .who { display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border-radius: 999px; background: #0b0816cc; font-weight: 700; font-size: 13px; }
+.stage .top .sp { flex: 1; } .stage .top .iconbtn { background: #0b0816cc; color: #fff; }
+.stage .q { position: absolute; right: 14px; bottom: 14px; z-index: 2; padding: 4px 10px; border-radius: 999px; background: #0b0816cc; font-size: 11.5px; color: var(--text-secondary); }
+.strip { display: flex; gap: 10px; }
+.tile { width: 150px; height: 84px; border-radius: 14px; background: var(--surface-side); border: 1px solid var(--border); display: grid; place-items: center; position: relative; }
+.tile.speaking { box-shadow: 0 0 0 2px #3ecf8e; } .tile .av { width: 40px; height: 40px; }
+.tile span.n { position: absolute; left: 8px; bottom: 6px; font-size: 11.5px; font-weight: 700; }
+.ctrls { display: flex; justify-content: center; gap: 10px; }
+.ctrls span { width: 46px; height: 46px; border-radius: 50%; background: var(--surface-side); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-secondary); }
+.ctrls span.on { background: var(--accent); color: #fff; border-color: var(--accent); } .ctrls span.x { background: var(--danger); color: var(--danger-on); border-color: var(--danger); }
+.chatmini { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chatmini .m { padding: 8px 14px; font-size: 13px; } .chatmini .m b { font-size: 12.5px; } .chatmini .m small { color: var(--text-muted); font-size: 10.5px; margin-left: 4px; }
+.chatmini .composer { margin: auto 12px 12px; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+<symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol>
+<symbol id="i-mon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+<symbol id="i-off" viewBox="0 0 24 24"><path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.6A2 2 0 0 1 22 17v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.4 2.1L7.9 9.7"/><path d="M22 2 2 22"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 10.8V4h6v6.8l3 3.2H6z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 2.5a4 4 0 0 1 5.7 5.7L9.6 16.7a2 2 0 0 1-2.8-2.8l7.8-7.8"/></symbol>
+<symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><span class="mark"><svg class="ico"><use href="#i-home"/></svg></span><span>Loft<b>chat</b></span></div>
+  <nav class="tabs">
+    <span class="tab priv"><span class="av"><svg class="ico" style="width:14px"><use href="#i-chat"/></svg></span>Privado <span class="badge">2</span></span>
+    <span class="tab on"><span class="av c1">OS</span>Os de sempre</span>
+    <span class="tab"><span class="av c3">SE</span>SENAI 2ºB <span class="badge">5</span></span>
+    <span class="tab"><span class="av c4">MC</span>Minecraft 100%</span>
+    <span class="tab add"><svg class="ico"><use href="#i-plus"/></svg></span>
+  </nav>
+  <span class="iconbtn"><svg class="ico"><use href="#i-search"/></svg></span>
+  <span class="iconbtn"><svg class="ico"><use href="#i-bell"/></svg></span>
+  <div class="me"><span class="av c2">LE<span class="on"></span></span><span><b>Lelokz</b><small>@lelokz</small></span></div>
+</header>
+<div class="main">
+  <aside class="side">
+    <div class="ghead"><h2>Os de sempre</h2><p>6 membros · 3 online</p></div>
+    <div class="list"><span class="label">Texto</span>
+      <span class="ch"><svg class="ico"><use href="#i-hash"/></svg>geral</span>
+      <span class="ch"><svg class="ico"><use href="#i-hash"/></svg>jogatina <span class="badge">3</span></span>
+      <span class="ch"><svg class="ico"><use href="#i-hash"/></svg>anúncios</span>
+    </div>
+    <div class="list"><span class="label">Voz</span>
+      <span class="ch on"><svg class="ico"><use href="#i-vol"/></svg>Sala Principal <span class="pill live" style="margin-left:auto"><i></i>AO VIVO</span></span>
+      <div class="vroom"><div class="speaking"><span class="av sm c3">LU</span>Lucas</div><div><span class="av sm c2">LE</span>Lelokz</div><div><span class="av sm c4">GA</span>Gabriel</div></div>
+      <span class="ch"><svg class="ico"><use href="#i-vol"/></svg>Estudos</span>
+    </div>
+  </aside>
+  <main class="center">
+    <div class="chead"><svg class="ico muted"><use href="#i-vol"/></svg><h3>Sala Principal</h3><p>3 pessoas · 12:04</p><span class="sp"></span><span class="iconbtn"><svg class="ico"><use href="#i-gear"/></svg></span></div>
+    <div class="stagewrap">
+      <div class="stage"><div class="screen"></div>
+        <div class="top"><span class="who"><span class="av sm c3">LU</span>Lucas está transmitindo</span><span class="pill live"><i></i>AO VIVO</span><span class="sp"></span><span class="iconbtn"><svg class="ico"><use href="#i-max"/></svg></span></div>
+        <span class="q">1080p · 60 fps · com som</span></div>
+      <div class="strip">
+        <div class="tile speaking"><span class="av c3">LU</span><span class="n">Lucas</span></div>
+        <div class="tile"><span class="av c2">LE</span><span class="n">Lelokz (você)</span></div>
+        <div class="tile"><span class="av c4">GA</span><span class="n">Gabriel</span></div>
+      </div>
+      <div class="ctrls"><span class="on"><svg class="ico"><use href="#i-mic"/></svg></span><span><svg class="ico"><use href="#i-mon"/></svg></span><span class="x"><svg class="ico"><use href="#i-off"/></svg></span></div>
+    </div>
+  </main>
+  <aside class="panel">
+    <div class="ptabs"><span class="on">Chat</span><span>Membros</span><span>Fixadas</span></div>
+    <div class="chatmini">
+      <div class="m"><b>Gabriel</b><small>21:58</small><br>esse boss é muito apelão</div>
+      <div class="m"><b>Lucas</b><small>21:59</small><br>vou de arco agora</div>
+      <div class="m"><b>Lelokz</b><small>22:00</small><br>KKKKK morreu</div>
+      <div class="composer"><span class="grow">Mensagem na sala</span><span class="send"><svg class="ico"><use href="#i-send"/></svg></span></div>
+    </div>
+  </aside>
+</div>
+</body></html>

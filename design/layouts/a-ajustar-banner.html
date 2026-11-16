@@ -1,0 +1,114 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>A — Ajustar banner</title>
+<link rel="stylesheet" href="base.css">
+<style>
+body { display: grid; grid-template-columns: 280px 1fr; background: var(--surface-chat); }
+nav { background: var(--surface-side); border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 2px; }
+nav .label { padding: 12px 10px 6px; }
+nav span.it { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; color: var(--text-secondary); font-weight: 600; }
+nav span.it.on { background: var(--accent-soft); color: var(--text-primary); }
+nav span.it.sair { color: var(--danger); margin-top: auto; }
+nav .ico { width: 16px; }
+.content { display: grid; grid-template-columns: 1fr 340px; gap: 32px; padding: 32px 40px; min-height: 0; overflow: hidden; position: relative; }
+.close { position: absolute; right: 24px; top: 22px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-strong); display: grid; place-items: center; color: var(--text-secondary); font-weight: 800; }
+h1 { font-size: 22px; margin-bottom: 4px; } .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 22px; }
+.field { margin-bottom: 18px; } .field label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+.input { height: 40px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-raised); display: flex; align-items: center; gap: 6px; }
+.input.ta { height: 74px; align-items: flex-start; padding-top: 10px; }
+.hint { font-size: 11.5px; color: var(--text-muted); margin-top: 5px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.swatches { display: flex; gap: 8px; } .swatches i { width: 30px; height: 30px; border-radius: 50%; display: block; } .swatches i.on { box-shadow: 0 0 0 2px var(--surface-chat), 0 0 0 4px #fff; }
+.fonts { display: flex; gap: 8px; } .fonts span { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; } .fonts span.on { border-color: var(--accent); background: var(--accent-soft); }
+.photo { display: flex; align-items: center; gap: 14px; } .photo .av { width: 64px; height: 64px; font-size: 20px; } .btn { padding: 8px 14px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; } .btn.ghost { background: none; border: 1px solid var(--border-strong); color: var(--text-secondary); }
+.preview .label { display: block; margin-bottom: 10px; }
+.card { border-radius: 18px; overflow: hidden; background: var(--surface-side); border: 1px solid var(--border-strong); }
+.card .cover { height: 96px; background: linear-gradient(135deg, #c2467e, #7b3fe4); }
+.card .who { padding: 0 16px 16px; margin-top: -32px; } .card .who .av { width: 68px; height: 68px; font-size: 22px; border: 4px solid var(--surface-side); }
+.card h4 { font-size: 18px; margin-top: 6px; } .card .handle { color: var(--accent-text); font-weight: 700; font-size: 13px; }
+.card .bio { margin: 0 16px 14px; padding: 10px 12px; border-radius: 12px; background: var(--surface-chat); font-size: 13px; color: var(--text-secondary); }
+.card .playing { margin: 0 16px 16px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; } .card .playing i { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg,#4caf50,#2e7d32); display: block; }
+.save { position: absolute; left: 40px; right: 40px; bottom: 22px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: var(--surface-rail); border: 1px solid var(--border-strong); }
+.save span.t { flex: 1; font-size: 13px; color: var(--text-secondary); }
+
+.veil { position: fixed; inset: 0; background: #0e0a1acc; z-index: 5; }
+.crop { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 6; width: 620px; border-radius: 20px; background: var(--surface-chat); border: 1px solid var(--border-strong); box-shadow: 0 30px 80px #000c; padding: 22px; }
+.crop h2 { font-size: 18px; } .crop p.s { color: var(--text-muted); font-size: 13px; margin: 2px 0 16px; }
+.kinds { display: flex; gap: 6px; margin-bottom: 14px; } .kinds span { padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; border: 1px solid var(--border); color: var(--text-secondary); } .kinds span.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stagec { height: 330px; border-radius: 14px; position: relative; overflow: hidden; background: #000; }
+.stagec .img { position: absolute; inset: -60px -40px -20px -120px; background: radial-gradient(circle at 58% 40%, #ffd28a 0 8%, transparent 9%), radial-gradient(circle at 60% 52%, #f1b58a 0 16%, transparent 17%), linear-gradient(160deg, #2b5876 0%, #4e4376 45%, #b24592 100%); }
+.stagec .mask { position: absolute; inset: 0; box-shadow: inset 0 0 0 9999px transparent; background: linear-gradient(#000000b3,#000000b3) top/100% 95px no-repeat, linear-gradient(#000000b3,#000000b3) bottom/100% 95px no-repeat; }
+.stagec .ring { position: absolute; left: 0; right: 0; top: 95px; height: 140px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 0 0 1px #0006; }
+.stagec .hand { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 5px 12px; border-radius: 999px; background: #0b0816cc; font-size: 12px; color: var(--text-secondary); }
+.zoom { display: flex; align-items: center; gap: 12px; margin: 16px 4px; color: var(--text-muted); font-weight: 800; }
+.zoom .bar { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-side); position: relative; } .zoom .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 42%; border-radius: 999px; background: var(--accent); } .zoom .bar b { position: absolute; left: 42%; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); }
+.cacts { display: flex; gap: 8px; justify-content: flex-end; align-items: center; } .cacts .muted { margin-right: auto; font-size: 12px; }
+.minis { display: flex; gap: 14px; margin: 0 4px 16px; align-items: center; } .minis .lb { font-size: 11px; color: var(--text-muted); }
+.minis .c1x { width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 48% 38%, #ffd28a 0 14%, transparent 15%), radial-gradient(circle at 50% 60%, #f1b58a 0 30%, transparent 31%), linear-gradient(160deg,#4e4376,#b24592); }
+.minis .c2x { width: 32px; height: 32px; border-radius: 50%; background: inherit; } 
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+<symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol>
+<symbol id="i-mon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+<symbol id="i-off" viewBox="0 0 24 24"><path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.6A2 2 0 0 1 22 17v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.4 2.1L7.9 9.7"/><path d="M22 2 2 22"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 10.8V4h6v6.8l3 3.2H6z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 2.5a4 4 0 0 1 5.7 5.7L9.6 16.7a2 2 0 0 1-2.8-2.8l7.8-7.8"/></symbol>
+<symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+</svg>
+
+<nav>
+  <div class="brand" style="padding:0 6px 14px"><span class="mark"><svg class="ico"><use href="#i-home"/></svg></span><span>Loft<b>chat</b></span></div>
+  <span class="label">Você</span>
+  <span class="it on"><svg class="ico"><use href="#i-smile"/></svg>Perfil</span>
+  <span class="it"><svg class="ico"><use href="#i-users"/></svg>Conta e segurança</span>
+  <span class="it"><svg class="ico"><use href="#i-pin"/></svg>Privacidade</span>
+  <span class="label">App</span>
+  <span class="it"><svg class="ico"><use href="#i-mic"/></svg>Voz e áudio</span>
+  <span class="it"><svg class="ico"><use href="#i-mon"/></svg>Transmissão</span>
+  <span class="it"><svg class="ico"><use href="#i-bell"/></svg>Notificações</span>
+  <span class="it"><svg class="ico"><use href="#i-gear"/></svg>Aparência</span>
+  <span class="it"><svg class="ico"><use href="#i-max"/></svg>Atalhos de teclado</span>
+  <span class="label">Loftchat</span>
+  <span class="it"><svg class="ico"><use href="#i-chat"/></svg>Novidades e versão</span>
+  <span class="it sair"><svg class="ico"><use href="#i-off"/></svg>Sair da conta</span>
+</nav>
+<div class="content">
+  <span class="close">✕</span>
+  <div>
+    <h1>Perfil</h1><p class="sub">Como as pessoas te veem no Loftchat.</p>
+    <div class="field"><label>Foto</label><div class="photo"><span class="av c2">LE</span><span class="btn">Trocar foto</span><span class="btn ghost">Remover</span></div></div>
+    <div class="row2">
+      <div class="field"><label>Nome de exibição</label><div class="input">Lelokz</div><p class="hint">Aparece grande no seu cartão.</p></div>
+      <div class="field"><label>Nome de usuário</label><div class="input"><span class="muted">@</span>lelokz</div><p class="hint">É por ele que te adicionam. Você ainda pode trocar 3 vezes.</p></div>
+    </div>
+    <div class="field"><label>Bio</label><div class="input ta">editor de vídeo · canal Lelokz no YouTube 🎮</div><p class="hint">Até 160 caracteres.</p></div>
+    <div class="field"><label>Cor do cartão</label><div class="swatches"><i style="background:#7b3fe4"></i><i class="on" style="background:#c2467e"></i><i style="background:#2f8f7a"></i><i style="background:#3d6fd1"></i><i style="background:#b9772e"></i><i style="background:#e0e0e0"></i></div></div>
+    <div class="field"><label>Fonte do nome</label><div class="fonts"><span class="on">Nunito</span><span style="font-family:Georgia,serif">Clássica</span><span style="font-family:monospace">Pixelada</span><span style="font-weight:900;letter-spacing:.04em">FORTE</span></div></div>
+  </div>
+  <div class="preview"><span class="label">Prévia do seu cartão</span>
+    <div class="card"><div class="cover"></div>
+      <div class="who"><span class="av c2">LE<span class="on"></span></span><h4>Lelokz</h4><span class="handle">@lelokz</span></div>
+      <div class="bio">editor de vídeo · canal Lelokz no YouTube 🎮</div>
+      <div class="playing"><i></i><span><b>Jogando Minecraft</b><br><small class="muted">há 40 min</small></span></div>
+    </div>
+  </div>
+  <div class="save"><span class="t">Você tem alterações que não foram salvas.</span><span class="btn ghost">Desfazer</span><span class="btn">Salvar</span></div>
+</div>
+<div class="veil"></div>
+<div class="crop"><h2>Ajustar imagem</h2><p class="s">Arraste para mover. Use a rodinha do mouse, a barra ou dois dedos para aproximar.</p>
+<div class="kinds"><span>Foto</span><span class="on">Banner</span><span>Fundo do cartão</span></div>
+<div class="stagec"><div class="img"></div><div class="mask"></div><div class="ring"></div><span class="hand">✥ arraste para mover</span></div>
+<div class="zoom">–<div class="bar"><i></i><b></b></div>+</div>
+<div class="minis" style="display:none"><span class="c1x"></span><span class="lb">no cartão</span><span class="c1x" style="width:32px;height:32px"></span><span class="lb">nas mensagens</span><span class="c1x" style="width:22px;height:22px"></span><span class="lb">na chamada</span></div>
+<div class="cacts"><span class="muted">Sai como 960×280, uns 40 KB.</span><span class="btn ghost">Escolher outra</span><span class="btn ghost">Cancelar</span><span class="btn">Aplicar</span></div>
+</div></body></html>

@@ -1,0 +1,35 @@
+/* Base comum das propostas de layout (só desenho, não é o app). */
+@import url('../../src/styles/tokens.css');
+@import url('../../src/styles/fonts.css');
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--font-sans); font-size: var(--font-size-md); line-height: var(--line-height); color: var(--text-primary); background: var(--surface-chat); overflow: hidden; }
+.av { flex: none; display: grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 12px; color: #fff; width: 32px; height: 32px; position: relative; }
+.av.sm { width: 24px; height: 24px; font-size: 10px; }
+.av.lg { width: 40px; height: 40px; font-size: 14px; }
+.av.c1 { background: #7b3fe4; } .av.c2 { background: #c2467e; } .av.c3 { background: #2f8f7a; } .av.c4 { background: #b9772e; } .av.c5 { background: #3d6fd1; } .av.c6 { background: #5b4a8a; }
+.av .on { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #3ecf8e; border: 2px solid var(--surface-side); }
+.ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.muted { color: var(--text-muted); } .sec { color: var(--text-secondary); }
+.badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--danger); color: var(--danger-on); font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
+.brand .mark { width: 30px; height: 30px; border-radius: 10px; background: var(--accent-gradient); display: grid; place-items: center; }
+.brand .mark svg { width: 16px; height: 16px; stroke: #fff; }
+.brand b { color: var(--accent-text); font-weight: 800; }
+/* mensagens */
+.msgs { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 20px 28px; }
+.msg { display: flex; gap: 12px; align-items: flex-start; max-width: 760px; }
+.msg .who { font-weight: 700; font-size: 14px; } .msg .who small { font-weight: 500; color: var(--text-muted); font-size: 11px; margin-left: 6px; }
+.bubble { margin-top: 3px; padding: 9px 14px; border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg); background: var(--surface-bubble); box-shadow: var(--shadow-bubble); width: fit-content; }
+.msg.mine { margin-left: auto; flex-direction: row-reverse; } .msg.mine .bubble { background: var(--accent); color: #fff; border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg); margin-left: auto; } .msg.mine .meta { text-align: right; }
+.day { align-self: center; font-size: 11px; color: var(--text-muted); padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; }
+.composer { margin: 0 24px 20px; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised); color: var(--text-muted); }
+.composer .grow { flex: 1; }
+.send { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; } .send .ico { stroke: #fff; width: 16px; }
+.iconbtn { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--text-secondary); }
+.iconbtn:hover { background: var(--surface-hover); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.live { background: #f2557a22; color: var(--danger); } .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: inline-block; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.screen { background: linear-gradient(135deg, #1d3b2a, #0f2236 55%, #2a1440); border-radius: 12px; position: relative; overflow: hidden; }
+.screen::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 40%, #ffffff22, transparent 40%), repeating-linear-gradient(0deg, transparent 0 22px, #ffffff08 22px 23px); }

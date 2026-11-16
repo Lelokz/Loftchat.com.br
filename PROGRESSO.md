@@ -30,6 +30,59 @@ computador"), `productName` do app de computador (`desktop/package.json`) e o
 remetente do e-mail de confirmação. O site ganha rodapé com "todos os
 direitos reservados", termos de uso e privacidade (como o site da NOVA).
 
+**Layout escolhido (16/11/2026): proposta A, "abas em cima"** —
+`design/layouts/` (HTML + PNG de cada tela: proposta-a, a-privado, a-sala,
+a-perfil, a-configuracoes, a-ajustar-foto, a-ajustar-banner). Ranking do Leo:
+A > C > B (B "parece WhatsApp demais").
+
+**Princípio: muito personalizável, e de graça** (no Discord até o banner é
+pago). Pedidos já combinados:
+
+- Perfil com 3 imagens — foto (círculo), banner (faixa) e fundo do cartão —,
+  cada uma com AJUSTADOR (arrastar, zoom por barra/rodinha/dois dedos, no
+  formato final). Salva só o recorte reduzido, no Firestore (o Storage exige
+  o plano pago Blaze desde 2026). Bio, cor do cartão, fonte do nome.
+- Grupo: o dono escolhe a foto do grupo com o mesmo ajustador; nome do grupo
+  obrigatório. Cada membro pode dar um APELIDO pessoal ao grupo (só ele vê)
+  ou deixar sem nome (só o ícone).
+- Abas dos grupos, escolha de cada pessoa: todos com nome; só ícone (com
+  marcação no selecionado); ou só o selecionado com nome.
+
+**PLANO DA PROPOSTA A — APROVADO pelo Leo em 16/11/2026 ("ficou perfeito,
+pode seguir certinho").** Regra geral: tudo de graça e sem gambiarra;
+imagens recortadas e pequenas; contraste checado; preferências pessoais
+salvas na conta (valem no PC e no celular).
+
+1. Estrutura: barra de cima (marca, abas Privado + grupos com não lidas e
+   ponto ao vivo, "+", busca Ctrl+K, sino, cartão nome+@ com menu); esquerda
+   (canais com quem está na voz + "Em chamada"; no Privado: Amigos +
+   conversas); centro (chat, sala de voz com palco/fila/controles, Amigos);
+   direita recolhível (grupo: Agora/Membros/Fixadas; sala: Chat da
+   sala/Membros/Fixadas; privado: perfil + fixadas). Celular: abas em faixa,
+   esquerda vira gaveta, direita sobe de baixo.
+2. Perfil: 3 imagens com ajustador, nome, @, bio, cor do cartão, fonte do
+   nome, cor do nome nas mensagens, status com emoji e prazo, links,
+   atividade "jogando" (programa) com opção de esconder.
+3. Grupos — dono: foto e banner com ajustador, nome obrigatório, descrição,
+   cor do grupo, canais com emoji, ordem arrastando, categorias próprias,
+   boas-vindas. Membro: apelido do grupo ou "sem nome", notificações por
+   grupo/canal.
+4. Abas: 3 modos (todos com nome / só ícones / só o aberto com nome), ordem
+   arrastando, pastas de grupos.
+5. Aparência pessoal: temas prontos ou cor de destaque livre, fundo do chat
+   com imagem (ajustador + escurecimento; geral ou por canal), mensagens em
+   balão ou lista, lado das minhas, compacto/confortável, tamanho do texto,
+   fonte do app, o que aparece no painel da direita.
+6. Pessoas: apelido pessoal por pessoa, volume por pessoa na chamada.
+7. Sons (notificação, entrar/sair da chamada, mudo) e atalhos editáveis.
+8. Sala de voz: palco grande + fila ou grade; chat da sala liga/desliga.
+9. Configurações em tela inteira: Perfil, Conta e segurança, Privacidade,
+   Voz e áudio, Transmissão, Notificações, Aparência, Atalhos, Novidades.
+
+Ordem de construção: (1) estrutura da A com o que existe + marca Loftchat;
+(2) configurações e perfil; (3) grupos; (4) aparência pessoal; (5) extras
+(busca, notificações por grupo, atividade, volume por pessoa, atalhos).
+
 Fases, nesta ordem:
 
 1. **Tela com áudio**: seletor próprio (etapa 2), áudio no Linux (etapa 3) e
@@ -40,6 +93,21 @@ Fases, nesta ordem:
 4. **Repaginar o layout**: 2–3 propostas em imagem, diferentes do Discord.
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
+
+## Publicação de 16/11/2026 (madrugada)
+
+- `firebase deploy --only firestore:rules` e `npm run deploy` — conferido no
+  ar: o site tem "Repetir senha"; `get` de um `@` sem login dá 404 (liberado,
+  não existe) e `list` sem login dá 403 (bloqueado).
+- A pedido do Leo, TODAS as 11 contas apagadas (`limpar-projeto-real.mjs
+  --manter=ninguem@exemplo.invalid --apagar`), com 160 documentos (7 grupos,
+  54 mensagens, 32 mensagens privadas…). Não havia conta automática: a
+  "Índices" do `check:indexes` já tinha sumido antes. Conferido depois: 0
+  contas, 0 documentos, 0 órfãos. Todo mundo recria a conta pelo cadastro
+  novo.
+- Falta: e-mail de confirmação saindo de `noreply@loftchat.com.br` (console
+  do Firebase → Templates → domínio próprio + registros no Registro.br,
+  feito pelo Leo comigo), remetente "Loftchat" e texto em português.
 
 ## Correção urgente — o `@` some depois do cadastro (15/11/2026)
 
