@@ -37,6 +37,11 @@ import {
   takePendingInvite,
 } from './lib/router';
 import type { Route } from './lib/router';
+import { applyAppearance, DEFAULT_APPEARANCE, previewAppearance, rememberedAppearance, setAccountAppearance } from './lib/appearance';
+
+// A aparência guardada no aparelho entra ANTES de qualquer tela: abrir o app
+// no tema Claro não pode piscar o roxo-noite (etapa 5).
+applyAppearance(rememberedAppearance());
 
 /**
  * Portão de sessão e roteador.
@@ -130,6 +135,9 @@ function showScreen(view: HTMLElement): void {
 }
 
 function handleSignOut(): void {
+  // Saiu da conta: a aparência dela não fica para quem entrar depois.
+  previewAppearance(null);
+  setAccountAppearance(DEFAULT_APPEARANCE);
   void signOut(auth);
 }
 

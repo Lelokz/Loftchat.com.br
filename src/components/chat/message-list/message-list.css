@@ -163,7 +163,7 @@
 }
 
 .message__text {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-msg);
   overflow-wrap: anywhere;
 }
 
@@ -392,6 +392,7 @@
   background-color: var(--surface-raised);
   color: var(--text-primary);
   font: inherit;
+  font-size: var(--font-size-msg);
   resize: vertical;
 }
 

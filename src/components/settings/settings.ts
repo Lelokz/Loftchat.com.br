@@ -5,8 +5,10 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, peopleIcon, shieldIcon } from '../../lib/icons';
-import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
+import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveAppearance, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
+import { accountAppearance, previewAppearance, sameAppearance, setAccountAppearance } from '../../lib/appearance';
+import { renderAppearanceSection } from './appearance-section';
 import type { GroupFolder, TabMode } from '../../lib/private-prefs';
 import { enableDragSort } from '../../lib/drag-sort';
 import { grupoAvatar } from '../group-bar/group-bar';
@@ -73,7 +75,7 @@ export interface SettingsOptions {
   section?: Secao;
 }
 
-export type Secao = 'perfil' | 'conta' | 'grupos';
+export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -171,7 +173,7 @@ let aberta: HTMLDialogElement | null = null;
  * estava. Esc fecha.
  *
  * Seções que ainda não existem NÃO aparecem no menu: cada uma entra quando
- * fizer alguma coisa de verdade (Voz e áudio, Aparência, Atalhos... nas
+ * fizer alguma coisa de verdade (Voz e áudio, Atalhos... nas
  * próximas etapas). Nada de botão que não faz nada.
  *
  * Fechar com alteração não salva NÃO abre pergunta: a barra de salvar pisca
@@ -199,6 +201,10 @@ export function openSettings(options: SettingsOptions): void {
   const limparPasta = (p: GroupFolder): unknown => [p.id, p.name.trim(), p.color, [...p.groupIds].sort()];
   const pastasMudaram = (): boolean =>
     JSON.stringify(pastasAtual.map(limparPasta)) !== JSON.stringify(pastasSalvas.map(limparPasta));
+  /* Aparência (etapa 5): `aparenciaAtual` está em PRÉVIA no app inteiro até salvar ou desfazer. */
+  let aparenciaSalva = accountAppearance();
+  let aparenciaAtual = { ...aparenciaSalva };
+  const aparenciaMudou = (): boolean => !sameAppearance(aparenciaAtual, aparenciaSalva);
 
   const dialog = el('dialog', { class: 'settings', 'aria-label': 'Configurações' });
   aberta = dialog;
@@ -240,6 +246,7 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('perfil', 'Perfil', faceIcon(18)),
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
+    itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
     sair,
   ]);
@@ -278,6 +285,8 @@ export function openSettings(options: SettingsOptions): void {
     modoAtual = modoSalvo;
     ordemAtual = [...ordemSalva];
     pastasAtual = copiaPastas(pastasSalvas);
+    aparenciaAtual = { ...aparenciaSalva };
+    previewAppearance(null);
     mostrar(secaoAtual);
   });
   salvar.addEventListener('click', () => void salvarPerfil());
@@ -297,7 +306,8 @@ export function openSettings(options: SettingsOptions): void {
   let erroGeral: HTMLElement | null = null;
 
   function atualizarBarra(): void {
-    const sujo = (carregado && !iguais(atual, salvo)) || rotulosMudaram() || abasMudaram() || pastasMudaram();
+    const sujo =
+      (carregado && !iguais(atual, salvo)) || rotulosMudaram() || abasMudaram() || pastasMudaram() || aparenciaMudou();
     barra.hidden = !sujo;
     salvar.disabled = salvando || erroDoArroba !== null;
     desfazer.disabled = salvando;
@@ -744,6 +754,13 @@ export function openSettings(options: SettingsOptions): void {
         await saveFolders(user.uid, pastasAtual);
         pastasSalvas = copiaPastas(pastasAtual);
       }
+      if (aparenciaMudou()) {
+        await saveAppearance(user.uid, aparenciaAtual);
+        aparenciaSalva = { ...aparenciaAtual };
+        // Já vale como a da conta (o banco confirma ao vivo logo depois).
+        setAccountAppearance(aparenciaSalva);
+        previewAppearance(null);
+      }
       if (!perfilMudou) {
         showToast('Salvo.');
         salvando = false;
@@ -869,6 +886,17 @@ export function openSettings(options: SettingsOptions): void {
       desenharPrevia();
     } else if (secao === 'grupos') {
       conteudo.replaceChildren(...secaoGrupos());
+    } else if (secao === 'aparencia') {
+      erroGeral = el('p', { class: 'settings__error', role: 'alert' });
+      erroGeral.hidden = true;
+      conteudo.replaceChildren(
+        ...renderAppearanceSection(aparenciaAtual, () => {
+          // Igual à salva: desliga a prévia (o app volta a seguir a conta).
+          previewAppearance(aparenciaMudou() ? { ...aparenciaAtual } : null);
+          atualizarBarra();
+        }),
+        erroGeral,
+      );
     } else {
       conteudo.replaceChildren(...secaoConta());
     }
@@ -1144,6 +1172,8 @@ export function openSettings(options: SettingsOptions): void {
 
   dialog.addEventListener('close', () => {
     document.removeEventListener('keydown', onKey);
+    // Saiu sem salvar (sair da conta fecha à força): a prévia não fica.
+    previewAppearance(null);
     dialog.remove();
     aberta = null;
   });

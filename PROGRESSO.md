@@ -94,6 +94,40 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 5a — aparência: tema, cor de destaque, fonte e tamanho do texto (16/11/2026)
+
+A etapa 5 (aparência pessoal) foi dividida em **5a** (cores e letras),
+**5b** (mensagens: balão/lista, lado das minhas, compacto/confortável),
+**5c** (fundo do chat com imagem) e **5d** (o que aparece no painel da
+direita). A 5a é Configurações → **Aparência**, guardada em
+`userPrivate/{uid}.appearance` (ao vivo entre aparelhos, como as abas).
+
+- **5 temas**: Noite (o de sempre), Breu (quase preto), Oceano, Floresta e
+  Claro. São só blocos `:root[data-tema=...]` em tokens.css que trocam as
+  cores — o resto do CSS já usava só tokens, então nada mais mudou. Todo
+  texto mede >= 4.5:1 em todas as superfícies de cada tema (o Claro também
+  escurece os nomes coloridos e o vermelho de perigo, e a tarja atrás do
+  vídeo continua escura). Cada cartão de tema tem uma miniatura nas cores
+  DELE: os mesmos seletores também valem para `.tema-amostra[data-tema=...]`.
+- **Cor de destaque**: a do tema, 6 prontas ou **livre** (seletor de cor do
+  sistema). A livre só entra como `#rrggbb`, e `lib/appearance.ts` calcula as
+  variantes com contraste garantido: o texto por cima vira branco ou escuro (o
+  que ler melhor), o hover anda para o lado que aumenta o contraste, e o
+  "texto em destaque" é clareado (ou escurecido, no Claro) até ler bem sobre
+  o fundo do chat.
+- **Fonte do app**: Nunito (padrão), Leitura fácil (Atkinson Hyperlegible
+  Next, embutida, OFL — feita para baixa visão), Do sistema e Clássica (Lora).
+  O nome no cartão continua na fonte que a PESSOA escolheu: a Nunito ganhou
+  um token próprio (`--font-nunito`).
+- **Tamanho do texto das mensagens**: 12 a 20 px (`--font-size-msg`).
+- **Prévia na hora no app inteiro**, sem salvar; Desfazer volta; fechar sem
+  salvar não deixa (a barra pisca, como no resto). Se a da conta mudar em
+  outro aparelho no meio, a prévia continua até salvar ou desfazer.
+- Uma cópia fica no aparelho (localStorage) só para o app já abrir no tema
+  certo, sem piscar o roxo. Sair da conta volta ao padrão.
+- Testes: `tests/aparencia.spec.ts` (prévia, desfazer, salvar, ao vivo no
+  "celular", cor livre amarela com texto escuro, recarregar, sair da conta).
+
 ## Proposta A, etapa 4 — abas: 3 jeitos, ordem arrastando e pastas (16/11/2026)
 
 Dividida em **4a** (jeitos e ordem) e **4b** (pastas). Tudo é preferência

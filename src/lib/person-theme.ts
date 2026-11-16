@@ -42,10 +42,10 @@ interface NameFont {
 }
 
 export const NAME_FONTS: Record<NameFontId, NameFont> = {
-  nunito: { label: 'Nunito', family: 'var(--font-sans)', weight: 700, upper: false },
+  nunito: { label: 'Nunito', family: 'var(--font-nunito)', weight: 700, upper: false },
   classica: { label: 'Clássica', family: "'Lora', Georgia, serif", weight: 600, upper: false },
   pixelada: { label: 'Pixelada', family: "'Silkscreen', monospace", weight: 400, upper: false },
-  forte: { label: 'Forte', family: 'var(--font-sans)', weight: 900, upper: true },
+  forte: { label: 'Forte', family: 'var(--font-nunito)', weight: 900, upper: true },
 };
 
 export function cardColorId(value: unknown): CardColorId {

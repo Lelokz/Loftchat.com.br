@@ -14,7 +14,8 @@
  * contraste medido (texto >= 4.5:1). Ver PROGRESSO.md, etapa 20.
  */
 
-:root {
+:root,
+.tema-amostra[data-tema='noite'] {
   color-scheme: dark; /* barras de rolagem e controles nativos no escuro */
 
   /* --- superfícies, da mais recuada para a mais à frente ------------------ */
@@ -120,12 +121,161 @@
   --avatar-xl: 64px;
 
   /* --- tipografia (Nunito embutida — ver fonts.css; o resto é reserva) ----- */
-  --font-sans:
+  --font-nunito:
     'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* A fonte do app: a pessoa pode trocar em Configurações → Aparência
+     (lib/appearance.ts sobrescreve esta variável no <html>). */
+  --font-sans: var(--font-nunito);
   --font-size-xs: 11px;
   --font-size-sm: 12.5px;
   --font-size-md: 14px;
   --font-size-lg: 15px;
   --font-size-xl: 22px; /* inicial grande no bloco de participante */
   --line-height: 1.5;
+  /* Texto das mensagens — "Tamanho do texto" da Aparência (etapa 5). */
+  --font-size-msg: 14px;
+}
+
+/*
+ * TEMAS DA PESSOA (proposta A, etapa 5) — Configurações → Aparência.
+ *
+ * O tema "Noite" é o :root lá de cima; os outros só trocam o que muda. Quem
+ * põe o atributo no <html> é lib/appearance.ts. Contraste medido como no
+ * Noite: todo texto (principal, secundário e apagado) >= 4.5:1 sobre trilho,
+ * coluna, chat, balão, hover e selecionado; texto em destaque >= 4.5:1 sobre
+ * chat, coluna e balão; texto sobre o botão >= 4.5:1.
+ *
+ * `.tema-amostra[data-tema=...]` usa as mesmas regras: é a miniatura de cada
+ * tema em Configurações → Aparência, que mostra AS CORES DELE mesmo com outro
+ * tema ligado — sem repetir cor nenhuma fora daqui.
+ */
+
+/* Breu: quase preto — tela OLED, quarto escuro. */
+:root[data-tema='breu'],
+.tema-amostra[data-tema='breu'] {
+  --surface-rail: #000000;
+  --surface-side: #0d0b13;
+  --surface-chat: #07060b;
+  --surface-raised: #0d0b13;
+  --surface-bubble: #18151f;
+  --surface-sunken: #000000;
+  --video-letterbox: #000000;
+  --surface-hover: #1a1722;
+  --border: #1f1b2b;
+  --border-strong: #34304a;
+  --text-primary: #eceaf3; /* 18.0:1 sobre o chat */
+  --text-secondary: #a6a1b8;
+  --text-muted: #9893ab; /* 6.09:1 sobre o balão */
+  /* O destaque é o roxo do Noite — repetido aqui para a miniatura do tema
+     não herdar a cor livre que estiver ligada no <html>. */
+  --accent: #7b3fe4;
+  --accent-hover: #6a30cc;
+  --accent-on: #ffffff;
+  --accent-text: #a98bf5;
+  --accent-gradient: linear-gradient(180deg, #9361f0, #7b3fe4);
+  --accent-soft: #221c36;
+  --danger-on: #07060b;
+  --card-veu-claro: #07060b99;
+  --card-veu-escuro: #07060bdd;
+  --backdrop: #000000aa;
+}
+
+/* Oceano: azul-noite. */
+:root[data-tema='oceano'],
+.tema-amostra[data-tema='oceano'] {
+  --surface-rail: #07111b;
+  --surface-side: #0f1e2d;
+  --surface-chat: #0b1825;
+  --surface-raised: #0f1e2d;
+  --surface-bubble: #162a3e;
+  --surface-sunken: #06101a;
+  --video-letterbox: #06101a;
+  --surface-hover: #16293b;
+  --border: #1c3247;
+  --border-strong: #2b4965;
+  --text-primary: #e2efff;
+  --text-secondary: #8fb1cf;
+  --text-muted: #82a3c1; /* 5.55:1 sobre o balão */
+  --accent: #2f6fd8;
+  --accent-hover: #255cb8;
+  --accent-on: #ffffff;
+  --accent-soft: #1a3352;
+  --accent-text: #7fb2ff;
+  --accent-gradient: linear-gradient(180deg, #4f8ae6, #2f6fd8);
+  --danger-on: #0b1825;
+  --card-veu-claro: #0b182599;
+  --card-veu-escuro: #0b1825dd;
+  --backdrop: #07111b99;
+}
+
+/* Floresta: verde-noite. */
+:root[data-tema='floresta'],
+.tema-amostra[data-tema='floresta'] {
+  --surface-rail: #07120e;
+  --surface-side: #10211b;
+  --surface-chat: #0c1a15;
+  --surface-raised: #10211b;
+  --surface-bubble: #172e25;
+  --surface-sunken: #050f0b;
+  --video-letterbox: #050f0b;
+  --surface-hover: #173027;
+  --border: #1d382d;
+  --border-strong: #2c5243;
+  --text-primary: #e1f5eb;
+  --text-secondary: #8fc0aa;
+  --text-muted: #82b29c; /* 6.05:1 sobre o balão */
+  --accent: #1a8562;
+  --accent-hover: #146d50;
+  --accent-on: #ffffff;
+  --accent-soft: #1a3a30;
+  --accent-text: #6dd6ad;
+  --accent-gradient: linear-gradient(180deg, #2fa37c, #1a8562);
+  --danger-on: #0c1a15;
+  --card-veu-claro: #0c1a1599;
+  --card-veu-escuro: #0c1a15dd;
+  --backdrop: #07120e99;
+}
+
+/*
+ * Claro: lilás bem clarinho. Aqui MUDA MAIS: os nomes coloridos e o perigo
+ * escurecem (os do escuro somem no branco), as sombras ficam leves e o véu
+ * do cartão vira claro. A tarja atrás do vídeo continua escura — vídeo fica
+ * melhor no escuro em qualquer tema.
+ */
+:root[data-tema='claro'],
+.tema-amostra[data-tema='claro'] {
+  color-scheme: light;
+  --surface-rail: #e6e1f2;
+  --surface-side: #f2eff9;
+  --surface-chat: #fbfaff;
+  --surface-raised: #f2eff9;
+  --surface-bubble: #ebe6f6;
+  --surface-sunken: #ddd6ec;
+  --surface-hover: #e4ddf3;
+  --border: #ddd5ee;
+  --border-strong: #bdb1dc;
+  --text-primary: #1c1530; /* 17.3:1 sobre o chat */
+  --text-secondary: #4c4170;
+  --text-muted: #5a4f80; /* 6.00:1 sobre o balão */
+  --accent: #6b32d6;
+  --accent-hover: #5a27bd;
+  --accent-on: #ffffff;
+  --accent-soft: #e2d7fa;
+  --accent-text: #5b27bf;
+  --accent-gradient: linear-gradient(180deg, #8655e6, #6b32d6);
+  --nome-roxo: #6a3cc9;
+  --nome-rosa: #ad2a68;
+  --nome-vermelho: #bb2f36;
+  --nome-laranja: #9a5410;
+  --nome-amarelo: #7e6400;
+  --nome-verde: #11704f;
+  --nome-azul: #2553ad;
+  --danger: #c4234b;
+  --danger-hover: #a91d40;
+  --danger-on: #ffffff;
+  --shadow-bubble: 0px 1px 2px #1c15301f;
+  --shadow-float: 0 8px 24px #1c153033;
+  --card-veu-claro: #fbfaff99;
+  --card-veu-escuro: #fbfaffdd;
+  --backdrop: #1c153066;
 }

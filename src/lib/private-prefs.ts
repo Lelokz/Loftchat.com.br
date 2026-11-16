@@ -1,5 +1,7 @@
 import { deleteField, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
+import { accountAppearance, DEFAULT_APPEARANCE, parseAppearance } from './appearance';
+import type { Appearance } from './appearance';
 import { db } from './firebase';
 
 /**
@@ -17,7 +19,9 @@ import { db } from './firebase';
  *  - `groupFolders` — pastas de grupos (etapa 4b): nome, cor e quais grupos.
  *    A ORDEM dos grupos dentro da pasta é a de `groupOrder`, e a pasta fica
  *    na barra no lugar do primeiro grupo dela — uma ordem só, sem duas
- *    listas para desencontrar.
+ *    listas para desencontrar;
+ *  - `appearance` — a aparência pessoal (etapa 5): tema, cor de destaque,
+ *    fonte do app, tamanho do texto (lib/appearance.ts).
  */
 
 export const MAX_FOLDERS = 20;
@@ -42,6 +46,7 @@ export interface PrivatePrefs {
   tabMode: TabMode;
   groupOrder: string[];
   groupFolders: GroupFolder[];
+  appearance: Appearance;
 }
 
 export const EMPTY_PREFS: PrivatePrefs = {
@@ -50,6 +55,7 @@ export const EMPTY_PREFS: PrivatePrefs = {
   tabMode: 'nomes',
   groupOrder: [],
   groupFolders: [],
+  appearance: DEFAULT_APPEARANCE,
 };
 
 /** Lê as pastas com cuidado: um grupo só pode estar numa pasta. */
@@ -131,10 +137,12 @@ export function watchPrivatePrefs(uid: string, onPrefs: (prefs: PrivatePrefs) =>
       const ordem = snap.exists() ? snap.get('groupOrder') : undefined;
       const groupOrder = Array.isArray(ordem) ? ordem.filter((id): id is string => typeof id === 'string').slice(0, 500) : [];
       const groupFolders = parseFolders(snap.exists() ? snap.get('groupFolders') : undefined);
-      onPrefs({ welcomeSeen, groupLabels, tabMode, groupOrder, groupFolders });
+      const appearance = parseAppearance(snap.exists() ? snap.get('appearance') : undefined);
+      onPrefs({ welcomeSeen, groupLabels, tabMode, groupOrder, groupFolders, appearance });
     },
-    // Sem rede ou sem permissão: segue com tudo vazio (nada quebra).
-    () => onPrefs({ ...EMPTY_PREFS, welcomeSeen: new Set(), groupLabels: new Map(), groupFolders: [] }),
+    // Sem rede ou sem permissão: segue com tudo vazio (nada quebra) — menos a
+    // aparência, que fica a que já estava (a guardada no aparelho).
+    () => onPrefs({ ...EMPTY_PREFS, welcomeSeen: new Set(), groupLabels: new Map(), groupFolders: [], appearance: accountAppearance() }),
   );
 }
 
@@ -169,4 +177,9 @@ export function sortGroups<T extends { id: string }>(groups: T[], order: string[
     .map((g, i) => ({ g, k: pos.get(g.id) ?? order.length + i }))
     .sort((a, b) => a.k - b.k)
     .map(({ g }) => g);
+}
+
+/** Grava a aparência pessoal inteira (etapa 5). */
+export async function saveAppearance(uid: string, a: Appearance): Promise<void> {
+  await setDoc(doc(db, 'userPrivate', uid), { appearance: { ...a } }, { merge: true });
 }

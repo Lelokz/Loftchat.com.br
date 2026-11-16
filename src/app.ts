@@ -28,6 +28,7 @@ import { renderGroupCard } from './components/group-settings/group-card';
 import { watchGroupBanner } from './lib/group-profile';
 import { markWelcomeSeen } from './lib/welcome';
 import { saveTabPrefs, sortGroups, watchPrivatePrefs } from './lib/private-prefs';
+import { setAccountAppearance } from './lib/appearance';
 import type { GroupFolder, TabMode } from './lib/private-prefs';
 import { renderWelcomeCard } from './components/welcome-card/welcome-card';
 import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
@@ -1514,6 +1515,7 @@ export function mountApp(
     jeitoDasAbas = prefs.tabMode;
     ordemDosGrupos = prefs.groupOrder;
     pastas = prefs.groupFolders;
+    setAccountAppearance(prefs.appearance);
     if (barraMudou && groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
     render(store.getState());
   });

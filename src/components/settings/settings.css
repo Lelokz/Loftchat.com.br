@@ -922,3 +922,193 @@
 .settings-grupos__pasta[hidden] {
   display: none;
 }
+
+/* --- Aparência (proposta A, etapa 5) ------------------------------------- */
+
+.aparencia-temas {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3);
+  max-width: 720px;
+}
+
+/* No celular, 3 por linha (a 4ª e a 5ª descem). */
+@media (max-width: 768px) {
+  .aparencia-temas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.aparencia-temas__opcao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aparencia-temas__opcao:hover {
+  border-color: var(--border-strong);
+}
+
+.aparencia-temas__opcao[aria-checked='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.aparencia-temas__opcao:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.aparencia-temas__nome {
+  padding: 0 var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+/* A miniatura: trilho, coluna e chat com dois balões — nas cores DO tema. */
+.aparencia-temas__mini {
+  display: grid;
+  grid-template-columns: 10px 30px 1fr;
+  height: 64px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-chat);
+}
+
+.aparencia-temas__trilho {
+  background-color: var(--surface-rail);
+}
+
+.aparencia-temas__coluna {
+  padding: 8px 4px;
+  background-color: var(--surface-side);
+}
+
+.aparencia-temas__item {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-soft);
+}
+
+.aparencia-temas__chat {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 8px;
+}
+
+.aparencia-temas__balao {
+  width: 70%;
+  height: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--surface-bubble);
+}
+
+.aparencia-temas__balao--meu {
+  align-self: flex-end;
+  width: 55%;
+  border-color: var(--accent);
+  background-color: var(--accent);
+}
+
+/* Cor de destaque: "do tema" é meia bolinha listrada; a livre, um arco-íris. */
+.aparencia-cores {
+  align-items: center;
+}
+
+.aparencia-cores__tema {
+  --swatch: var(--accent);
+  position: relative;
+  overflow: hidden;
+}
+
+.aparencia-cores__tema::after {
+  content: 'T';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent-on);
+  font-size: var(--font-size-sm);
+  font-weight: 900;
+}
+
+.aparencia-cores__livre {
+  --swatch: conic-gradient(var(--nome-vermelho), var(--nome-amarelo), var(--nome-verde), var(--nome-azul), var(--nome-roxo), var(--nome-rosa), var(--nome-vermelho));
+  position: relative;
+  background: var(--swatch);
+}
+
+.aparencia-cores__livre:focus-within {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 6px;
+}
+
+/* O seletor do sistema fica invisível POR CIMA da bolinha: clicar nela abre. */
+.aparencia-cores__entrada {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Tamanho do texto */
+.aparencia-tamanho {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 460px;
+}
+
+.aparencia-tamanho__regua {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.aparencia-tamanho__a {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.aparencia-tamanho__a--p {
+  font-size: var(--font-size-xs);
+}
+
+.aparencia-tamanho__a--g {
+  font-size: 20px;
+}
+
+.aparencia-tamanho__valor {
+  min-width: 7.5em;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Prévia: um pedacinho de chat de verdade. */
+.aparencia-previa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-chat);
+}
+
+.aparencia-previa .message + .message--start {
+  margin-top: 0;
+}
