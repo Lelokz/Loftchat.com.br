@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loftchat — seus grupos, sua tela, do seu jeito</title>
+<meta name="description" content="Loftchat: chat, voz e transmissão de tela com som para você e seus amigos. Grátis, sem anúncios e personalizável de verdade.">
+<style>
+  @font-face { font-family: "Nunito"; src: url("fontes/nunito-latin-wght-normal.woff2") format("woff2"); font-weight: 200 1000; font-display: swap; }
+
+  /* Paleta do Loftchat ("Noite no sótão", a mesma do app). */
+  :root {
+    --fundo: #0b0816;
+    --fundo-2: #140f26;
+    --vidro: rgba(26, 19, 48, 0.78);
+    --traco: rgba(169, 139, 245, 0.14);
+    --traco-forte: rgba(169, 139, 245, 0.3);
+    --texto: #e9e3ff;
+    --texto-medio: #b7acdf;
+    --texto-fraco: #8e81c1;
+    --cor: #9361f0;
+    --cor-texto: #a98bf5;
+    --cor-rgb: 147, 97, 240;
+    --rosa: #f2557a;
+    --verde: #3ecf8e;
+    --mono: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--fundo); color: var(--texto); font-family: "Nunito", system-ui, sans-serif; line-height: 1.55; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  .largura { max-width: 1280px; margin: 0 auto; padding: 0 clamp(20px, 3.5vw, 56px); position: relative; }
+  .rotulo { display: inline-flex; align-items: center; gap: 10px; font: 700 12px var(--mono); letter-spacing: .22em; color: var(--cor-texto); }
+  .rotulo::before { content: ""; width: 26px; height: 1px; background: currentColor; box-shadow: 0 0 8px currentColor; }
+  .vidro { background: var(--vidro); border: 1px solid var(--traco); backdrop-filter: blur(12px); }
+
+  /* -- marca ------------------------------------------------------------- */
+  .marca { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 19px; letter-spacing: -0.01em; }
+  .marca i { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(180deg, #9361f0, #7b3fe4); display: grid; place-items: center; box-shadow: 0 6px 20px rgba(var(--cor-rgb), .45); }
+  .marca i svg { width: 17px; height: 17px; }
+  .marca b { color: var(--cor-texto); font-weight: 900; }
+
+  /* -- topo -------------------------------------------------------------- */
+  .topo { position: sticky; top: 0; z-index: 20; background: rgba(11, 8, 22, .86); backdrop-filter: blur(12px); border-bottom: 1px solid var(--traco); }
+  .topo .largura { display: flex; align-items: center; height: 68px; gap: 36px; }
+  .menu { display: flex; gap: 28px; font-size: 15px; font-weight: 600; color: var(--texto-medio); }
+  .menu a { position: relative; padding: 4px 0; }
+  .menu a::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -2px; height: 2px; border-radius: 2px; background: var(--cor); box-shadow: 0 0 8px var(--cor); transition: right .3s; }
+  .menu a:hover { color: var(--texto); } .menu a:hover::after { right: 0; }
+  .topo .acoes { margin-left: auto; display: flex; gap: 10px; }
+
+  .botao { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 50px; padding: 0 26px; border-radius: 14px; white-space: nowrap; font: 800 15.5px "Nunito", sans-serif; border: 1px solid transparent; cursor: pointer; transition: transform .15s, box-shadow .25s, background .25s; }
+  .botao svg { width: 19px; height: 19px; }
+  .botao.cheio { background: linear-gradient(180deg, rgba(255,255,255,.2), transparent 60%), #7b3fe4; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 10px 34px rgba(var(--cor-rgb), .45); }
+  .botao.cheio:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255,255,255,.22) inset, 0 14px 46px rgba(var(--cor-rgb), .65); }
+  .botao.vazio { background: rgba(var(--cor-rgb), .07); color: var(--texto); border-color: rgba(var(--cor-rgb), .38); }
+  .botao.vazio:hover { background: rgba(var(--cor-rgb), .14); box-shadow: 0 0 24px rgba(var(--cor-rgb), .22); }
+  .botao.pequeno { height: 40px; padding: 0 17px; font-size: 14px; border-radius: 11px; }
+
+  /* -- abertura ---------------------------------------------------------- */
+  .abertura { position: relative; padding: clamp(56px, 7vw, 100px) 0 0; text-align: center; overflow: hidden; }
+  .abertura::before { content: ""; position: absolute; left: 50%; top: -20%; width: 1200px; height: 900px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(var(--cor-rgb), .28), transparent 70%); pointer-events: none; }
+  .verbete { position: relative; display: inline-flex; align-items: baseline; gap: 12px; padding: 9px 16px; border-radius: 10px; font: 13px var(--mono); color: var(--texto-fraco); }
+  .verbete b { color: var(--texto); letter-spacing: .12em; } .verbete em { color: var(--cor-texto); font-style: normal; }
+  h1 { position: relative; font-size: clamp(42px, 5.2vw, 78px); line-height: 1.02; letter-spacing: -0.045em; font-weight: 950; margin: 20px 0 16px; }
+  h1 .brilho { position: relative; display: inline-block; color: var(--cor-texto); text-shadow: 0 0 40px rgba(var(--cor-rgb), .55); }
+  h1 .brilho::after { content: attr(data-texto); position: absolute; inset: 0; color: transparent; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,.95) 50%, transparent 65%); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; animation: varre 4.5s ease-in-out infinite; }
+  @keyframes varre { from { background-position: 150% 0; } to { background-position: -150% 0; } }
+  .sub { position: relative; font-size: clamp(18px, 1.3vw, 22px); color: var(--texto-medio); max-width: 36em; margin: 0 auto; text-wrap: balance; }
+  .sub b { color: var(--texto); }
+  .botoes { position: relative; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
+  .nota { position: relative; margin-top: 16px; font: 12.5px var(--mono); color: var(--texto-fraco); }
+
+  /* O próprio app, numa moldura, com cartões flutuando em volta. */
+  .vitrine { position: relative; margin: 56px auto 0; max-width: 1120px; perspective: 1800px; }
+  .vitrine .janela { border-radius: 18px 18px 0 0; overflow: hidden; border: 1px solid var(--traco-forte); border-bottom: 0; box-shadow: 0 -10px 80px rgba(var(--cor-rgb), .25), 0 40px 120px rgba(0,0,0,.6); transform: rotateX(8deg); transform-origin: bottom; background: var(--fundo-2); }
+  .vitrine .barra-j { height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 14px; background: #0e0a1a; border-bottom: 1px solid var(--traco); }
+  .vitrine .barra-j i { width: 11px; height: 11px; border-radius: 50%; background: #3d2f70; }
+  .vitrine .barra-j span { margin-left: 10px; font: 12px var(--mono); color: var(--texto-fraco); }
+  .vitrine img { display: block; width: 100%; }
+  .vitrine::after { content: ""; position: absolute; left: -10%; right: -10%; bottom: 0; height: 40%; background: linear-gradient(transparent, var(--fundo)); pointer-events: none; }
+  .flutua { position: absolute; z-index: 2; border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; text-align: left; font-size: 13.5px; box-shadow: 0 20px 50px rgba(0,0,0,.5); animation: boia 6s ease-in-out infinite; }
+  .flutua b { display: block; font-size: 14px; } .flutua small { color: var(--texto-fraco); font-size: 12px; }
+  .flutua .av { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; flex: none; }
+  .f1 { left: -40px; top: 120px; } .f2 { right: -50px; top: 70px; animation-delay: -2s; } .f3 { right: -20px; top: 330px; animation-delay: -4s; }
+  @keyframes boia { 50% { transform: translateY(-10px); } }
+  .ao-vivo { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: rgba(242,85,122,.15); color: var(--rosa); font: 800 11px "Nunito"; letter-spacing: .04em; }
+  .ao-vivo::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--rosa); box-shadow: 0 0 8px var(--rosa); animation: pisca 1.4s infinite; }
+  @keyframes pisca { 50% { opacity: .3; } }
+
+  /* -- seções ------------------------------------------------------------ */
+  section { padding: clamp(70px, 7vw, 120px) 0; position: relative; }
+  h2 { font-size: clamp(34px, 3.8vw, 60px); line-height: 1.04; letter-spacing: -0.04em; font-weight: 900; margin: 16px 0; }
+  h2 .cor { color: var(--cor-texto); text-shadow: 0 0 30px rgba(var(--cor-rgb), .45); }
+  .cabeca { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(30px, 5vw, 90px); align-items: end; }
+  .intro { color: var(--texto-medio); font-size: clamp(17px, 1.15vw, 20px); max-width: 40em; text-wrap: balance; }
+  .cabeca .intro { margin-bottom: 18px; }
+
+  /* Recursos: lista à esquerda, painel à direita. */
+  .recursos { display: grid; grid-template-columns: 340px 1fr; gap: 28px; margin-top: 48px; }
+  .itens { display: flex; flex-direction: column; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; border: 1px solid transparent; color: var(--texto-medio); font-weight: 800; font-size: 16px; cursor: pointer; transition: background .25s, border-color .25s; }
+  .item svg { width: 24px; height: 24px; color: var(--texto-fraco); flex: none; }
+  .item small { display: block; font: 600 12px "Nunito"; color: var(--texto-fraco); }
+  .item.ativo { background: rgba(var(--cor-rgb), .1); border-color: rgba(var(--cor-rgb), .4); color: var(--texto); box-shadow: 0 0 30px rgba(var(--cor-rgb), .12); }
+  .item.ativo svg { color: var(--cor-texto); filter: drop-shadow(0 0 6px rgba(var(--cor-rgb), .7)); }
+  .painel { border-radius: 24px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+  .painel .texto { padding: 30px 34px 22px; }
+  .painel .tag { font: 700 11px var(--mono); letter-spacing: .2em; color: var(--cor-texto); }
+  .painel h3 { font-size: clamp(26px, 2.2vw, 36px); letter-spacing: -0.03em; margin: 8px 0 10px; line-height: 1.1; }
+  .painel p { color: var(--texto-medio); font-size: 17px; max-width: 38em; }
+  .painel .fatos { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .painel .fatos span { padding: 6px 12px; border-radius: 999px; background: rgba(11,8,22,.7); border: 1px solid var(--traco); font: 600 12.5px var(--mono); color: var(--texto-medio); }
+  .painel .foto { margin: 0 34px; border-radius: 14px 14px 0 0; overflow: hidden; border: 1px solid var(--traco-forte); border-bottom: 0; align-self: end; }
+  .painel .foto img { display: block; width: 100%; }
+
+  /* Personalização: cartões-holograma. */
+  .tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 52px; }
+  .holo { position: relative; border-radius: 24px; padding: 30px; overflow: hidden; background: linear-gradient(160deg, rgba(var(--c), .16), rgba(20,15,38,.95) 50%); border: 1px solid rgba(var(--c), .32); transition: transform .3s, box-shadow .3s; }
+  .holo:hover { transform: translateY(-4px); box-shadow: 0 30px 80px rgba(var(--c), .2); }
+  .holo::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 4px); }
+  .holo .chamada { font: 700 11.5px var(--mono); letter-spacing: .2em; color: rgb(var(--c)); }
+  .holo h3 { font-size: 30px; letter-spacing: -0.03em; line-height: 1.05; margin: 10px 0 10px; }
+  .holo p { color: var(--texto-medio); font-size: 16px; }
+  .holo .mini { margin-top: 22px; position: relative; }
+  .h1c { --c: 194, 70, 126; } .h2c { --c: 147, 97, 240; } .h3c { --c: 62, 207, 142; }
+  /* mini do perfil */
+  .mini-perfil { border-radius: 16px; overflow: hidden; background: rgba(11,8,22,.85); border: 1px solid var(--traco); }
+  .mini-perfil .banner { height: 64px; background: linear-gradient(100deg, #0f2027, #2c5364 40%, #c2467e); }
+  .mini-perfil .corpo { padding: 0 14px 14px; margin-top: -24px; }
+  .mini-perfil .foto { width: 52px; height: 52px; border-radius: 50%; border: 3px solid #140f26; background: radial-gradient(circle at 48% 38%, #ffd28a 0 14%, transparent 15%), radial-gradient(circle at 50% 60%, #f1b58a 0 30%, transparent 31%), linear-gradient(160deg,#4e4376,#b24592); }
+  .mini-perfil b { display: block; margin-top: 6px; font-size: 16px; } .mini-perfil small { color: var(--cor-texto); font-weight: 800; font-size: 12.5px; }
+  /* mini das abas */
+  .mini-abas { display: flex; flex-direction: column; gap: 8px; }
+  .mini-abas div { display: flex; gap: 6px; padding: 8px; border-radius: 12px; background: rgba(11,8,22,.85); border: 1px solid var(--traco); align-items: center; font-size: 12.5px; font-weight: 800; }
+  .mini-abas i { width: 22px; height: 22px; border-radius: 7px; display: block; flex: none; }
+  .mini-abas span { padding: 3px 8px 3px 3px; border-radius: 8px; display: flex; gap: 6px; align-items: center; }
+  .mini-abas span.on { background: #231a40; box-shadow: inset 0 0 0 1px #3d2f70; }
+  .mini-abas i.sel { box-shadow: 0 0 0 2px #9361f0; }
+  /* mini dos temas */
+  .mini-temas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mini-temas i { aspect-ratio: 1; border-radius: 14px; display: block; border: 1px solid rgba(255,255,255,.08); }
+  .mini-temas i.on { box-shadow: 0 0 0 2px #140f26, 0 0 0 4px var(--verde); }
+  .comparar { margin-top: 30px; display: inline-flex; align-items: center; gap: 12px; padding: 13px 20px; border-radius: 14px; color: var(--texto-medio); font-size: 15px; }
+  .comparar b { color: var(--texto); }
+
+  /* Transmissão: o caminho do PC até os amigos. */
+  .caminho { display: grid; grid-template-columns: 1fr clamp(160px, 18vw, 280px) 1fr; align-items: center; margin-top: 56px; }
+  .caixa { border-radius: 22px; padding: 30px; }
+  .caixa h4 { font: 700 12px var(--mono); letter-spacing: .2em; margin-bottom: 16px; color: var(--cor-texto); }
+  .caixa ul { list-style: none; display: grid; gap: 11px; }
+  .caixa li { display: flex; gap: 12px; align-items: center; font-size: 16.5px; color: var(--texto-medio); }
+  .caixa li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--cor); box-shadow: 0 0 8px var(--cor); }
+  .caixa.amigos h4 { color: var(--verde); } .caixa.amigos li::before { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+  .ponte { position: relative; height: 120px; display: grid; place-items: center; }
+  .ponte .trilho { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: repeating-linear-gradient(90deg, rgba(var(--cor-rgb), .55) 0 6px, transparent 6px 12px); }
+  .ponte .trilho i { position: absolute; top: -4px; left: 0; width: 10px; height: 10px; border-radius: 50%; background: #d4c2ff; box-shadow: 0 0 14px var(--cor); animation: corre 2.2s linear infinite; }
+  .ponte .trilho i + i { animation-delay: 1.1s; }
+  @keyframes corre { to { left: calc(100% - 10px); } }
+  .ponte .pacote { position: relative; padding: 9px 16px; border-radius: 999px; background: rgba(20,15,38,.97); border: 1px solid rgba(var(--cor-rgb), .5); font: 700 12px var(--mono); letter-spacing: .08em; color: #d4c2ff; white-space: nowrap; }
+
+  /* Download: o seu sistema marcado, com o contorno girando. */
+  .download { text-align: center; }
+  .download .intro { margin: 0 auto; }
+  .plataformas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 40px; text-align: left; }
+  .plat { position: relative; border-radius: 22px; padding: 32px; display: flex; flex-direction: column; gap: 6px; }
+  .plat.seu { border-color: rgba(var(--cor-rgb), .7); box-shadow: 0 0 0 1px rgba(var(--cor-rgb), .25) inset, 0 30px 80px rgba(var(--cor-rgb), .2); }
+  .plat.seu::before { content: ""; position: absolute; inset: -1px; border-radius: 22px; padding: 1.5px; pointer-events: none; background: conic-gradient(from var(--ang, 0deg), transparent 0 70%, var(--cor) 85%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: contorno 3s linear infinite; }
+  @property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+  @keyframes contorno { to { --ang: 360deg; } }
+  .plat .marcador { position: absolute; top: 18px; right: 18px; font: 700 10px var(--mono); letter-spacing: .16em; color: var(--cor-texto); padding: 4px 9px; border-radius: 6px; border: 1px solid rgba(var(--cor-rgb), .5); background: rgba(var(--cor-rgb), .1); }
+  .plat svg.logo { width: 42px; height: 42px; margin-bottom: 12px; }
+  .plat h3 { font-size: 24px; letter-spacing: -0.02em; }
+  .plat .det { color: var(--texto-fraco); font: 12.5px var(--mono); }
+  .plat .botao { margin-top: 20px; }
+  .plat.breve { opacity: .6; } .plat.breve .botao { pointer-events: none; }
+
+  footer { padding: 46px 0 60px; border-top: 1px solid var(--traco); color: var(--texto-fraco); font-size: 14px; }
+  footer .largura { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  footer .marca { color: var(--texto); font-size: 17px; }
+  footer .links { display: flex; gap: 24px; flex-wrap: wrap; margin-left: 20px; }
+  footer .links a:hover { color: var(--texto); }
+  footer .dir { margin-left: auto; font: 12px var(--mono); letter-spacing: .04em; }
+
+  @media (max-width: 960px) {
+    .menu { display: none; }
+    .cabeca, .recursos, .tres, .caminho, .plataformas { grid-template-columns: 1fr; }
+    .flutua { display: none; }
+    .ponte { height: 90px; }
+    .ponte .trilho { left: 50%; right: auto; top: 0; bottom: 0; width: 2px; height: auto; background: repeating-linear-gradient(180deg, rgba(var(--cor-rgb), .55) 0 6px, transparent 6px 12px); }
+    .ponte .trilho i { left: -4px; top: 0; animation-name: desce; }
+    @keyframes desce { to { top: calc(100% - 10px); } }
+    footer .links { margin-left: 0; width: 100%; } footer .dir { margin-left: 0; }
+    .topo .acoes .vazio { display: none; }
+    .verbete > span:last-child { display: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="casa" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="baixar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></symbol>
+  <symbol id="tela" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="voz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol>
+  <symbol id="grupo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="raio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+  <symbol id="pincel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.06 11.9 17 4l3 3-7.94 7.94M7 14c-2 0-3 1.5-3 3 0 1.3-.5 2.5-2 3 4 1 8 0 8-4a2 2 0 0 0-3-2z"/></symbol>
+  <symbol id="cadeado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+</svg>
+
+<header class="topo"><div class="largura">
+  <a class="marca" href="#"><i><svg><use href="#casa"/></svg></i><span>Loft<b>chat</b></span></a>
+  <nav class="menu"><a href="#recursos">Recursos</a><a href="#do-seu-jeito">Do seu jeito</a><a href="#transmissao">Transmissão</a><a href="#baixar">Baixar</a></nav>
+  <div class="acoes"><a class="botao cheio pequeno" href="#baixar">Baixar grátis</a></div>
+</div></header>
+
+<main>
+  <section class="abertura"><div class="largura">
+    <span class="verbete vidro"><b>LOFTCHAT</b><span>/<em>lóft</em>·tchét/</span><span>o sótão onde a turma se encontra</span></span>
+    <h1>Seus amigos, sua tela.<br><span class="brilho" data-texto="Do seu jeito.">Do seu jeito.</span></h1>
+    <p class="sub">Chat, voz e <b>transmissão de tela com som</b> para você e seus amigos. Rápido, sem anúncios e personalizável de verdade.</p>
+    <div class="botoes">
+      <a class="botao cheio" href="#baixar"><svg><use href="#baixar"/></svg><span class="texto-baixar">Baixar para Linux</span></a>
+      <a class="botao vazio" href="#recursos">Ver o que faz</a>
+    </div>
+    <p class="nota">// grátis · sem anúncios · sem assinatura · Linux, Windows e Android</p>
+    <div class="vitrine">
+      <div class="flutua vidro f1"><span class="av" style="background:#2f8f7a">LU</span><span><b>Lucas está transmitindo</b><small>Sala Principal · 1080p · com som</small></span><span class="ao-vivo">AO VIVO</span></div>
+      <div class="flutua vidro f2"><span class="av" style="background:#c2467e">LE</span><span><b>@lelokz copiado</b><small>mande para quem vai te adicionar</small></span></div>
+      <div class="flutua vidro f3"><span class="av" style="background:#7b3fe4">🎨</span><span><b>Banner trocado</b><small>de graça, como tudo aqui</small></span></div>
+      <div class="janela"><div class="barra-j"><i></i><i></i><i></i><span>Loftchat</span></div><img src="img/app.png" alt="O Loftchat aberto num grupo, com a Sala Principal ao vivo"></div>
+    </div>
+  </div></section>
+
+  <section id="recursos"><div class="largura">
+    <div class="cabeca"><div><span class="rotulo">RECURSOS</span><h2>Tudo que a turma precisa. <span class="cor">Num lugar só.</span></h2></div>
+      <p class="intro">Grupos com canais de texto e voz, conversas privadas e a transmissão da sua tela — feitos para jogar, estudar e ficar junto.</p></div>
+    <div class="recursos">
+      <div class="itens">
+        <div class="item ativo"><svg><use href="#tela"/></svg><span>Tela com som<small>o PC inteiro, sem eco</small></span></div>
+        <div class="item"><svg><use href="#voz"/></svg><span>Voz em grupo<small>salas sempre abertas</small></span></div>
+        <div class="item"><svg><use href="#grupo"/></svg><span>Grupos e privado<small>canais, abas, apelidos</small></span></div>
+        <div class="item"><svg><use href="#raio"/></svg><span>Rápido<small>servidor no Brasil</small></span></div>
+        <div class="item"><svg><use href="#cadeado"/></svg><span>Seus dados<small>e-mail nunca é público</small></span></div>
+      </div>
+      <div class="painel vidro">
+        <div class="texto"><span class="tag">01 · TELA COM SOM</span><h3>Transmita o PC inteiro. Com o som do jogo.</h3>
+          <p>Escolha a tela ou só uma janela e mostre para a sala com o som do PC junto — menos o som do próprio Loftchat, então ninguém ouve a própria voz de volta.</p>
+          <div class="fatos"><span>até 1080p · 60 fps</span><span>som do PC no Linux e no Windows</span><span>chat da sala ao lado</span></div></div>
+        <div class="foto"><img src="img/sala.png" alt="Sala de voz com uma transmissão ao vivo"></div>
+      </div>
+    </div>
+  </div></section>
+
+  <section id="do-seu-jeito"><div class="largura">
+    <div class="cabeca"><div><span class="rotulo">DO SEU JEITO</span><h2>Mude quase tudo. <span class="cor">De graça.</span></h2></div>
+      <p class="intro">Em outros apps, trocar até o banner do perfil é pago. No Loftchat, personalizar é o normal — e não custa nada.</p></div>
+    <div class="tres">
+      <div class="holo h1c"><span class="chamada">SEU PERFIL</span><h3>Foto, banner e fundo do cartão.</h3><p>Três imagens, cada uma ajustada no dedo: arraste, aproxime, pronto.</p>
+        <div class="mini"><div class="mini-perfil"><div class="banner"></div><div class="corpo"><div class="foto"></div><b>Lelokz</b><small>@lelokz</small></div></div></div></div>
+      <div class="holo h2c"><span class="chamada">SEUS GRUPOS</span><h3>Abas do jeito que você lê.</h3><p>Com nome, só ícone ou só o aberto. Apelido pessoal para cada grupo — só você vê.</p>
+        <div class="mini mini-abas">
+          <div><span class="on"><i style="background:linear-gradient(135deg,#7b3fe4,#c2467e)"></i>Os de sempre</span><span><i style="background:#2f8f7a"></i>SENAI</span><span><i style="background:linear-gradient(#4caf50 0 45%,#8d6e63 45%)"></i>Minecraft</span></div>
+          <div><i class="sel" style="background:linear-gradient(135deg,#7b3fe4,#c2467e)"></i><i style="background:#2f8f7a"></i><i style="background:linear-gradient(#4caf50 0 45%,#8d6e63 45%)"></i><i style="background:#3d6fd1"></i></div>
+        </div></div>
+      <div class="holo h3c"><span class="chamada">SUA TELA</span><h3>Temas, fundos e sons.</h3><p>Escolha a cor, ponha uma imagem no fundo do chat, troque os sons e o jeito das mensagens.</p>
+        <div class="mini mini-temas"><i class="on" style="background:linear-gradient(135deg,#140f26,#7b3fe4)"></i><i style="background:linear-gradient(135deg,#071a14,#3ecf8e)"></i><i style="background:linear-gradient(135deg,#1a0b10,#f2557a)"></i><i style="background:linear-gradient(135deg,#0a1324,#3d6fd1)"></i></div></div>
+    </div>
+    <div style="text-align:center"><span class="comparar vidro"><svg width="18" height="18" style="color:var(--verde)"><use href="#pincel"/></svg>Banner, fundo, tema e sons: <b>R$ 0,00</b>, para sempre.</span></div>
+  </div></section>
+
+  <section id="transmissao"><div class="largura">
+    <div class="cabeca"><div><span class="rotulo">TRANSMISSÃO</span><h2>Do seu PC para a sala. <span class="cor">Sem atraso.</span></h2></div>
+      <p class="intro">A imagem e o som vão direto de um computador para o outro. O servidor no Brasil só ajuda a encontrar o caminho.</p></div>
+    <div class="caminho">
+      <div class="caixa vidro"><h4>// NO SEU PC</h4><ul><li>Você escolhe a tela ou a janela</li><li>O som do PC vai junto</li><li>O som do Loftchat fica de fora</li></ul></div>
+      <div class="ponte"><span class="trilho"><i></i><i></i></span><span class="pacote">imagem + som, direto</span></div>
+      <div class="caixa vidro amigos"><h4>// NA SALA DOS AMIGOS</h4><ul><li>Assistem no PC ou no celular</li><li>Conversam no chat da sala</li><li>Tela cheia num toque</li></ul></div>
+    </div>
+  </div></section>
+
+  <section id="baixar" class="download"><div class="largura">
+    <span class="rotulo">BAIXAR</span>
+    <h2>Chame a turma pro <span class="cor">Loftchat.</span></h2>
+    <p class="intro">Instale, crie sua conta com nome de usuário e mande seu @ para os amigos.</p>
+    <div class="plataformas">
+      <div class="plat vidro seu"><span class="marcador">SEU SISTEMA</span>
+        <svg class="logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-2.2 0-3.4 1.9-3.4 4.4 0 1.4.3 2.3-.6 3.6C6.6 12 5 14.2 5 16.6c0 .9.3 1.6.7 2.1-.5.4-1.3.8-1.3 1.6 0 1.1 1.5 1.4 3 1.4 1.2 0 1.9-.5 2.5-.9.7.1 1.4.2 2.1.2s1.4-.1 2.1-.2c.6.4 1.3.9 2.5.9 1.5 0 3-.3 3-1.4 0-.8-.8-1.2-1.3-1.6.4-.5.7-1.2.7-2.1 0-2.4-1.6-4.6-3-6.6-.9-1.3-.6-2.2-.6-3.6C15.4 3.9 14.2 2 12 2z"/></svg>
+        <h3>Linux</h3><span class="det">Ubuntu, Mint e derivados · x86_64</span><a class="botao cheio" href="#"><svg><use href="#baixar"/></svg>Baixar para Linux</a></div>
+      <div class="plat vidro">
+        <svg class="logo" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l7.5-1v7H3v-6zm8.5-1.2L21 3v8.5h-9.5V4.3zM3 12.5h7.5v7L3 18.5v-6zm8.5 0H21V21l-9.5-1.3v-7.2z"/></svg>
+        <h3>Windows</h3><span class="det">10 (2004+) e 11</span><a class="botao vazio" href="#"><svg><use href="#baixar"/></svg>Baixar para Windows</a></div>
+      <div class="plat vidro breve">
+        <svg class="logo" viewBox="0 0 24 24" fill="currentColor"><path d="M7.2 3.3l1.2 2A7 7 0 005 11h14a7 7 0 00-3.4-5.7l1.2-2-.6-.4-1.3 2.1a7.2 7.2 0 00-5.8 0L7.8 2.9l-.6.4zM9 8a.9.9 0 110 1.8A.9.9 0 019 8zm6 0a.9.9 0 110 1.8A.9.9 0 0115 8zM5 12h14v7a1.5 1.5 0 01-1.5 1.5H17v2a1.2 1.2 0 01-2.4 0v-2H9.4v2a1.2 1.2 0 01-2.4 0v-2h-.5A1.5 1.5 0 015 19z"/></svg>
+        <h3>Android</h3><span class="det">com transmissão de tela de verdade</span><span class="botao vazio">Em breve</span></div>
+    </div>
+  </div></section>
+</main>
+
+<footer><div class="largura">
+  <span class="marca"><i><svg><use href="#casa"/></svg></i><span>Loft<b>chat</b></span></span>
+  <nav class="links"><a href="#recursos">Recursos</a><a href="#do-seu-jeito">Do seu jeito</a><a href="#baixar">Baixar</a><a href="termos/">Termos de uso</a><a href="privacidade/">Privacidade</a></nav>
+  <span class="dir">© 2026 Loftchat. Todos os direitos reservados.</span>
+</div></footer>
+
+<script>
+  // O botão de baixar já fala o sistema de quem abriu.
+  const ua = navigator.userAgent;
+  const so = /Android/i.test(ua) ? 'Android' : /Windows/i.test(ua) ? 'Windows' : /Linux/i.test(ua) ? 'Linux' : null;
+  if (so !== null) {
+    for (const t of document.querySelectorAll('.texto-baixar')) t.textContent = so === 'Android' ? 'Android — em breve' : `Baixar para ${so}`;
+    for (const p of document.querySelectorAll('.plat')) {
+      const meu = p.querySelector('h3').textContent === so;
+      p.classList.toggle('seu', meu);
+      p.querySelector('.marcador')?.remove();
+      if (meu) p.insertAdjacentHTML('afterbegin', '<span class="marcador">SEU SISTEMA</span>');
+    }
+  }
+  // Recursos: clicar troca o painel.
+  const PAINEIS = [
+    ['01 · TELA COM SOM', 'Transmita o PC inteiro. Com o som do jogo.', 'Escolha a tela ou só uma janela e mostre para a sala com o som do PC junto — menos o som do próprio Loftchat, então ninguém ouve a própria voz de volta.', ['até 1080p · 60 fps', 'som do PC no Linux e no Windows', 'chat da sala ao lado'], 'img/sala.png'],
+    ['02 · VOZ EM GRUPO', 'Salas de voz sempre abertas.', 'Entre e saia quando quiser. Veja quem está falando, ajuste o volume de cada pessoa e continue no chat sem sair da chamada.', ['volume por pessoa', 'apertar para falar', 'até 4 na sala'], 'img/sala.png'],
+    ['03 · GRUPOS E PRIVADO', 'Seus grupos viram abas.', 'Cada grupo é uma aba no topo, com seus canais de texto e voz. O privado mora na primeira aba, junto dos seus amigos.', ['abas com nome ou só ícone', 'apelido pessoal do grupo', 'pastas de grupos'], 'img/app.png'],
+    ['04 · RÁPIDO', 'A mensagem chega na hora.', 'O servidor fica em São Paulo e as mensagens chegam em tempo real. A voz e a tela vão direto entre os computadores.', ['servidor no Brasil', 'tempo real', 'direto entre os PCs'], 'img/app.png'],
+    ['05 · SEUS DADOS', 'Seu e-mail nunca é público.', 'As pessoas te acham pelo @, nunca pelo e-mail. Sem anúncios, sem venda de dados, e você bloqueia quem quiser.', ['busca só por @', 'sem anúncios', 'bloqueio de pessoas'], 'img/perfil.png'],
+  ];
+  const itens = document.querySelectorAll('.item');
+  itens.forEach((item, i) => item.addEventListener('click', () => {
+    itens.forEach((x) => x.classList.toggle('ativo', x === item));
+    const [tag, h, p, fatos, img] = PAINEIS[i];
+    const painel = document.querySelector('.painel');
+    painel.querySelector('.tag').textContent = tag;
+    painel.querySelector('h3').textContent = h;
+    painel.querySelector('p').textContent = p;
+    painel.querySelector('.fatos').innerHTML = fatos.map((f) => `<span>${f}</span>`).join('');
+    painel.querySelector('.foto img').src = img;
+  }));
+</script>
+</body>
+</html>
