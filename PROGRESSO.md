@@ -79,6 +79,11 @@ salvas na conta (valem no PC e no celular).
 9. Configurações em tela inteira: Perfil, Conta e segurança, Privacidade,
    Voz e áudio, Transmissão, Notificações, Aparência, Atalhos, Novidades.
 
+**Decisão do Leo (16/11/2026): os EXTRAS ficam para depois da publicação**
+— busca Ctrl+K, notificações por grupo/canal e não lidas, apelido e volume
+por pessoa, sons, atalhos editáveis e "jogando agora". "Extra é extra, não é
+prioridade." Primeiro o que falta para publicar.
+
 Ordem de construção: (1) estrutura da A com o que existe + marca Loftchat;
 (2) configurações e perfil; (3) grupos; (4) aparência pessoal; (5) extras
 (busca, notificações por grupo, atividade, volume por pessoa, atalhos).
