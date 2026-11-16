@@ -50,6 +50,7 @@ import {
 } from './lib/friends';
 import { renderGroupPanel } from './components/group-panel/group-panel';
 import { renderRoomPanel } from './components/room-panel/room-panel';
+import { acompanharChamadaNoAndroid } from './lib/android';
 import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-panel';
 import { memberListContent } from './components/member-list/member-list';
 import { renderPinnedList } from './components/pinned/pinned-list';
@@ -2561,7 +2562,18 @@ export function mountApp(
   root.addEventListener('click', onProfileClick);
   root.addEventListener('keydown', onProfileKey);
 
-  const unsubscribe = store.subscribe(render);
+  // Android (etapa 10b): a notificação "Em chamada" enquanto há chamada aberta.
+  const acompanharChamada = acompanharChamadaNoAndroid(
+    () => {
+      const state = store.getState();
+      return state.voice === null ? null : voiceChannelName(state);
+    },
+    () => store.disconnectVoice(),
+  );
+  const unsubscribe = store.subscribe((state) => {
+    render(state);
+    acompanharChamada.aoMudar();
+  });
   render(store.getState());
 
   return {
@@ -2591,6 +2603,7 @@ export function mountApp(
       pararFundoGeral();
       pararFundoDoCanal?.();
       paintChatBackground(document.documentElement, null);
+      acompanharChamada.desligar();
       store.dispose();
     },
   };

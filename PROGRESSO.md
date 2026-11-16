@@ -147,6 +147,24 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 10b (parte comum) — "Em chamada" no Android (16/11/2026)
+
+- Serviço em primeiro plano do tipo MICROFONE (`ServicoDaChamada.java`) com
+  a notificação fixa "Em chamada · <sala>": tocar abre o app, "Sair" sai da
+  sala pelo chat. Sem ele o Android corta o microfone com o app atrás ou a
+  tela apagada (Android 11+). Pede a permissão de notificação (Android 13+);
+  recusada, a voz continua igual.
+- Ponte `PluginDaChamada.java` (plugin "Chamada") ↔ `src/lib/android.ts`
+  (`acompanharChamadaNoAndroid`): liga ao entrar numa sala, desliga ao sair
+  e ao sair da conta.
+- Só MONTADO (sem emulador, pedido do Leo): APK em
+  `Arquivo/Loft-desktop/dist/Loftchat-Android-teste.apk`. Falta o teste dele.
+- **DECISÃO PENDENTE com o Leo:** a chamada NATIVA (como o Discord) também
+  exige vídeo nativo — assistir a tela do PC no celular viraria um vídeo
+  desenhado por cima da página, no lugar do palco. Alternativa: a chamada
+  segue na página do app (como hoje) + este "Em chamada", e só a captura da
+  tela do celular (10c) vai para o nativo.
+
 ## Etapa 10a — o app Android com o chat (16/11/2026)
 
 - Capacitor 8.6.2 (`capacitor.config.ts`, pasta `android/`): o MESMO chat,
