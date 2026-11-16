@@ -6,7 +6,10 @@
  */
 
 import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, session, shell } from 'electron';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
+
+const require = createRequire(import.meta.url);
 
 const SITE = 'https://loft-3d6c0f.web.app';
 
@@ -55,7 +58,62 @@ async function listarFontes(tamanho) {
   return fontes.filter((fonte) => fonte.id !== minha);
 }
 
+/*
+ * ÁUDIO DO PC NO LINUX (venmic, PipeWire).
+ *
+ * O navegador no Linux só manda som de ABA. O venmic cria um microfone virtual
+ * ("vencord-screen-share") que recebe o som dos programas, MENOS o do próprio
+ * Loft — senão os amigos ouviriam a própria voz de volta.
+ */
+let patchBay; // undefined = ainda não tentou; null = indisponível
+
+function venmic() {
+  if (patchBay !== undefined) return patchBay;
+  patchBay = null;
+  if (process.platform !== 'linux') return null;
+  try {
+    const { PatchBay } = require('@vencord/venmic');
+    if (PatchBay.hasPipeWire()) patchBay = new PatchBay();
+  } catch (erro) {
+    console.error('venmic indisponível:', erro);
+  }
+  return patchBay;
+}
+
+// O som do Loft sai pelo processo "Audio Service" do Chromium.
+function pidDoAudioDoLoft() {
+  return app.getAppMetrics().find((processo) => processo.name === 'Audio Service')?.pid;
+}
+
+// Só em desenvolvimento: o teste toca o som num alto-falante de mentira, que
+// não é o padrão — sem isto o venmic ignoraria esse som.
+const AUDIO_DE_TESTE = !app.isPackaged && process.env.LOFT_AUDIO_TESTE === '1';
+
+function ligarAudioDoPc() {
+  const pb = venmic();
+  const pid = pidDoAudioDoLoft();
+  // Sem saber qual é o som do Loft, não dá para tirá-lo: melhor sem áudio
+  // do que com eco.
+  if (pb === null || pid === undefined) return false;
+  return pb.link({
+    include: [],
+    exclude: [{ 'application.process.id': String(pid) }, { 'media.class': 'Stream/Input/Audio' }],
+    mute: true,
+    ...(AUDIO_DE_TESTE ? { only_speakers: false, only_default_speakers: false } : {}),
+  });
+}
+
 function ligarCompartilhamentoDeTela() {
+  ipcMain.handle('loft:audio-do-pc-ligar', (evento) =>
+    doLoft(evento.senderFrame?.url) ? ligarAudioDoPc() : false,
+  );
+  ipcMain.handle('loft:audio-do-pc-soltar', (evento) => {
+    if (doLoft(evento.senderFrame?.url)) patchBay?.unmute();
+  });
+  ipcMain.handle('loft:audio-do-pc-desligar', () => {
+    patchBay?.unlink();
+  });
+
   ipcMain.handle('loft:fontes-de-tela', async (evento) => {
     if (!doLoft(evento.senderFrame?.url)) return [];
     const fontes = await listarFontes({ width: 320, height: 180 });
@@ -148,4 +206,5 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('window-all-closed', () => app.quit());
+  app.on('will-quit', () => patchBay?.unlink());
 }

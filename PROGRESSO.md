@@ -32,6 +32,44 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## App de computador — etapa 3: som do PC na transmissão (Linux)
+
+No Mint o navegador só manda som de ABA. Na janela, o som do PC inteiro vai
+junto da tela — **menos o som do próprio Loft** (senão os amigos ouviriam a
+própria voz de volta).
+
+- `@vencord/venmic` 7.2.5 (MPL-2.0, já vem compilado para Linux x64/arm64,
+  sem compilar nada): cria no PipeWire um microfone virtual
+  `vencord-screen-share` que recebe uma cópia do som de cada programa.
+- `desktop/main.mjs`: `ligarAudioDoPc` liga o venmic excluindo o processo
+  "Audio Service" do Loft (é por ele que sai a voz da chamada) e as gravações
+  (`Stream/Input/Audio`). **Sem achar esse processo, não liga** — melhor sem
+  áudio do que com eco. Nasce mudo e só solta depois que a faixa existe (como
+  o Vesktop). `will-quit` desliga.
+- Site: `capturarAudioDoPc` (`lib/desktop.ts`) pega o microfone virtual com
+  eco/ruído/ganho automático DESLIGADOS e estéreo 48 kHz (é jogo e música, não
+  voz). O motor ganhou `startScreenShare(audioExtra?)`: a faixa entra antes de
+  a tela ir para as conexões, e `stopSharing` (o único lugar que para) desliga
+  o venmic junto.
+
+**Teste sem som nenhum** (`som do PC no Linux`, em desktop.spec.ts):
+
+- Um alto-falante DE MENTIRA (null sink `loft-teste-mudo`, prioridade 0 — o
+  padrão da máquina não muda) é criado e apagado pelo teste. Apagar é pelo id
+  achado no `pw-dump` pelo NOME (o id que o `pw-cli create-node` mostra não é
+  o do nó).
+- O tom de teste nasce com `node.autoconnect=false` e é ligado à mão, só no
+  ralo; o teste confere que ele não está ligado a mais nada.
+- A janela abre SEM o microfone falso (ele esconde todos os dispositivos,
+  inclusive o virtual), com `PULSE_SOURCE`/`PULSE_SINK` no ralo, e uma trava
+  confere que nenhum microfone de verdade (`alsa_input*`) está ligado nela.
+- Para provar a exclusão, o Loft toca SILÊNCIO (ganho 0) no ralo — sem
+  ninguém na chamada não existe outra coisa para ele tocar. Confere: tem
+  cópia do tom no microfone virtual, nenhuma da saída do Loft. Conferido que
+  o teste FALHA quando a exclusão sai do código.
+- `LOFT_AUDIO_TESTE=1` (só fora do instalador) desliga o "só alto-falante
+  padrão" do venmic, porque o tom toca no ralo.
+
 ## App de computador — etapa 2: seletor de tela próprio
 
 Na janela não existe o seletor do navegador. Agora o Loft mostra o dele:

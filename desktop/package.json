@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "electron": "45.3.2"
+  },
+  "dependencies": {
+    "@vencord/venmic": "7.2.5"
   }
 }

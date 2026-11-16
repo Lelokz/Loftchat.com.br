@@ -153,6 +153,12 @@ export interface VoiceEngineCallbacks {
   onScreenShareEnded: () => void;
 }
 
+/** Uma faixa de áudio que vai junto da tela, e como desligar a origem dela. */
+export interface ScreenAudioExtra {
+  track: MediaStreamTrack;
+  stop(): void;
+}
+
 export interface ScreenCapture {
   /** 'monitor', 'window' ou 'browser'. */
   surface: string;
@@ -184,8 +190,14 @@ export interface VoiceEngine {
   /** Entrei sem microfone: ouço, mas não falo. */
   micDenied(): boolean;
 
-  /** Começa a transmitir. `null` = a pessoa fechou o seletor. */
-  startScreenShare(): Promise<ScreenCapture | null>;
+  /**
+   * Começa a transmitir. `null` = a pessoa fechou o seletor.
+   *
+   * `audioExtra` entra quando a captura veio SEM som (janela do Loft no Linux:
+   * o som do PC chega por um microfone virtual). O motor desliga ele junto com
+   * a transmissão.
+   */
+  startScreenShare(audioExtra?: () => Promise<ScreenAudioExtra | null>): Promise<ScreenCapture | null>;
   stopScreenShare(): Promise<void>;
   isSharing(): boolean;
   localScreen(): MediaStream | null;
@@ -336,6 +348,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
   let localStream: MediaStream | null = null;
   /** A captura de tela em andamento, ou null. Fonte da verdade do "estou transmitindo". */
   let screenStream: MediaStream | null = null;
+  let stopScreenAudioExtra: (() => void) | null = null;
   let denied = false;
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -974,6 +987,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     const stream = screenStream;
     if (stream === null) return;
     screenStream = null;
+    stopScreenAudioExtra?.();
+    stopScreenAudioExtra = null;
 
     for (const peer of peers.values()) {
       // Pode não ter canal ainda: quem responde só adota na primeira oferta.
@@ -1096,7 +1111,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
      *
      * Devolve o que foi capturado, ou null quando a pessoa fechou o seletor.
      */
-    async startScreenShare() {
+    async startScreenShare(audioExtra) {
       if (screenStream !== null) return null;
 
       let stream: MediaStream;
@@ -1119,6 +1134,14 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
         stream.getTracks().forEach((track) => track.stop());
         screenStream = null;
         return null;
+      }
+
+      if (audioExtra !== undefined && stream.getAudioTracks().length === 0) {
+        const extra = await audioExtra().catch(() => null);
+        if (extra !== null) {
+          stream.addTrack(extra.track);
+          stopScreenAudioExtra = extra.stop;
+        }
       }
 
       // Diz ao codificador que isto é TELA, não rosto: texto pequeno para de

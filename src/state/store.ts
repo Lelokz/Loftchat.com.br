@@ -31,7 +31,7 @@ import {
 import type { PresenceSession } from '../lib/voice-presence';
 import { clearMySignals } from '../lib/voice-signaling';
 import { startVoiceEngine } from '../lib/voice-engine';
-import type { PeerDiagnostic, VoiceEngine } from '../lib/voice-engine';
+import type { PeerDiagnostic, ScreenAudioExtra, VoiceEngine } from '../lib/voice-engine';
 import type {
   Channel,
   DmMessage,
@@ -268,10 +268,14 @@ export interface Store {
    * Devolve o motivo da recusa, ou null. Precisa vir de um clique:
    * `getDisplayMedia` exige gesto do usuário.
    *
-   * `escolherFonte`, quando vem, roda antes de capturar (seletor da janela do
-   * Loft, app de computador); `false` = a pessoa desistiu.
+   * `janela` só vem no app de computador: `escolherFonte` roda antes de
+   * capturar (o seletor; `false` = desistiu) e `audioDoPc` traz o som do PC
+   * quando a captura vem sem ele.
    */
-  toggleScreenShare(escolherFonte?: () => Promise<boolean>): Promise<string | null>;
+  toggleScreenShare(janela?: {
+    escolherFonte: () => Promise<boolean>;
+    audioDoPc: () => Promise<ScreenAudioExtra | null>;
+  }): Promise<string | null>;
   setScreenMaximized(maximized: boolean): void;
   /** O elemento de vídeo de quem está transmitindo — ou null. */
   screenVideoElement(): HTMLVideoElement | null;
@@ -1175,7 +1179,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       return (await engine?.diagnostics()) ?? [];
     },
 
-    async toggleScreenShare(escolherFonte) {
+    async toggleScreenShare(janela) {
       if (engine === null) return null;
 
       if (engine.isSharing()) {
@@ -1196,11 +1200,11 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         return 'Alguém já está transmitindo neste canal.';
       }
 
-      if (escolherFonte !== undefined && !(await escolherFonte())) return null;
+      if (janela !== undefined && !(await janela.escolherFonte())) return null;
 
       let capture;
       try {
-        capture = await engine.startScreenShare();
+        capture = await engine.startScreenShare(janela?.audioDoPc);
       } catch (error) {
         console.error('Não foi possível compartilhar a tela.', error);
         return 'Não foi possível compartilhar a tela.';
