@@ -24,6 +24,7 @@ import { renderSplash } from './components/auth/splash';
 import { closeGroupMenu } from './components/group-menu/group-menu';
 import { renderInviteScreen } from './components/invite-screen/invite-screen';
 import { USING_EMULATOR } from './lib/firebase';
+import { loftDesktop } from './lib/desktop';
 import { authErrorMessage } from './lib/auth-errors';
 import { auth } from './lib/firebase';
 import { getInvite, isMemberOf, joinGroup, upsertUserProfile } from './lib/firestore';
@@ -506,6 +507,9 @@ onRouteChange((next) => {
   route = next;
   decide();
 });
+
+// Programa (etapa 9b): link de convite com a janela já aberta.
+loftDesktop()?.aoAbrirConvite?.((codigo) => navigate(`/convite/${codigo}`));
 
 onAuthStateChanged(auth, (user) => {
   if (signingUp) return;

@@ -5,6 +5,12 @@
   },
   "hosting": {
     "public": "site",
+    "rewrites": [
+      {
+        "source": "/convite/**",
+        "destination": "/convite/index.html"
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

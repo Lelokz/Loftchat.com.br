@@ -26,6 +26,8 @@ export interface LoftDesktop {
   /** Começa a passar som pelo microfone virtual (ele nasce mudo). */
   soltarAudioDoPc(): Promise<void>;
   desligarAudioDoPc(): Promise<void>;
+  /** Etapa 9b: um link `loftchat://convite/…` chegou com o programa aberto. */
+  aoAbrirConvite?(ouvinte: (codigo: string) => void): void;
 }
 
 /** O nome que o venmic dá ao microfone virtual (desktop/main.mjs). */

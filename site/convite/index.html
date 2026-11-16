@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convite — Loftchat</title>
+<meta name="description" content="Você foi chamado para um grupo do Loftchat.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/estilo.css">
+<link rel="icon" type="image/png" href="/img/favicon.png">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="casa" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="baixar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></symbol>
+  <symbol id="tela" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="voz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol>
+  <symbol id="grupo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="raio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+  <symbol id="pincel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.06 11.9 17 4l3 3-7.94 7.94M7 14c-2 0-3 1.5-3 3 0 1.3-.5 2.5-2 3 4 1 8 0 8-4a2 2 0 0 0-3-2z"/></symbol>
+  <symbol id="cadeado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+</svg>
+<header class="topo"><div class="largura">
+  <a class="marca" href="/"><i><svg><use href="#casa"/></svg></i><span>Loft<b>chat</b></span></a>
+  <nav class="menu"><a href="/#recursos">Recursos</a><a href="/#do-seu-jeito">Do seu jeito</a><a href="/#transmissao">Transmissão</a><a href="/#baixar">Baixar</a></nav>
+  <div class="acoes"><a class="botao cheio pequeno" href="/#baixar">Em breve</a></div>
+</div></header>
+<main>
+<div class="sumiu"><div>
+<span class="codigo">CONVITE</span>
+<h1 id="titulo">Você foi chamado para <span style="color:var(--cor-texto)">um grupo.</span></h1>
+<p id="texto">Abra no Loftchat para entrar. Ainda não tem o programa? Baixe, instale e clique no link do convite de novo.</p>
+<div class="convite-botoes" id="botoes">
+  <a class="botao cheio" id="abrir" href="/">Abrir no Loftchat</a>
+  <a class="botao vazio" href="/#baixar"><svg><use href="#baixar"/></svg>Baixar o Loftchat</a>
+</div>
+<p class="convite-codigo" id="codigo-linha">Com o Loftchat já aberto, dá também para colar o código em <b>Entrar num grupo</b>:
+  <span class="convite-caixa"><code id="codigo"></code><button class="botao vazio pequeno" type="button" id="copiar">Copiar</button></span></p>
+</div></div>
+</main>
+<script>
+(function () {
+  // O código vem do endereço: /convite/ABCD2345. Mesmo alfabeto do chat (src/lib/invite-code.ts).
+  var bruto = decodeURIComponent(location.pathname.split('/convite/')[1] || '').split('/')[0].trim().toUpperCase();
+  var certo = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(bruto);
+  if (!certo) {
+    document.getElementById('titulo').innerHTML = 'Esse convite <span style="color:var(--cor-texto)">não parece certo.</span>';
+    document.getElementById('texto').textContent = 'Confira se o link chegou inteiro, ou peça um convite novo para quem te chamou.';
+    document.getElementById('abrir').remove();
+    document.getElementById('codigo-linha').remove();
+    return;
+  }
+  document.getElementById('abrir').href = 'loftchat://convite/' + bruto;
+  document.getElementById('codigo').textContent = bruto;
+  var copiar = document.getElementById('copiar');
+  copiar.addEventListener('click', function () {
+    navigator.clipboard.writeText(bruto).then(function () { copiar.textContent = 'Copiado'; }, function () {});
+  });
+})();
+</script>
+<footer><div class="largura">
+  <span class="marca"><i><svg><use href="#casa"/></svg></i><span>Loft<b>chat</b></span></span>
+  <nav class="links"><a href="/#recursos">Recursos</a><a href="/#do-seu-jeito">Do seu jeito</a><a href="/#baixar">Baixar</a><a href="/termos/">Termos de uso</a><a href="/privacidade/">Privacidade</a></nav>
+  <span class="dir">© 2026 Loftchat. Todos os direitos reservados.</span>
+</div></footer>
+</body>
+</html>

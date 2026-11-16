@@ -147,6 +147,26 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 9b — link de convite (16/11/2026)
+
+- O link de convite é `https://loftchat.com.br/convite/CÓDIGO`. A página
+  nova do site (`site/convite/index.html`, regra `/convite/**` no
+  firebase.json) mostra "Abrir no Loftchat" (`loftchat://convite/CÓDIGO`),
+  "Baixar o Loftchat" e o código com Copiar (para colar em "Entrar num
+  grupo"). Código fora do alfabeto do convite: "não parece certo".
+  **NÃO publicada** — vai junto com o resto, quando o Leo mandar.
+- O programa aceita `loftchat://convite/CÓDIGO`: aberto pelo link, já entra
+  na tela do convite; com a janela aberta (`second-instance`), manda o
+  código ao chat (`loft:convite` → `navigate`), sem recarregar a página. Só
+  passa código conferido (8 letras do alfabeto).
+- O sistema só passa a abrir `loftchat://` com o programa INSTALADO
+  (`setAsDefaultProtocolClient` só com `app.isPackaged`); o registro no
+  Linux/Windows sai do instalador (9c).
+- Testes: `tests/desktop-convite.spec.ts` (a página do site servida da pasta
+  `site/` com a mesma regra; programa aberto pelo link → cadastro pelo
+  convite → entra no grupo; outro link com ele aberto troca sem recarregar;
+  link torto não faz nada).
+
 ## Etapa 9a — o chat dentro do programa (16/11/2026)
 
 - O programa não abre mais o site: leva o chat dentro (`desktop/app/`, o

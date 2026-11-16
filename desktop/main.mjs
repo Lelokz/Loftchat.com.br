@@ -47,6 +47,25 @@ function origemDe(url) {
 }
 const origem = origemDe(endereco);
 
+/*
+ * LINK DE CONVITE (etapa 9b): o site manda para `loftchat://convite/CÓDIGO`, o
+ * sistema abre o programa com esse endereço nos argumentos (ou entrega à
+ * janela que já está aberta, pelo `second-instance`). Só o código passa
+ * adiante, conferido: 8 letras do alfabeto do convite (src/lib/invite-code.ts).
+ */
+const LINK = 'loftchat';
+const CODIGO = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/;
+
+function conviteDosArgumentos(argv) {
+  for (const arg of argv) {
+    const achado = /^loftchat:\/\/convite\/([^/?#]+)/i.exec(String(arg));
+    if (achado === null) continue;
+    const codigo = decodeURIComponent(achado[1]).trim().toUpperCase();
+    if (CODIGO.test(codigo)) return codigo;
+  }
+  return null;
+}
+
 /** Serve a pasta do chat. Caminho que não é arquivo cai no index.html (o chat tem rotas, como /convite/…). */
 function servirChat() {
   const raiz = normalize(PASTA_DO_CHAT);
@@ -213,18 +232,28 @@ function criarJanela() {
     }
   });
 
-  janela.loadURL(endereco);
+  // Aberto por um link de convite: já entra na tela do convite.
+  const convite = conviteDosArgumentos(process.argv);
+  janela.loadURL(convite === null ? endereco : new URL(`/convite/${convite}`, endereco).toString());
 }
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  // Abrir o Loft de novo só traz a janela que já existe para frente.
-  app.on('second-instance', () => {
+  // Abrir o Loft de novo só traz a janela que já existe para frente — e, se
+  // veio de um link de convite, o chat abre a tela do convite sem recarregar
+  // a página (o mesmo caminho de colar o link em "Entrar num grupo").
+  app.on('second-instance', (_evento, argv) => {
     if (!janela) return;
     if (janela.isMinimized()) janela.restore();
     janela.focus();
+    const convite = conviteDosArgumentos(argv);
+    if (convite !== null) janela.webContents.send('loft:convite', convite);
   });
+
+  // O sistema passa a abrir `loftchat://` com este programa. Só no programa
+  // instalado: em desenvolvimento e nos testes isto mexeria no sistema.
+  if (app.isPackaged) app.setAsDefaultProtocolClient(LINK);
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);

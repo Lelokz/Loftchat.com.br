@@ -201,3 +201,9 @@
 .sumiu .codigo { font: 700 13px var(--mono); letter-spacing: .3em; color: var(--cor-texto); }
 .sumiu h1 { font-size: clamp(36px, 5vw, 64px); }
 .sumiu p { color: var(--texto-medio); font-size: 18px; max-width: 30em; margin: 0 auto 28px; }
+
+/* Página do convite (etapa 9b). */
+.convite-botoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 8px 0 40px; }
+.convite-codigo { margin-top: 26px; font-size: 14.5px; }
+.convite-caixa { display: flex; width: max-content; align-items: center; gap: 10px; margin: 10px auto 0; padding: 6px 6px 6px 16px; border-radius: 14px; border: 1px solid rgba(var(--cor-rgb), .38); background: rgba(var(--cor-rgb), .07); }
+.convite-caixa code { font: 800 18px "Nunito", sans-serif; letter-spacing: .14em; color: var(--texto); }
