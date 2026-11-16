@@ -17,6 +17,7 @@ export interface GroupBarProps {
   onOpenHome: () => void;
   onCreateGroup: () => void;
   onSignOut: () => void;
+  onOpenSettings: () => void;
 }
 
 /**
@@ -28,7 +29,7 @@ export interface GroupBarProps {
  * mesmo `session-footer` que antes morava no pé das colunas.
  */
 export function renderGroupBar(props: GroupBarProps): HTMLElement {
-  const { groups, activeGroupId, homeActive, me, onSelectGroup, onOpenHome, onCreateGroup, onSignOut } =
+  const { groups, activeGroupId, homeActive, me, onSelectGroup, onOpenHome, onCreateGroup, onSignOut, onOpenSettings } =
     props;
 
   const brand = el('span', { class: 'group-bar__brand' }, [
@@ -81,6 +82,6 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
       ...tabs,
       el('li', {}, [addButton]),
     ]),
-    renderSessionFooter(me, onSignOut),
+    renderSessionFooter(me, onSignOut, onOpenSettings),
   ]);
 }

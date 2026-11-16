@@ -63,21 +63,23 @@ export interface UserProfile {
   usernameChanges?: number;
   createdAt: string;
   /**
-   * Entrega 3 (etapa 14) — ainda não gravados por ninguém, só lidos.
+   * Proposta A, etapa 2 — escritos em Configurações → Perfil.
    *
-   * `theme`/`accentId`/`fontId` seguem listas FECHADAS (ver
-   * `lib/person-theme.ts`) — nunca texto livre, para não virar caminho de
-   * CSS/fonte arbitrária vinda de outra pessoa. Ausentes = a pessoa não
-   * escolheu, e quem vê usa o próprio tema, não um terceiro "sem tema".
+   * `accentId` (cor do cartão) e `fontId` (fonte do nome) seguem listas
+   * FECHADAS (ver `lib/person-theme.ts`, cobradas também na regra) — nunca
+   * texto livre, para não virar CSS arbitrário na tela de outra pessoa.
    */
   bio?: string;
-  theme?: string;
   accentId?: string;
   fontId?: string;
 }
 
 /** Quantas trocas de `@` cada conta tem direito. Cobrado na regra, não só na tela. */
 export const MAX_USERNAME_CHANGES = 3;
+
+/** Tamanhos do perfil, cobrados também na regra (firestore.rules). */
+export const MAX_BIO = 160;
+export const MAX_DISPLAY_NAME = 32;
 
 /**
  * coleção: friendships — UM documento por PAR, id `${menorUid}_${maiorUid}`.

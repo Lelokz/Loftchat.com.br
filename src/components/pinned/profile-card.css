@@ -1,66 +1,14 @@
-/* Terço de cima do painel do PV — cartão de perfil da outra pessoa. As
-   variáveis de tema/cor/fonte são aplicadas por profile-card.ts diretamente
-   no elemento raiz (`.profile-card`); tudo aqui só REFERENCIA os tokens, o
-   que faz o escopo (herdar o meu tema, ou o dela) acontecer sozinho. */
+/* Terço de cima do painel do PV — o cartão da outra pessoa. O desenho é o de
+   person-card.css; aqui só a margem dentro do painel e a linha de botões. */
 
-/*
- * Fundo e borda próprios (ajuste pós-etapa-19 — antes era só padding sobre
- * o fundo do painel, "chapado", sem nada delimitando). `margin-bottom`, não
- * margin nos quatro lados: `.members__profile` já tem `border-bottom`
- * própria (dm-side-panel.css) separando do terço de cima; margin nos
- * lados dobraria essa linha.
- */
 .profile-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
   margin: var(--space-3);
   margin-bottom: var(--space-2);
-  padding: var(--space-4) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background-color: var(--surface-raised);
-  text-align: center;
-  color: var(--text-primary);
-}
-
-.profile-card__identity {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.profile-card__name {
-  overflow: hidden;
-  max-width: 100%;
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.profile-card__handle {
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.profile-card__bio {
-  overflow: hidden;
-  max-width: 100%;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
 }
 
 .profile-card__actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: var(--space-2);
   margin-top: var(--space-1);
 }

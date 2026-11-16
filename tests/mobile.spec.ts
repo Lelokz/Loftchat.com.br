@@ -121,7 +121,7 @@ test('as gavetas abrem por botão e fecham por toque fora; o chat ocupa a tela',
   expect(new URL(page.url()).pathname).toBe('/');
 });
 
-test('sem grupo nenhum, a barra de cima leva ao Privado e ao sair da conta', async ({
+test('sem grupo nenhum, a barra de cima leva ao Privado e às Configurações (onde fica o sair)', async ({
   page,
 }) => {
   const account = track('mob-sem-grupo');
@@ -131,7 +131,11 @@ test('sem grupo nenhum, a barra de cima leva ao Privado e ao sair da conta', asy
   // Antes (rail lateral) isso exigia abrir uma gaveta; na proposta A a barra
   // de cima, com a aba Privado e o meu cartão, está sempre na tela.
   await expect(page.getByText('Nenhum grupo por aqui ainda')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sair da conta' })).toBeVisible();
+  await page.getByRole('button', { name: 'Configurações' }).click();
+  const configuracoes = page.getByRole('dialog', { name: 'Configurações' });
+  await expect(configuracoes.getByRole('button', { name: 'Sair da conta' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(configuracoes).toBeHidden();
   await page.getByRole('button', { name: 'Privado', exact: true }).click();
   await expect(page.locator('.friends')).toBeVisible();
 });

@@ -1,91 +1,81 @@
 /**
- * O tema de UMA PESSOA, lido do perfil PÚBLICO dela — não do meu.
+ * O jeito de UMA PESSOA no cartão dela, lido do perfil PÚBLICO — não do meu.
  *
- * Entrega 3 (etapa 14, ainda não feita) vai GRAVAR `theme`/`accentId`/
- * `fontId` em `UserProfile`; esta função só LÊ, com um padrão seguro
- * quando ausentes. Isolada aqui de propósito — quando a Entrega 3 chegar,
- * ela só precisa aprender a escrever esses três campos; nada aqui muda.
+ * Proposta A, etapa 2: a pessoa escolhe a COR DO CARTÃO e a FONTE DO NOME
+ * em Configurações → Perfil. Quem vê o cartão vê a escolha DELA.
  *
  * LISTAS FECHADAS, não texto livre — nem para cor, nem para fonte. Um
- * `accentId`/`fontId` desconhecido (schema mais novo que este código, ou
- * documento malformado) cai no padrão em vez de virar CSS arbitrário na
- * tela de outra pessoa. "Padrão" aqui é literal: NENHUM valor sobrescrito,
- * o cartão herda o tema de QUEM ESTÁ VENDO — não existe um terceiro tema
- * "sem preferência".
+ * `accentId`/`fontId` desconhecido (versão mais nova do app, ou documento
+ * malformado) cai no padrão em vez de virar CSS arbitrário na tela de outra
+ * pessoa. A regra do banco (firestore.rules) cobra as MESMAS listas.
  */
 
-export type AccentId = 'roxo' | 'azul' | 'verde' | 'laranja' | 'rosa';
-export type FontId = 'padrao' | 'serifada' | 'monoespacada' | 'pixelada';
+export const CARD_COLOR_IDS = ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'] as const;
+export type CardColorId = (typeof CARD_COLOR_IDS)[number];
 
-interface AccentTokens {
-  '--accent': string;
-  '--accent-hover': string;
-  '--accent-on': string;
-  '--accent-soft': string;
+export const NAME_FONT_IDS = ['nunito', 'classica', 'pixelada', 'forte'] as const;
+export type NameFontId = (typeof NAME_FONT_IDS)[number];
+
+interface CardColor {
+  label: string;
+  /** A cor em si: bolinha da escolha e começo da faixa do cartão. */
+  base: string;
+  /** Fim da faixa (degradê). */
+  fim: string;
 }
 
-const ACCENTS: Record<AccentId, AccentTokens> = {
-  roxo: { '--accent': '#5b5bd6', '--accent-hover': '#4b4bc6', '--accent-on': '#ffffff', '--accent-soft': '#e9e9fa' },
-  azul: { '--accent': '#2f6fed', '--accent-hover': '#255bcc', '--accent-on': '#ffffff', '--accent-soft': '#e3ecfd' },
-  verde: { '--accent': '#22946b', '--accent-hover': '#1c7a58', '--accent-on': '#ffffff', '--accent-soft': '#dcf3ea' },
-  laranja: { '--accent': '#d9772f', '--accent-hover': '#c06526', '--accent-on': '#ffffff', '--accent-soft': '#fbe8d8' },
-  rosa: { '--accent': '#d43f8d', '--accent-hover': '#b8347a', '--accent-on': '#ffffff', '--accent-soft': '#fbdcec' },
+export const CARD_COLORS: Record<CardColorId, CardColor> = {
+  roxo: { label: 'Roxo', base: '#7b3fe4', fim: '#3a1f7a' },
+  rosa: { label: 'Rosa', base: '#c2467e', fim: '#5a1f4a' },
+  verde: { label: 'Verde', base: '#2f8f7a', fim: '#173f52' },
+  azul: { label: 'Azul', base: '#3d6fd1', fim: '#1d2f6e' },
+  laranja: { label: 'Laranja', base: '#b9772e', fim: '#5a2f2a' },
+  claro: { label: 'Claro', base: '#e0e0e0', fim: '#6f6a85' },
 };
 
-/**
- * `fontFamily` nunca é texto vindo do banco: é sempre um destes quatro
- * valores fixos. É isso que fecha o caminho de injeção — ninguém escolhe
- * fonte por texto livre, e "pixelada" cai numa pilha monoespaçada do
- * sistema até uma fonte de verdade ser embutida (nenhum @font-face novo
- * nesta etapa).
- */
-const FONTS: Record<FontId, string> = {
-  padrao: 'var(--font-sans)',
-  serifada: 'Georgia, "Times New Roman", serif',
-  monoespacada: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-  pixelada: '"Courier New", Consolas, monospace',
+interface NameFont {
+  label: string;
+  family: string;
+  weight: number;
+  /** "FORTE" é a Nunito no peso máximo, em maiúsculas. */
+  upper: boolean;
+}
+
+export const NAME_FONTS: Record<NameFontId, NameFont> = {
+  nunito: { label: 'Nunito', family: 'var(--font-sans)', weight: 700, upper: false },
+  classica: { label: 'Clássica', family: "'Lora', Georgia, serif", weight: 600, upper: false },
+  pixelada: { label: 'Pixelada', family: "'Silkscreen', monospace", weight: 400, upper: false },
+  forte: { label: 'Forte', family: 'var(--font-sans)', weight: 900, upper: true },
 };
 
-/** Sobrescreve o degrau escuro dos tokens de superfície/texto/borda — ver styles/tokens.css. */
-const DARK_SURFACE = {
-  '--surface-side': '#17181d',
-  '--surface-raised': '#24262c',
-  '--surface-bubble': '#2f323a',
-  '--surface-hover': '#2a2d34',
-  '--border': '#292c33',
-  '--border-strong': '#3b3f48',
-  '--text-primary': '#e9eaee',
-  '--text-secondary': '#a1a5ae',
-  '--text-muted': '#71757e',
-  '--danger': '#e06060',
-} as const;
+export function cardColorId(value: unknown): CardColorId {
+  return CARD_COLOR_IDS.includes(value as CardColorId) ? (value as CardColorId) : 'roxo';
+}
 
-export interface PersonTheme {
-  /** Só as chaves que a pessoa realmente escolheu — pronto para `element.style.setProperty(chave, valor)`. */
-  cssVars: Record<string, string>;
-  /** `undefined` = a pessoa não escolheu; o cartão herda `font-family` de quem está vendo. */
-  fontFamily: string | undefined;
+export function nameFontId(value: unknown): NameFontId {
+  return NAME_FONT_IDS.includes(value as NameFontId) ? (value as NameFontId) : 'nunito';
 }
 
 /**
- * Monta o tema de UMA pessoa a partir do perfil público dela.
+ * Aplica a cor do cartão e a fonte do nome num cartão já montado.
  *
- * `profile` pode não ter NENHUM dos três campos — Entrega 3 não existe
- * ainda, e é o caminho de hoje para todo mundo. Nesse caso `cssVars` volta
- * vazio: o cartão não sobrescreve nada, e herda o tema de quem está
- * olhando (CSS custom properties cascateiam) — não um terceiro tema fixo.
+ * As variáveis entram no elemento RAIZ do cartão: CSS custom properties só
+ * cascateiam para dentro, então nada vaza para o resto da tela.
  */
-export function personTheme(
-  profile: { theme?: string; accentId?: string; fontId?: string } | undefined,
-): PersonTheme {
-  const cssVars: Record<string, string> = {};
+export function applyPersonLook(
+  card: HTMLElement,
+  nameEl: HTMLElement | null,
+  profile: { accentId?: string | undefined; fontId?: string | undefined } | undefined,
+): void {
+  const cor = CARD_COLORS[cardColorId(profile?.accentId)];
+  card.style.setProperty('--card-cor', cor.base);
+  card.style.setProperty('--card-cor-fim', cor.fim);
+  if (nameEl !== null) applyNameFont(nameEl, profile?.fontId);
+}
 
-  if (profile?.theme === 'dark') Object.assign(cssVars, DARK_SURFACE);
-
-  const accent = ACCENTS[profile?.accentId as AccentId];
-  if (accent !== undefined) Object.assign(cssVars, accent);
-
-  const fontFamily = FONTS[profile?.fontId as FontId];
-
-  return { cssVars, fontFamily };
+export function applyNameFont(nameEl: HTMLElement, fontId: unknown): void {
+  const fonte = NAME_FONTS[nameFontId(fontId)];
+  nameEl.style.fontFamily = fonte.family;
+  nameEl.style.fontWeight = String(fonte.weight);
+  nameEl.style.textTransform = fonte.upper ? 'uppercase' : '';
 }

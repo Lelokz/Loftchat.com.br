@@ -1,0 +1,63 @@
+/* Cartão de uma pessoa — ver person-card.ts. `--card-cor` e `--card-cor-fim`
+   vêm da escolha DELA (person-theme.ts), aplicados no próprio elemento. */
+
+.person-card {
+  --card-cor: var(--accent);
+  --card-cor-fim: var(--surface-raised);
+
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.person-card__banner {
+  height: 84px;
+  background: linear-gradient(120deg, var(--card-cor-fim), var(--card-cor));
+}
+
+.person-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.person-card__avatar {
+  margin-top: calc(var(--avatar-xl) / -2);
+  border: 4px solid var(--surface-raised);
+  box-sizing: content-box;
+  background-color: var(--card-cor-fim);
+  color: var(--text-primary);
+}
+
+.person-card__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.person-card__name {
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.person-card__handle {
+  color: var(--accent-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.person-card__bio {
+  overflow-wrap: anywhere;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  white-space: pre-line;
+}

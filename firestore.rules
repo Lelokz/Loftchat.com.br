@@ -121,6 +121,7 @@ service cloud.firestore {
        * mesma operação, e separá-las seria a brecha óbvia.
        */
       allow update: if signedIn() && userId == uid()
+        && profileLookOk()
         && (
           request.resource.data.get('username', '') == resource.data.get('username', '')
           || (
@@ -130,6 +131,27 @@ service cloud.firestore {
             && request.resource.data.get('usernameChanges', 0) <= 3
           )
         );
+
+      /*
+       * PERFIL (proposta A, etapa 2). Só o que MUDOU é cobrado: contas
+       * antigas com nome comprido seguem entrando (o login regrava o nome
+       * igual). Cor e fonte são listas fechadas — as mesmas de
+       * src/lib/person-theme.ts —, nunca texto livre que vire CSS na tela de
+       * outra pessoa.
+       */
+      function changed(field) {
+        return request.resource.data.get(field, null) != resource.data.get(field, null);
+      }
+      function profileLookOk() {
+        let d = request.resource.data;
+        return (!changed('displayName')
+                  || (d.displayName is string && d.displayName.size() >= 1 && d.displayName.size() <= 32))
+          && (!changed('bio') || d.get('bio', '') is string && d.get('bio', '').size() <= 160)
+          && (!changed('accentId')
+                || d.get('accentId', 'roxo') in ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'])
+          && (!changed('fontId')
+                || d.get('fontId', 'nunito') in ['nunito', 'classica', 'pixelada', 'forte']);
+      }
 
       allow delete: if signedIn() && userId == uid();
     }

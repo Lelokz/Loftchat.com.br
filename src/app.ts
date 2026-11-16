@@ -21,6 +21,7 @@ import {
   renderNoMessages,
 } from './components/empty-state/empty-state';
 import { renderGroupBar } from './components/group-bar/group-bar';
+import { openSettings } from './components/settings/settings';
 import { renderHomeColumn } from './components/home/home-column';
 import { renderFriendsScreen } from './components/home/friends-screen';
 import type { FriendsScreenParts, FriendsScreenProps, FriendsTab } from './components/home/friends-screen';
@@ -607,6 +608,23 @@ export function mountApp(
     );
   }
 
+  /** Configurações em tela inteira. Salvar o perfil atualiza o meu cartão na hora. */
+  function handleOpenSettings(): void {
+    setDrawer(null);
+    openSettings({
+      user,
+      onSignOut,
+      onSaved: (perfil) => {
+        me.displayName = perfil.displayName;
+        me.initials = perfil.initials;
+        if (perfil.username === undefined) delete me.username;
+        else me.username = perfil.username;
+        previous = null;
+        render(store.getState());
+      },
+    });
+  }
+
   /* --- render das colunas ------------------------------------------------ */
 
   function buildGroupBar(state: AppState): HTMLElement {
@@ -628,6 +646,7 @@ export function mountApp(
       onCreateGroup: handleCreateGroup,
       me,
       onSignOut,
+      onOpenSettings: handleOpenSettings,
     });
   }
 

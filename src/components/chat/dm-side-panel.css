@@ -1,5 +1,5 @@
 /* Coluna 4 no PV — mesma casca de member-list.css (.members), dividida em
-   terço de cima (perfil) e dois terços de baixo (fixadas). */
+   cartão de perfil em cima e fixadas embaixo. */
 
 /*
  * `.members.members--dm`, não só `.members--dm`: as duas classes SEMPRE
@@ -12,7 +12,10 @@
  * sem depender de ordem nenhuma.
  */
 .members.members--dm {
-  grid-template-rows: 1fr 2fr;
+  /* O cartão (com faixa, bio e botões — etapa 2) ocupa o que precisa, até
+     65% da altura; as fixadas ficam com o resto. Antes era 1/3 fixo e o
+     cartão novo saía cortado. */
+  grid-template-rows: fit-content(65%) minmax(0, 1fr);
 }
 
 .members__profile {

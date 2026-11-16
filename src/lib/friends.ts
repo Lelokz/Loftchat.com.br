@@ -371,5 +371,8 @@ export async function publicProfile(uid: MemberId): Promise<UserProfile | null> 
   if (typeof data['pendingUsername'] === 'string') {
     Object.assign(perfil, { pendingUsername: data['pendingUsername'] });
   }
+  for (const campo of ['bio', 'accentId', 'fontId'] as const) {
+    if (typeof data[campo] === 'string') Object.assign(perfil, { [campo]: data[campo] });
+  }
   return perfil;
 }

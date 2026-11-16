@@ -366,7 +366,7 @@ test('teto de 50 fixadas é respeitado, e com muitas a lista rola sem encolher i
   await scene.guestContext.close();
 });
 
-test('o cartão de perfil do PV usa o tema padrão quando a pessoa não definiu nenhum (Entrega 3 ainda não existe)', async ({
+test('o cartão de perfil do PV usa a cor padrão (roxo) quando a pessoa não escolheu nenhuma', async ({
   browser,
 }) => {
   test.setTimeout(90_000);
@@ -377,15 +377,17 @@ test('o cartão de perfil do PV usa o tema padrão quando a pessoa não definiu 
   await openDmWith(a.page, b.account.displayName);
   await expect(a.page.locator('.profile-card')).toBeVisible({ timeout: 15_000 });
 
-  // Sem tema escolhido por B, o cartão não sobrescreve NADA: `--accent` nele
-  // é IGUAL ao `--accent` do resto da tela (herda, não é um terceiro tema).
-  const [cardAccent, rootAccent] = await a.page.evaluate(() => {
+  // Sem escolha de B, o cartão fica no roxo do Loftchat. O cartão nunca mexe
+  // no `--accent` da tela: a cor dele mora em `--card-cor`, só dentro dele.
+  const [cardCor, cardAccent, rootAccent] = await a.page.evaluate(() => {
     const card = document.querySelector('.profile-card') as HTMLElement;
     return [
+      card.style.getPropertyValue('--card-cor').trim(),
       getComputedStyle(card).getPropertyValue('--accent').trim(),
       getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
     ];
   });
+  expect(cardCor).toBe('#7b3fe4');
   expect(cardAccent).toBe(rootAccent);
 
   await a.context.close();

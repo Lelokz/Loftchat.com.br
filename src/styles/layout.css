@@ -113,7 +113,10 @@
     height: var(--app-height, 100dvh);
   }
 
-  /* No celular o cartão mostra só a foto, para sobrar lugar para as abas. */
+  /*
+   * No celular o cartão mostra só a foto e a engrenagem, para sobrar lugar
+   * para as abas. "Sair da conta" mora dentro das Configurações.
+   */
   .app > .group-bar {
     gap: var(--space-2);
     padding-left: var(--space-2);
@@ -121,7 +124,7 @@
 
   .app > .group-bar .group-bar__word,
   .app > .group-bar .session-footer__identity,
-  .app > .group-bar .session-footer > .icon-button:not(.session-footer__signout) {
+  .app > .group-bar .session-footer__signout {
     display: none;
   }
 

@@ -14,11 +14,13 @@ import { showToast } from '../toast/toast';
  * `channel-list.ts`, e sumia fora do grupo — sem jeito de sair da conta ou
  * abrir configurações sem voltar para um grupo primeiro.
  *
- * O botão de engrenagem AINDA NÃO FAZ NADA — sem `onClick`, tal como já era
- * dentro de `channel-list.ts`. Isto não é regressão desta extração: vira a
- * tela de configurações só na Entrega 3.
+ * A engrenagem abre Configurações em tela inteira (proposta A, etapa 2).
  */
-export function renderSessionFooter(member: Member, onSignOut: () => void): HTMLElement {
+export function renderSessionFooter(
+  member: Member,
+  onSignOut: () => void,
+  onOpenSettings: () => void,
+): HTMLElement {
   const signOutButton = el('button', {
     class: 'icon-button session-footer__signout',
     type: 'button',
@@ -53,13 +55,16 @@ export function renderSessionFooter(member: Member, onSignOut: () => void): HTML
     });
   }
 
+  const settingsButton = el('button', { class: 'icon-button', type: 'button', title: 'Configurações' }, [
+    iconEl(gearIcon(17)),
+    el('span', { class: 'sr-only' }, ['Configurações']),
+  ]);
+  settingsButton.addEventListener('click', onOpenSettings);
+
   return el('footer', { class: 'session-footer' }, [
     avatarEl(member.initials, 'sm'),
     identidade,
-    el('button', { class: 'icon-button', type: 'button', title: 'Configurações' }, [
-      iconEl(gearIcon(17)),
-      el('span', { class: 'sr-only' }, ['Configurações']),
-    ]),
+    settingsButton,
     signOutButton,
   ]);
 }

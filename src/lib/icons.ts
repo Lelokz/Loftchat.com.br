@@ -110,3 +110,19 @@ export const pinIcon = (size?: number): string =>
     '<path d="M12 21s7-7.6 7-12.5A7 7 0 0 0 5 8.5C5 13.4 12 21 12 21Z"/><circle cx="12" cy="8.5" r="2.5"/>',
     size,
   );
+
+/** Rosto — Configurações → Perfil. */
+export const faceIcon = (size?: number): string =>
+  svg(
+    '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/>' +
+      '<path d="M9 9.5h.01M15 9.5h.01"/>',
+    size,
+  );
+
+/** Escudo — Configurações → Conta e segurança. */
+export const shieldIcon = (size?: number): string =>
+  svg('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 10 4-1.7 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>', size);
+
+/** Seta para a esquerda — voltar, no celular. */
+export const arrowLeftIcon = (size?: number): string =>
+  svg('<path d="M19 12H5M11 18l-6-6 6-6"/>', size);

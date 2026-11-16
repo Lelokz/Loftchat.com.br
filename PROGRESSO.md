@@ -94,6 +94,52 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 2a — Configurações em tela inteira + Perfil (16/11/2026)
+
+O Leo mandou seguir direto pelas etapas (o programa independente fica para
+depois: de madrugada ninguém ia usar mesmo). A etapa 2 foi dividida em:
+**2a** tela de configurações + perfil sem imagens (esta); **2b** ajustador e
+as 3 imagens (foto, banner, fundo do cartão); **2c** cartão que abre ao
+clicar em alguém; **2d** status com emoji e prazo, cor do nome nas
+mensagens, links. A atividade "jogando" depende do programa (fase 2).
+
+- A engrenagem do meu cartão (barra de cima) abre **Configurações em tela
+  inteira** (`components/settings/`), um `<dialog>` por cima do app: a
+  chamada e a transmissão continuam por baixo. Menu: Você → Perfil, Conta e
+  segurança; "Sair da conta" no pé. Seções que ainda não fazem nada NÃO
+  aparecem (entram nas próximas etapas).
+- **Perfil**: nome de exibição (até 32), `@` (troca com aviso ao vivo de
+  livre/ocupado e quantas trocas sobram), bio (até 160, com contador), cor
+  do cartão (6: roxo, rosa, verde, azul, laranja, claro) e fonte do nome
+  (Nunito, Clássica = Lora, Pixelada = Silkscreen, FORTE = Nunito 900).
+  Prévia do cartão ao vivo à direita. Barra "alterações não salvas" com
+  Desfazer/Salvar; Esc com alteração pendente faz a barra tremer, sem
+  pop-up. Salvar grava `users/{uid}` E o nome na conta do Auth (senão o
+  login voltava o nome antigo).
+- **Conta e segurança**: e-mail (confirmado ou não) e "Mandar link para
+  trocar a senha".
+- **Cartão de pessoa** (`components/person-card/`): faixa na cor da pessoa,
+  avatar por cima, nome na fonte dela, `@` e bio. O mesmo na prévia e no PV
+  (o cartão do PV agora mostra a bio — antes `publicProfile` nem lia bio,
+  cor e fonte). O painel do PV deixou de ser 1/3 fixo: o cartão ocupa o que
+  precisa (até 65%).
+- `person-theme.ts` reescrito: as listas antigas eram do tema claro, que
+  não existe mais, e mexiam no `--accent` do cartão. Agora a cor mora em
+  `--card-cor`/`--card-cor-fim`, só dentro do cartão.
+- **Regra**: `users/{uid}` só aceita nome 1–32, bio ≤ 160, cor e fonte das
+  listas fechadas — cobrado só no campo que MUDOU (contas antigas com nome
+  comprido continuam entrando).
+- Fontes novas embutidas (OFL, `src/assets/fontes/OFL-lora.txt` e
+  `OFL-silkscreen.txt`), subconjunto latino.
+- **Celular**: a barra de cima mostra a engrenagem no lugar do "sair"; as
+  configurações abrem na lista de seções, com seta de voltar.
+- Testes: `tests/configuracoes.spec.ts` (4), mais mobile/pins/helpers
+  ajustados. Rodados: configuracoes, mobile, cadastro, pins, dm, identidade,
+  friends — tudo verde. Fotos: `design/etapa2-*.png`.
+- A falha do "seletor … recebe o vídeo" da última rodada completa: sozinho
+  passou 5 de 5; é o defeito conhecido do vídeo sob carga (etapa 9). Olhar
+  de novo na próxima rodada completa antes de publicar.
+
 ## Proposta A, etapa 1c — acabamento da coluna da esquerda (16/11/2026)
 
 - Cabeçalho do grupo: nome maior e "N membros" embaixo (`memberCount`; a

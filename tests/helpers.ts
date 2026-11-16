@@ -198,7 +198,8 @@ export async function signInThroughUi(
   await page.getByLabel("E-mail").fill(account.email);
   await page.getByLabel("Senha", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Sair da conta" })).toBeVisible(
+  // A engrenagem aparece no computador E no celular (o "sair" some no celular).
+  await expect(page.getByRole("button", { name: "Configurações" })).toBeVisible(
     {
       timeout: 30_000,
     },
