@@ -195,4 +195,11 @@ ln -sfn /mnt/cab1286d-6765-4c73-9c77-8d3119b4b644/Arquivo/Loft-desktop/instalar/
 
 Os testes da janela (`tests/desktop.spec.ts`) entram no `npm test` e pulam
 sozinhos sem o Electron instalado. Para não abrir janela na tela, rode a
-suíte dentro de `xvfb-run -a`.
+suíte numa tela invisível COM gerenciador de janelas (sem ele o seletor de
+tela vem vazio):
+
+```bash
+scripts/tela-de-teste.sh npm test
+```
+
+A suíte é muda (`--mute-audio`): a tela invisível não esconde o som.

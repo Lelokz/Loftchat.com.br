@@ -2,6 +2,75 @@
 
 Estado em 15/11/2026.
 
+## MUDANÇA DE RUMO (15/11/2026) — o Loft vira programa e app
+
+Decisão do Leo: o chat do Loft passa a existir **só como programa (Linux e
+Windows) e app Android**. O site vira uma página de apresentação com os
+botões de download, baseada no site da NOVA (`~/Projetos/Jarvis/site`). A
+meta é "profissional de verdade, melhor que o Discord e diferente dele":
+refazer o que for remendo, seletor de tela próprio e distribuição das telas
+repaginada (o tema da etapa 20 fica).
+
+Consequências combinadas:
+
+- O programa leva o código do Loft DENTRO dele (hoje abre o site) e ganha
+  atualização automática, hospedada de graça no Firebase.
+- iPhone fica de fora: exige conta paga da Apple (99 dólares/ano) e Mac.
+- Instalador do Windows sem certificado pago mostra o aviso do SmartScreen
+  ("Executar assim mesmo"); não há jeito grátis de tirar.
+- O chat só sai do navegador quando programa e app estiverem prontos (o
+  amigo que usa pelo celular perderia o acesso).
+
+Fases, nesta ordem:
+
+1. **Tela com áudio**: seletor próprio (etapa 2), áudio no Linux (etapa 3) e
+   no Windows (etapa 4), e o defeito do vídeo que às vezes não chega.
+2. **Programa independente**: código dentro do programa, instaladores,
+   atualização automática.
+3. **Caça às gambiarras**: revisão do Loft inteiro, lista para o Leo escolher.
+4. **Repaginar o layout**: 2–3 propostas em imagem, diferentes do Discord.
+5. **Página do site** no estilo da NOVA.
+6. **App Android** com compartilhamento de tela de verdade.
+
+## App de computador — etapa 2: seletor de tela próprio
+
+Na janela não existe o seletor do navegador. Agora o Loft mostra o dele:
+miniaturas de cada tela e de cada janela, separadas em "Telas" e "Janelas",
+com o "Transmitir" travado até escolher.
+
+- `desktop/preload.cjs` põe `window.loftDesktop` na página (só isso: nada de
+  Node). `fontesDeTela()` lista com miniatura e ícone; `escolherFonte(id)`
+  avisa a janela qual fonte o próximo `getDisplayMedia` recebe.
+- `desktop/main.mjs`: `setDisplayMediaRequestHandler` entrega SÓ a fonte
+  escolhida, uma vez; sem escolha, recusa. A própria janela do Loft fica fora
+  da lista (transmitir ela mesma vira túnel).
+- Site: `src/lib/desktop.ts` (detecta a janela), `components/screen-picker/`
+  (o seletor, sobre a casca de modal, que ganhou `wide` e `onClose`) e
+  `store.toggleScreenShare(escolherFonte?)` — o seletor roda depois das
+  checagens ("alguém já transmite") e antes de capturar. No navegador nada
+  muda.
+- Janela: `autoplayPolicy: 'no-user-gesture-required'` (a voz dos outros toca
+  sem clique; antes aparecia "O navegador bloqueou o áudio automático") e
+  `backgroundThrottling: false` (com o Loft atrás do jogo a página não dorme).
+
+**Defeito achado e corrigido no caminho:** a lista de permissões da etapa 1
+não tinha `display-capture`, e a janela recusava a captura com
+`NotAllowedError` — que o Loft trata como "desistiu", então falhava CALADO.
+
+**Testes** (`tests/desktop.spec.ts`, 5 no total): seletor lista tela e
+janelas, esconde a janela do Loft, trava sem escolha, desistir não transmite
+nem deixa capturar por fora; a janela transmite outra janela e o amigo no
+navegador recebe vídeo com dimensão real.
+
+**Pegadinhas de teste**
+
+- **Xvfb esconde a tela, não o SOM.** Em 15/11 o microfone falso bipou no
+  alto-falante do Leo durante uma chamada de teste. Agora `--mute-audio` está
+  em `MEDIA_ARGS` (suíte inteira) e a janela de teste abre muda e confere isso.
+- Sem gerenciador de janelas o Electron não lista NADA (o próprio Electron
+  pula esse caso nos testes dele). `scripts/tela-de-teste.sh` sobe Xvfb +
+  metacity. Sem ele, os testes do seletor pulam com o motivo.
+
 ## App de computador (janela) — etapa 1: a janela abre o Loft
 
 Plano combinado em 15/11/2026: o Loft ganha uma JANELA para Linux e Windows
@@ -61,8 +130,7 @@ real. A janela não muda esse caminho.
 - Neste PC, `desktop/node_modules` é um atalho para o HD
   (`Arquivo/Loft-desktop/instalar/node_modules`) — ver COMO-RODAR.md.
 
-Ainda NÃO compartilha tela na janela: sem o seletor da etapa 2, o botão de
-tela falha. Nada publicado; o site não mudou nesta etapa.
+Ainda NÃO compartilhava tela (resolvido na etapa 2). Nada publicado; o site não mudou nesta etapa.
 
 ## Ajustes mobile pós-etapa 20 (19/10/2026, commits `ec26661` e `2dac443`)
 

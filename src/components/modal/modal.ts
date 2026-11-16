@@ -44,6 +44,10 @@ export interface ModalOptions {
   danger?: boolean;
   /** Abre com o confirmar travado (ver setConfirmEnabled). */
   confirmDisabled?: boolean;
+  /** Modal largo, para grade de miniaturas (seletor de tela). */
+  wide?: boolean;
+  /** Chamado uma vez quando o modal fecha, por qualquer caminho. */
+  onClose?: () => void;
 }
 
 export function openModal(options: ModalOptions): ModalController {
@@ -58,6 +62,8 @@ export function openModal(options: ModalOptions): ModalController {
     initialFocus,
     danger = false,
     confirmDisabled = false,
+    wide = false,
+    onClose,
   } = options;
 
   let busy = false;
@@ -74,7 +80,7 @@ export function openModal(options: ModalOptions): ModalController {
   confirmButton.disabled = confirmDisabled;
   const cancelButton = el('button', { class: 'modal__cancel', type: 'button' }, [cancelLabel]);
 
-  const dialog = el('dialog', { class: 'modal' });
+  const dialog = el('dialog', { class: wide ? 'modal modal--wide' : 'modal' });
 
   /*
    * Saída esmaecendo (transição 1, etapa 20): o fantasma é fotografado ANTES
@@ -163,6 +169,7 @@ export function openModal(options: ModalOptions): ModalController {
     dialog.remove();
     mostrarSaida?.();
     mostrarSaida = null;
+    onClose?.();
   });
 
   dialog.append(form);

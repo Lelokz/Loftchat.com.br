@@ -76,6 +76,8 @@ import { extractInviteCode, invitePath, inviteUrl, navigate } from './lib/router
 import { isMobileLayout, onLayoutChange, trackViewportHeight } from './lib/layout';
 import { installContextMenus } from './context-menus';
 import { createStore, screenShareSupported } from './state/store';
+import { loftDesktop } from './lib/desktop';
+import { openScreenPicker } from './components/screen-picker/screen-picker';
 import type { AppState, Store } from './state/store';
 import { MAX_PINNED_MESSAGES } from './types/models';
 import { animarChegada, trocarComTransicao } from './lib/transition';
@@ -1686,7 +1688,10 @@ export function mountApp(
   }
 
   const handleToggleScreenShare = (): void => {
-    void store.toggleScreenShare().then((refusal) => {
+    // Na janela do Loft não existe seletor do navegador: entra o nosso.
+    const desktop = loftDesktop();
+    const escolher = desktop === null ? undefined : () => openScreenPicker(desktop);
+    void store.toggleScreenShare(escolher).then((refusal) => {
       if (refusal !== null) showToast(refusal);
     });
   };

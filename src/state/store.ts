@@ -267,8 +267,11 @@ export interface Store {
    *
    * Devolve o motivo da recusa, ou null. Precisa vir de um clique:
    * `getDisplayMedia` exige gesto do usuário.
+   *
+   * `escolherFonte`, quando vem, roda antes de capturar (seletor da janela do
+   * Loft, app de computador); `false` = a pessoa desistiu.
    */
-  toggleScreenShare(): Promise<string | null>;
+  toggleScreenShare(escolherFonte?: () => Promise<boolean>): Promise<string | null>;
   setScreenMaximized(maximized: boolean): void;
   /** O elemento de vídeo de quem está transmitindo — ou null. */
   screenVideoElement(): HTMLVideoElement | null;
@@ -1172,7 +1175,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       return (await engine?.diagnostics()) ?? [];
     },
 
-    async toggleScreenShare() {
+    async toggleScreenShare(escolherFonte) {
       if (engine === null) return null;
 
       if (engine.isSharing()) {
@@ -1192,6 +1195,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       if (other !== undefined) {
         return 'Alguém já está transmitindo neste canal.';
       }
+
+      if (escolherFonte !== undefined && !(await escolherFonte())) return null;
 
       let capture;
       try {

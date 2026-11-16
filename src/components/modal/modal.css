@@ -15,6 +15,10 @@
   flex-direction: column;
 }
 
+.modal--wide {
+  width: min(760px, calc(100vw - var(--space-6)));
+}
+
 .modal::backdrop {
   background-color: var(--backdrop);
 }

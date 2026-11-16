@@ -106,6 +106,10 @@ export const MEDIA_ARGS = [
    */
   "--auto-select-tab-capture-source-by-title=PalcoDeTeste",
   "--auto-select-desktop-capture-source=Entire screen",
+  // MUDO: o microfone falso bipa, e numa chamada de teste o bipe saía no
+  // alto-falante de verdade (15/11/2026). Só corta a SAÍDA de som; captura
+  // e análise de áudio continuam funcionando.
+  "--mute-audio",
 ];
 
 export default defineConfig({
