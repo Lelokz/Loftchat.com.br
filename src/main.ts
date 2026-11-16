@@ -25,6 +25,8 @@ import { closeGroupMenu } from './components/group-menu/group-menu';
 import { renderInviteScreen } from './components/invite-screen/invite-screen';
 import { USING_EMULATOR } from './lib/firebase';
 import { loftDesktop } from './lib/desktop';
+import { emSite } from './lib/router';
+import { ligarAndroid } from './lib/android';
 import { ligarFaixaDeAtualizacao } from './components/update-bar/update-bar';
 import { authErrorMessage } from './lib/auth-errors';
 import { auth } from './lib/firebase';
@@ -512,6 +514,9 @@ onRouteChange((next) => {
 // Programa (etapa 9b): link de convite com a janela já aberta.
 loftDesktop()?.aoAbrirConvite?.((codigo) => navigate(`/convite/${codigo}`));
 
+// App Android (etapa 10a): o botão voltar do sistema.
+ligarAndroid();
+
 // Programa (etapa 9d): a faixa "Atualização pronta / Reiniciar".
 {
   const desktop = loftDesktop();
@@ -552,8 +557,8 @@ onAuthStateChanged(auth, (user) => {
  * em `file://`, em navegador sem suporte ou com o registro bloqueado, o app tem
  * que continuar funcionando igual — instalável é um extra, não um requisito.
  */
-// No programa (etapa 9a, endereço `app://`) não existe service worker nem "instalar".
-if ('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
+// No programa (etapa 9a) e no app Android (10a) não existe "instalar" pelo navegador.
+if ('serviceWorker' in navigator && emSite()) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js').catch(() => {});
   });

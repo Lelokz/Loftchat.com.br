@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tela de abertura: o quadrado roxo arredondado com a casinha, como no app. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="72dp" android:height="72dp" android:gravity="center">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/ic_launcher_background" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+    <item android:width="108dp" android:height="108dp" android:gravity="center" android:drawable="@drawable/loftchat_casa" />
+</layer-list>

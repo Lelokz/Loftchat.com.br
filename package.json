@@ -18,11 +18,15 @@
     "janela": "npm run build:desktop && node scripts/janela.mjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.2",
     "@playwright/test": "^1.62.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
     "firebase": "^12.17.1"
   }
 }

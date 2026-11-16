@@ -71,8 +71,18 @@ function parseRouteCode(pathname: string): string {
 export const SITE_PUBLICO = 'https://loftchat.com.br';
 
 export function inviteUrl(code: string): string {
-  const base = /^https?:$/.test(window.location.protocol) ? window.location.origin : SITE_PUBLICO;
-  return `${base}${invitePath(code)}`;
+  return `${emSite() ? window.location.origin : SITE_PUBLICO}${invitePath(code)}`;
+}
+
+/**
+ * Rodando num SITE de verdade? Fora dele: o programa (`app://loftchat`,
+ * etapa 9a) e o app Android (Capacitor serve em `https://localhost`, etapa
+ * 10a) — endereços que ninguém de fora abre.
+ */
+export function emSite(): boolean {
+  if (!/^https?:$/.test(window.location.protocol)) return false;
+  const capacitor = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return capacitor?.isNativePlatform?.() !== true;
 }
 
 type RouteListener = (route: Route) => void;

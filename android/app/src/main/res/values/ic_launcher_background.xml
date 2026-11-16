@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- O roxo da marca (tokens.css, a cor accent do tema Noite). -->
+    <color name="ic_launcher_background">#7B3FE4</color>
+    <!-- O fundo do app (tema Noite): tela de abertura e atrás das barras do sistema. -->
+    <color name="fundo_loftchat">#140F26</color>
+</resources>
