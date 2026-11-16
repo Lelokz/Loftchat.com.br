@@ -13,7 +13,7 @@
     "test:turn": "node scripts/real.mjs playwright test --grep @externo",
     "check:indexes": "node scripts/real.mjs playwright test --grep @indices",
     "test:real": "node scripts/real.mjs playwright test tests/loft.spec.ts tests/mobile.spec.ts tests/screenshots.spec.ts",
-    "deploy": "npm run build && firebase deploy --only hosting",
+    "deploy": "firebase deploy --only hosting",
     "janela": "node scripts/janela.mjs"
   },
   "devDependencies": {

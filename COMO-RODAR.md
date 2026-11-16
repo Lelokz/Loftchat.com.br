@@ -139,12 +139,14 @@ npm run test:real       # escotilha: parte da suíte contra produção
 ## 7. Deploy
 
 ```bash
-npm run deploy                                             # build + hosting
+npm run deploy                                             # publica o SITE (pasta site/)
 firebase deploy --only firestore:rules,firestore:indexes   # regras e índices (separado)
 ```
 
-`npm run deploy` publica **só o hosting**, e o build embute os valores do
-`.env`: sem TURN preenchido, o site publicado fica sem TURN. Depois de mexer
+Desde 16/11/2026 o `loftchat.com.br` é o **site de apresentação** (`site/`),
+não o chat. O chat (`npm run build` → `dist/`) não vai mais para o hosting:
+ele vai dentro do programa e do app. O build embute os valores do `.env`:
+sem TURN preenchido, o app fica sem TURN. Depois de mexer
 em índices, espere ficarem READY no console do Firebase e rode
 `npm run check:indexes`.
 

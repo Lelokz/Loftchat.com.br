@@ -94,6 +94,31 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## O chat saiu do ar; `loftchat.com.br` virou o SITE (16/11/2026)
+
+Pedido do Leo, aproveitando que as contas tinham acabado de ser apagadas: o
+chat no navegador sai do ar e só volta como programa (Linux/Windows) e app
+(Android). No lugar, o site de apresentação desenhado no estilo do site da
+NOVA (aprovado: "muito foda esse design").
+
+- `site/`: `index.html` (abertura com o app e cartões flutuando, recursos com
+  painel que troca ao clicar, "Do seu jeito", transmissão, baixar com o
+  sistema de quem abriu marcado), `termos/`, `privacidade/`, `404.html`,
+  `estilo.css` compartilhado, fonte Nunito e imagens em `img/`.
+- Baixar: os três sistemas dizem **"Em breve"** — ainda não há instalador.
+- `site/sw.js` se DESINSTALA (o Loft antigo registrava um service worker
+  neste endereço; ele não guardava nada, mas não fica resto).
+- `firebase.json`: hosting serve `site/`, sem o rewrite de SPA (endereço
+  inexistente, como um convite antigo, cai no 404 do site).
+- `npm run deploy` publica SÓ o site. O app (`npm run build` → `dist/`) não
+  vai mais para o hosting: vai dentro do programa (fase 2).
+- Conferido no ar: `/`, `/termos/`, `/privacidade/`, css, imagens e fonte dão
+  200; `/convite/…` dá 404 com a página do site.
+- **Atenção:** `desktop/main.mjs` ainda abre `https://loft-3d6c0f.web.app`,
+  que agora é o SITE. Para testar a janela com o chat, usar `LOFT_URL` com o
+  Vite (`npm run dev`) até a fase 2 pôr o código dentro do programa.
+- Para desfazer: o console do Firebase guarda as versões do hosting.
+
 ## Publicação de 16/11/2026 (madrugada)
 
 - `firebase deploy --only firestore:rules` e `npm run deploy` — conferido no
