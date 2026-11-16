@@ -6,7 +6,9 @@ import type { User } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, peopleIcon, shieldIcon } from '../../lib/icons';
-import { MAX_GROUP_LABEL, saveGroupLabels } from '../../lib/private-prefs';
+import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
+import type { GroupFolder, TabMode } from '../../lib/private-prefs';
+import { enableDragSort } from '../../lib/drag-sort';
 import { grupoAvatar } from '../group-bar/group-bar';
 import {
   CARD_COLOR_IDS,
@@ -63,6 +65,10 @@ export interface SettingsOptions {
   /** Etapa 3d: meus grupos e como eu chamo cada um (apelido, '' = só o ícone). */
   groups: Group[];
   groupLabels: Map<string, string>;
+  /** Etapa 4a: o jeito das abas (a ordem é a de `groups`, já na minha ordem). */
+  tabMode: TabMode;
+  /** Etapa 4b: minhas pastas de grupos. */
+  folders: GroupFolder[];
   /** Abrir direto numa seção (o menu do grupo abre em "Grupos"). */
   section?: Secao;
 }
@@ -180,6 +186,19 @@ export function openSettings(options: SettingsOptions): void {
   const rotulosMudaram = (): boolean =>
     rotulosAtual.size !== rotulosSalvos.size ||
     [...rotulosAtual].some(([id, v]) => rotulosSalvos.get(id)?.trim() !== v.trim());
+  /* Jeito e ordem das abas (etapa 4a). */
+  let modoSalvo: TabMode = options.tabMode;
+  let modoAtual: TabMode = modoSalvo;
+  let ordemSalva = options.groups.map((g) => g.id);
+  let ordemAtual = [...ordemSalva];
+  const abasMudaram = (): boolean => modoAtual !== modoSalvo || ordemAtual.join() !== ordemSalva.join();
+  /* Pastas (etapa 4b). */
+  const copiaPastas = (ps: GroupFolder[]): GroupFolder[] => ps.map((p) => ({ ...p, groupIds: [...p.groupIds] }));
+  let pastasSalvas = copiaPastas(options.folders);
+  let pastasAtual = copiaPastas(pastasSalvas);
+  const limparPasta = (p: GroupFolder): unknown => [p.id, p.name.trim(), p.color, [...p.groupIds].sort()];
+  const pastasMudaram = (): boolean =>
+    JSON.stringify(pastasAtual.map(limparPasta)) !== JSON.stringify(pastasSalvas.map(limparPasta));
 
   const dialog = el('dialog', { class: 'settings', 'aria-label': 'Configurações' });
   aberta = dialog;
@@ -256,6 +275,9 @@ export function openSettings(options: SettingsOptions): void {
   desfazer.addEventListener('click', () => {
     atual = copia(salvo);
     rotulosAtual = new Map(rotulosSalvos);
+    modoAtual = modoSalvo;
+    ordemAtual = [...ordemSalva];
+    pastasAtual = copiaPastas(pastasSalvas);
     mostrar(secaoAtual);
   });
   salvar.addEventListener('click', () => void salvarPerfil());
@@ -275,7 +297,7 @@ export function openSettings(options: SettingsOptions): void {
   let erroGeral: HTMLElement | null = null;
 
   function atualizarBarra(): void {
-    const sujo = (carregado && !iguais(atual, salvo)) || rotulosMudaram();
+    const sujo = (carregado && !iguais(atual, salvo)) || rotulosMudaram() || abasMudaram() || pastasMudaram();
     barra.hidden = !sujo;
     salvar.disabled = salvando || erroDoArroba !== null;
     desfazer.disabled = salvando;
@@ -708,6 +730,20 @@ export function openSettings(options: SettingsOptions): void {
         rotulosSalvos = new Map([...rotulosAtual].map(([id, v]) => [id, v.trim()]));
         rotulosAtual = new Map(rotulosSalvos);
       }
+      if (abasMudaram()) {
+        await saveTabPrefs(user.uid, {
+          ...(modoAtual === modoSalvo ? {} : { tabMode: modoAtual }),
+          ...(ordemAtual.join() === ordemSalva.join() ? {} : { groupOrder: ordemAtual }),
+        });
+        modoSalvo = modoAtual;
+        ordemSalva = [...ordemAtual];
+      }
+      if (pastasMudaram()) {
+        const problemaDaPasta = pastasAtual.find((p) => p.name.trim() === '');
+        if (problemaDaPasta !== undefined) throw new Error('Toda pasta precisa de um nome.');
+        await saveFolders(user.uid, pastasAtual);
+        pastasSalvas = copiaPastas(pastasAtual);
+      }
       if (!perfilMudou) {
         showToast('Salvo.');
         salvando = false;
@@ -841,10 +877,128 @@ export function openSettings(options: SettingsOptions): void {
 
   /* --- seção Grupos (etapa 3d) -------------------------------------------- */
 
+  function listaOrdenavel(linhas: HTMLElement[]): HTMLElement {
+    const lista = el('ul', { class: 'settings-grupos' }, linhas);
+    enableDragSort({
+      container: lista,
+      itemSelector: 'li[data-sort-id]',
+      handleSelector: '.settings-grupos__handle',
+      axis: 'y',
+      onDrop: (ids) => {
+        ordemAtual = ids;
+        mostrar('grupos');
+      },
+    });
+    return lista;
+  }
+
+  /** As pastas (etapa 4b): criar, renomear, cor, apagar. Quem entra numa pasta se escolhe em cada grupo. */
+  function blocoDasPastas(): HTMLElement {
+    const linhas = pastasAtual.map((p) => {
+      const nome = el('input', {
+        class: 'settings__input settings-pastas__nome',
+        type: 'text',
+        maxlength: MAX_FOLDER_NAME,
+        'aria-label': 'Nome da pasta',
+      });
+      nome.value = p.name;
+      nome.addEventListener('input', () => {
+        p.name = nome.value;
+        nome.toggleAttribute('aria-invalid', nome.value.trim() === '');
+        // O nome novo já aparece nos seletores "Pasta de…".
+        for (const opcao of conteudo.querySelectorAll<HTMLOptionElement>(`.settings-grupos__pasta option[value="${p.id}"]`)) {
+          opcao.textContent = nome.value.trim() || 'Sem nome';
+        }
+        atualizarBarra();
+      });
+      const cores = el('span', { class: 'settings__swatches settings-pastas__cores', role: 'radiogroup', 'aria-label': `Cor da pasta ${p.name}` });
+      for (const id of CARD_COLOR_IDS) {
+        const b = el('button', {
+          class: 'settings__swatch settings-pastas__cor',
+          type: 'button',
+          role: 'radio',
+          'aria-label': CARD_COLORS[id].label,
+          'aria-checked': String(p.color === id),
+        });
+        b.style.setProperty('--swatch', CARD_COLORS[id].base);
+        b.addEventListener('click', () => {
+          p.color = id;
+          for (const outro of cores.children) outro.setAttribute('aria-checked', String(outro === b));
+          atualizarBarra();
+        });
+        cores.append(b);
+      }
+      const apagar = el('button', { class: 'settings__link', type: 'button', 'aria-label': `Apagar a pasta ${p.name}` }, ['Apagar']);
+      apagar.addEventListener('click', () => {
+        // Os grupos voltam para a barra soltos — nada some.
+        pastasAtual = pastasAtual.filter((x) => x.id !== p.id);
+        mostrar('grupos');
+      });
+      return el('li', { class: 'settings-pastas__row' }, [
+        el('span', { class: 'settings-pastas__qtd' }, [`${p.groupIds.length} ${p.groupIds.length === 1 ? 'grupo' : 'grupos'}`]),
+        nome,
+        cores,
+        apagar,
+      ]);
+    });
+    const nova = el('button', { class: 'settings__button', type: 'button' }, ['Nova pasta']);
+    nova.disabled = pastasAtual.length >= MAX_FOLDERS;
+    nova.addEventListener('click', () => {
+      pastasAtual.push({ id: crypto.randomUUID().slice(0, 12), name: 'Nova pasta', color: 'roxo', groupIds: [] });
+      mostrar('grupos');
+      const nomes = conteudo.querySelectorAll<HTMLInputElement>('.settings-pastas__nome');
+      nomes[nomes.length - 1]?.focus();
+      nomes[nomes.length - 1]?.select();
+    });
+    return el('div', { class: 'settings__field' }, [
+      el('span', { class: 'settings__label' }, ['Pastas']),
+      linhas.length > 0 && el('ul', { class: 'settings-pastas' }, linhas),
+      el('p', { class: 'settings__help' }, [
+        'Uma pasta junta vários grupos numa aba só. Escolha a pasta de cada grupo aqui embaixo. ',
+        'Na barra, clique na pasta para abrir e fechar.',
+      ]),
+      nova,
+    ]);
+  }
+
+  /** As 3 opções de jeito das abas (etapa 4a), cada uma com uma miniatura. */
+  function escolhaDoJeito(): HTMLElement {
+    const opcoes: { id: TabMode; titulo: string; texto: string }[] = [
+      { id: 'nomes', titulo: 'Todas com nome', texto: 'Ícone e nome em todas as abas.' },
+      { id: 'icones', titulo: 'Só ícones', texto: 'Mais grupos cabem. A aba aberta ganha uma marquinha.' },
+      { id: 'aberto', titulo: 'Só a aberta com nome', texto: 'As outras ficam só com o ícone.' },
+    ];
+    const grupo = el('div', { class: 'settings-abas', role: 'radiogroup', 'aria-label': 'Jeito das abas dos grupos' });
+    for (const opcao of opcoes) {
+      const mini = el('span', { class: 'settings-abas__mini', 'aria-hidden': 'true' }, [0, 1, 2].map((i) => {
+        const aberta = i === 1;
+        const comNome = opcao.id === 'nomes' || (opcao.id === 'aberto' && aberta);
+        return el('span', { class: `settings-abas__tab${aberta ? ' is-active' : ''}${comNome ? '' : ' is-icone'}` }, [
+          el('span', { class: 'settings-abas__icon' }),
+          comNome && el('span', { class: 'settings-abas__bar' }),
+        ]);
+      }));
+      const botao = el(
+        'button',
+        { class: 'settings-abas__opcao', type: 'button', role: 'radio', 'aria-checked': String(modoAtual === opcao.id) },
+        [mini, el('span', { class: 'settings-abas__titulo' }, [opcao.titulo]), el('span', { class: 'settings-abas__texto' }, [opcao.texto])],
+      );
+      botao.addEventListener('click', () => {
+        modoAtual = opcao.id;
+        for (const outro of grupo.children) outro.setAttribute('aria-checked', String(outro === botao));
+        atualizarBarra();
+      });
+      grupo.append(botao);
+    }
+    return el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Abas dos grupos']), grupo]);
+  }
+
   function secaoGrupos(): HTMLElement[] {
     erroGeral = el('p', { class: 'settings__error', role: 'alert' });
     erroGeral.hidden = true;
-    const linhas = options.groups.map((group) => {
+    const porId = new Map(options.groups.map((g) => [g.id, g]));
+    const ordenados = ordemAtual.map((id) => porId.get(id)).filter((g): g is Group => g !== undefined);
+    const linhas = ordenados.map((group, indice) => {
       const atualDoGrupo = rotulosAtual.get(group.id);
       const modo: 'nome' | 'apelido' | 'icone' =
         atualDoGrupo === undefined ? 'nome' : atualDoGrupo.trim() === '' && !apelidoEmEdicao.has(group.id) ? 'icone' : 'apelido';
@@ -888,22 +1042,64 @@ export function openSettings(options: SettingsOptions): void {
         apelidoEmEdicao.add(group.id);
         atualizarBarra();
       });
-      return el('li', { class: 'settings-grupos__row' }, [
+      const alca = el(
+        'button',
+        {
+          class: 'gc-handle settings-grupos__handle',
+          type: 'button',
+          id: `ordem-${group.id}`,
+          'aria-label': `Mover ${group.name}`,
+          'aria-describedby': 'settings-grupos-dica',
+        },
+        ['⠿'],
+      );
+      alca.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        const j = event.key === 'ArrowUp' ? indice - 1 : indice + 1;
+        if (j < 0 || j >= ordemAtual.length) return;
+        [ordemAtual[indice], ordemAtual[j]] = [ordemAtual[j]!, ordemAtual[indice]!];
+        mostrar('grupos');
+        document.getElementById(`ordem-${group.id}`)?.focus();
+      });
+      const pastaDoGrupo = pastasAtual.find((p) => p.groupIds.includes(group.id));
+      const pasta = el(
+        'select',
+        { class: 'settings__input settings__select settings-grupos__pasta', 'aria-label': `Pasta de ${group.name}` },
+        [el('option', { value: '' }, ['Sem pasta']), ...pastasAtual.map((p) => el('option', { value: p.id }, [p.name.trim() || 'Sem nome']))],
+      );
+      pasta.value = pastaDoGrupo?.id ?? '';
+      pasta.hidden = pastasAtual.length === 0;
+      pasta.addEventListener('change', () => {
+        for (const p of pastasAtual) p.groupIds = p.groupIds.filter((id) => id !== group.id);
+        pastasAtual.find((p) => p.id === pasta.value)?.groupIds.push(group.id);
+        // Redesenha para a contagem "N grupos" da pasta acompanhar.
+        mostrar('grupos');
+        conteudo.querySelector<HTMLSelectElement>(`[aria-label="Pasta de ${CSS.escape(group.name)}"]`)?.focus();
+      });
+      return el('li', { class: 'settings-grupos__row', 'data-sort-id': group.id }, [
+        alca,
         grupoAvatar(group, 'sm', 'settings-grupos__avatar'),
         el('span', { class: 'settings-grupos__name', title: group.name }, [group.name]),
-        el('span', { class: 'settings-grupos__controls' }, [escolha, apelido]),
+        el('span', { class: 'settings-grupos__controls' }, [escolha, apelido, pasta]),
       ]);
     });
     return [
       el('header', { class: 'settings__header' }, [
         el('h2', { class: 'settings__title' }, ['Grupos']),
         el('p', { class: 'settings__subtitle' }, [
-          'Como cada grupo aparece na SUA barra de cima. Só você vê o apelido.',
+          'Como os grupos aparecem na SUA barra de cima. Só você vê o apelido e a ordem.',
         ]),
+      ]),
+      escolhaDoJeito(),
+      blocoDasPastas(),
+      el('h3', { class: 'settings__label settings-grupos__subtitle' }, ['Cada grupo']),
+      el('p', { class: 'settings__help', id: 'settings-grupos-dica' }, [
+        'Arraste pela alça ⠿ para mudar a ordem das abas (no teclado: as setas na alça). No computador, dá para arrastar as próprias abas lá em cima.',
       ]),
       options.groups.length === 0
         ? el('p', { class: 'settings__help' }, ['Você ainda não está em nenhum grupo.'])
-        : el('ul', { class: 'settings-grupos' }, linhas),
+        : listaOrdenavel(linhas),
       el('p', { class: 'settings__help' }, [
         'Apelido vazio vira "sem nome". Notificações por grupo e por canal chegam junto com as notificações do app.',
       ]),

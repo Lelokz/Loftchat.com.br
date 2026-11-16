@@ -731,3 +731,194 @@
     flex-direction: column;
   }
 }
+
+/* --- jeito e ordem das abas (etapa 4a) ----------------------------------- */
+
+.settings-grupos__subtitle {
+  margin-top: var(--space-2);
+}
+
+.settings-grupos__handle {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: grab;
+  touch-action: none; /* no celular, arrastar a alça não rola a página */
+}
+
+.settings-grupos__handle:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.settings-grupos__handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.settings-grupos__row.is-dragging {
+  outline: 2px solid var(--accent);
+  background-color: var(--surface-hover);
+}
+
+.settings-abas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.settings-abas__opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-abas__opcao:hover {
+  border-color: var(--border-strong);
+}
+
+.settings-abas__opcao[aria-checked='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.settings-abas__opcao:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.settings-abas__titulo {
+  font-weight: 800;
+}
+
+.settings-abas__texto {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* Miniatura: três abinhas, a do meio é a aberta. */
+.settings-abas__mini {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space-2);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-rail);
+}
+
+.settings-abas__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.settings-abas__tab.is-active {
+  background-color: var(--accent-soft);
+}
+
+.settings-abas__tab.is-active.is-icone::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--accent-text);
+  transform: translateX(-50%);
+}
+
+.settings-abas__icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background-color: var(--text-muted);
+}
+
+.settings-abas__tab.is-active .settings-abas__icon {
+  background-color: var(--accent-text);
+}
+
+.settings-abas__bar {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .settings-abas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- pastas (etapa 4b) ----------------------------------------------------- */
+
+.settings-pastas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-pastas__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+}
+
+.settings-pastas__qtd {
+  flex: none;
+  min-width: 64px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.settings-pastas__nome {
+  flex: 1;
+  min-width: 140px;
+  padding-block: 8px;
+}
+
+.settings-pastas__cores {
+  flex: none;
+}
+
+.settings-pastas__cor {
+  width: 22px;
+  height: 22px;
+}
+
+.settings-grupos__controls {
+  flex-wrap: wrap;
+}
+
+.settings-grupos__pasta[hidden] {
+  display: none;
+}

@@ -94,6 +94,36 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 4 — abas: 3 jeitos, ordem arrastando e pastas (16/11/2026)
+
+Dividida em **4a** (jeitos e ordem) e **4b** (pastas). Tudo é preferência
+pessoal em `userPrivate/{uid}` (ao vivo entre aparelhos, como os apelidos da
+3d), escolhido em Configurações → Grupos.
+
+- **Jeito das abas** (`tabMode`): "Todas com nome", "Só ícones" (a aberta
+  ganha uma marquinha embaixo, além do fundo) ou "Só a aberta com nome".
+  Cada opção tem uma miniatura. O "sem nome" da 3d vale em qualquer jeito.
+- **Ordem** (`groupOrder`): no computador, arrastando as próprias abas lá em
+  cima — só mouse e só depois de andar 8px, então clique continua clique, e
+  o clique do soltar é engolido (arrastar não abre o grupo). No celular a
+  faixa de abas rola com o dedo, então lá a ordem muda em Configurações →
+  Grupos, pela alça ⠿ (dedo) ou pelas setas na alça (teclado). Grupo novo
+  vai para o fim.
+- `lib/drag-sort.ts`: arrastar-para-ordenar reaproveitado na barra, na
+  pasta aberta e na lista das Configurações. Cada lista só cuida dos próprios
+  itens (com a pasta aberta há uma lista dentro da outra).
+- **Pastas** (`groupFolders`, até 20): nome, cor e quais grupos; um grupo
+  fica em uma pasta só. Criar/renomear/cor/apagar em Configurações → Grupos,
+  e cada grupo escolhe a pasta. Na barra a pasta é uma aba com miniaturas
+  2×2 dos grupos sobre a cor dela, no lugar do primeiro grupo dela (a ordem
+  dentro da pasta é a mesma `groupOrder` — uma lista só, nada para
+  desencontrar). Clicar abre/fecha; aberta, os grupos ficam ao lado numa
+  moldura da cor da pasta e dá para arrastá-los ali dentro; fechada com o
+  grupo aberto lá dentro, a pasta fica acesa. Arrastar a pasta leva os
+  grupos dela juntos. Apagar a pasta devolve os grupos soltos, no mesmo
+  lugar. Aberta/fechada é conforto do aparelho (localStorage), não da conta.
+- Testes: `tests/abas.spec.ts`.
+
 ## Proposta A, etapa 3d — apelido do grupo / sem nome (16/11/2026) — fim da etapa 3
 
 - Configurações (pessoais) ganhou a seção **Grupos**: para cada grupo,

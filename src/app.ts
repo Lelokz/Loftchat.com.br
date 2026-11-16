@@ -27,7 +27,8 @@ import { openGroupSettings } from './components/group-settings/group-settings';
 import { renderGroupCard } from './components/group-settings/group-card';
 import { watchGroupBanner } from './lib/group-profile';
 import { markWelcomeSeen } from './lib/welcome';
-import { watchPrivatePrefs } from './lib/private-prefs';
+import { saveTabPrefs, sortGroups, watchPrivatePrefs } from './lib/private-prefs';
+import type { GroupFolder, TabMode } from './lib/private-prefs';
 import { renderWelcomeCard } from './components/welcome-card/welcome-card';
 import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
 import type { Vinculo } from './components/person-card/person-popover';
@@ -687,8 +688,10 @@ export function mountApp(
     openSettings({
       user,
       onSignOut,
-      groups: state.groups,
+      groups: sortGroups(state.groups, ordemDosGrupos),
       groupLabels: rotulosDosGrupos,
+      tabMode: jeitoDasAbas,
+      folders: pastas,
       ...(section === undefined ? {} : { section }),
       onSaved: (perfil) => {
         me.displayName = perfil.displayName;
@@ -707,8 +710,14 @@ export function mountApp(
 
   function buildGroupBar(state: AppState): HTMLElement {
     return renderGroupBar({
-      groups: state.groups,
+      groups: sortGroups(state.groups, ordemDosGrupos),
       groupLabels: rotulosDosGrupos,
+      tabMode: jeitoDasAbas,
+      onReorder: reordenarGrupos,
+      folders: pastas,
+      openFolders: pastasAbertas,
+      onToggleFolder: alternarPasta,
+      onReorderInFolder: reordenarNaPasta,
       activeGroupId: state.activeGroupId,
       homeActive: state.view === 'home',
       onOpenHome: () => {
@@ -1479,14 +1488,77 @@ export function mountApp(
   let boasVistas: Set<string> | null = null;
   let boasChave = '';
   let rotulosDosGrupos = new Map<string, string>();
+  let jeitoDasAbas: TabMode = 'nomes';
+  let ordemDosGrupos: string[] = [];
+  let pastas: GroupFolder[] = [];
+  /** Pastas abertas: conforto DESTE aparelho (localStorage), não vai para a conta. */
+  const CHAVE_PASTAS = 'loft.pastasAbertas';
+  const pastasAbertas = new Set<string>(
+    (() => {
+      try {
+        const salvo: unknown = JSON.parse(localStorage.getItem(CHAVE_PASTAS) ?? '[]');
+        return Array.isArray(salvo) ? salvo.filter((x): x is string => typeof x === 'string') : [];
+      } catch {
+        return [];
+      }
+    })(),
+  );
   const pararPrefs = watchPrivatePrefs(user.uid, (prefs) => {
-    const rotulosMudaram =
-      JSON.stringify([...prefs.groupLabels]) !== JSON.stringify([...rotulosDosGrupos]);
+    const barraMudou =
+      JSON.stringify([...prefs.groupLabels]) !== JSON.stringify([...rotulosDosGrupos]) ||
+      prefs.tabMode !== jeitoDasAbas ||
+      prefs.groupOrder.join() !== ordemDosGrupos.join() ||
+      JSON.stringify(prefs.groupFolders) !== JSON.stringify(pastas);
     boasVistas = prefs.welcomeSeen;
     rotulosDosGrupos = prefs.groupLabels;
-    if (rotulosMudaram && groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
+    jeitoDasAbas = prefs.tabMode;
+    ordemDosGrupos = prefs.groupOrder;
+    pastas = prefs.groupFolders;
+    if (barraMudou && groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
     render(store.getState());
   });
+
+  /**
+   * Soltou uma aba arrastada: a ordem nova vale na hora e vai para a conta.
+   * Uma pasta arrastada (`pasta:<id>`) leva os grupos dela juntos, na ordem
+   * em que já estavam.
+   */
+  function reordenarGrupos(itens: string[]): void {
+    const atuais = sortGroups(store.getState().groups, ordemDosGrupos).map((g) => g.id);
+    const ids = itens.flatMap((item) => {
+      if (!item.startsWith('pasta:')) return [item];
+      const membros = new Set(pastas.find((p) => `pasta:${p.id}` === item)?.groupIds ?? []);
+      return atuais.filter((id) => membros.has(id));
+    });
+    salvarOrdem(ids);
+  }
+
+  /** Arrastou DENTRO de uma pasta aberta: os grupos dela trocam de lugar entre si. */
+  function reordenarNaPasta(idsDaPasta: string[]): void {
+    const atuais = sortGroups(store.getState().groups, ordemDosGrupos).map((g) => g.id);
+    const membros = new Set(idsDaPasta);
+    const fila = [...idsDaPasta];
+    salvarOrdem(atuais.map((id) => (membros.has(id) ? fila.shift()! : id)));
+  }
+
+  function alternarPasta(id: string): void {
+    if (pastasAbertas.has(id)) pastasAbertas.delete(id);
+    else pastasAbertas.add(id);
+    try {
+      localStorage.setItem(CHAVE_PASTAS, JSON.stringify([...pastasAbertas]));
+    } catch {
+      // Sem armazenamento (aba anônima): a pasta abre e fecha só nesta visita.
+    }
+    if (groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
+  }
+
+  function salvarOrdem(ids: string[]): void {
+    ordemDosGrupos = ids;
+    if (groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
+    void saveTabPrefs(user.uid, { groupOrder: ids }).catch(() =>
+      showToast('Não deu para guardar a ordem das abas. Confira a internet.'),
+    );
+  }
 
   function atualizarBoasVindas(state: AppState, parts: ChatParts, recriado: boolean): void {
     const group = state.view === 'group' ? activeGroup(state) : undefined;
