@@ -16,7 +16,7 @@
   flex: none;
   display: flex;
   align-items: center;
-  height: 48px; /* mesma altura do cabeçalho da coluna de canais */
+  height: var(--header-h); /* mesma altura dos outros cabeçalhos */
   padding: 0 var(--space-3);
   border-bottom: 1px solid var(--border);
 }

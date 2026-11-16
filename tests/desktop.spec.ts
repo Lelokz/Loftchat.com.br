@@ -291,8 +291,12 @@ test.describe('seletor: transmitir pela janela', () => {
       )
       .toBeGreaterThan(0);
 
+    // Proposta A: o canal de voz do amigo ganha o selo AO VIVO.
+    await expect(navegador.locator('.channels__body .channel__on-air')).toHaveText('AO VIVO');
+
     await janela.getByRole('button', { name: 'Parar de transmitir' }).click();
     await expect(janela.locator('.room__preview')).toHaveCount(0, { timeout: 15_000 });
+    await expect(navegador.locator('.channel__on-air')).toHaveCount(0, { timeout: 15_000 });
     await contexto.close();
   });
 });

@@ -20,6 +20,8 @@ export interface ChannelListProps {
   onSelectChannel: (channelId: ChannelId) => void;
   /** Conecta na voz e abre a sala; no canal já conectado, só volta para a sala. */
   onEnterVoice: (channelId: ChannelId) => void;
+  /** Quantas pessoas o grupo tem — embaixo do nome, no cabeçalho. */
+  memberCount?: number;
   /** Recebe o próprio botão, para o menu se ancorar nele. */
   onOpenGroupMenu: (anchor: HTMLElement) => void;
   /** Faixa de chamada em andamento; ausente quando a sala está na tela. */
@@ -34,6 +36,8 @@ export interface VoicePresenceView {
   displayName: string;
   initials: string;
   muted: boolean;
+  /** Está transmitindo a tela agora. */
+  sharingScreen: boolean;
 }
 
 /**
@@ -73,6 +77,8 @@ function channelButton(
         ? iconEl(speakerIcon(15), 'icon channel__icon')
         : el('span', { class: 'channel__hash', 'aria-hidden': 'true' }, ['#']),
       el('span', { class: 'channel__name' }, [channel.name]),
+      roster?.some((person) => person.sharingScreen) === true &&
+        el('span', { class: 'channel__on-air' }, ['AO VIVO']),
       state === 'connected' && el('span', { class: 'channel__live' }, ['conectado']),
     ],
   );
@@ -180,8 +186,14 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
 
   return el('aside', { class: 'channels', 'aria-label': 'Canais' }, [
     el('header', { class: 'channels__header' }, [
-      el('span', { class: 'channels__group-name', title: group?.name ?? '' }, [
-        group?.name ?? 'Loftchat',
+      el('div', { class: 'channels__title' }, [
+        el('span', { class: 'channels__group-name', title: group?.name ?? '' }, [
+          group?.name ?? 'Loftchat',
+        ]),
+        props.memberCount !== undefined &&
+          el('span', { class: 'channels__meta' }, [
+            props.memberCount === 1 ? '1 membro' : `${props.memberCount} membros`,
+          ]),
       ]),
       menuButton,
     ]),

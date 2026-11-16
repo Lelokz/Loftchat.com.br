@@ -23,9 +23,22 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  height: 48px;
-  padding: 0 var(--space-2) 0 var(--space-3);
+  height: var(--header-h);
+  padding: 0 var(--space-2) 0 var(--space-4);
   border-bottom: 1px solid var(--border);
+}
+
+/* Nome do grupo grande e, embaixo, quantos membros (proposta A). */
+.channels__title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.channels__meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
 }
 
 .channels__empty {
@@ -37,8 +50,8 @@
 .channels__group-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--font-size-lg);
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -100,6 +113,29 @@
 
 .channel.is-connected .channel__icon {
   color: var(--accent-text);
+}
+
+/* Alguém transmitindo nesta sala. */
+.channel__on-air {
+  margin-left: auto;
+  flex: none;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-soft);
+  color: var(--danger);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.channel__on-air + .channel__live {
+  margin-left: var(--space-1);
+}
+
+/* Títulos das seções de canais em caixa alta (proposta A). */
+.channels .section-title {
+  text-transform: uppercase;
+  font-weight: 800;
 }
 
 .channel__live {

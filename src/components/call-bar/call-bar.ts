@@ -1,7 +1,7 @@
 import './call-bar.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { hangupIcon, micIcon } from '../../lib/icons';
+import { hangupIcon, micIcon, screenShareIcon } from '../../lib/icons';
 
 /**
  * Faixa de chamada em andamento.
@@ -26,6 +26,9 @@ export interface CallBarProps {
   onOpenRoom: () => void;
   onToggleMute: () => void;
   onDisconnect: () => void;
+  /** Transmitir a tela sem voltar para a sala (cartão do desktop). */
+  onToggleScreen?: () => void;
+  sharingScreen?: boolean;
 }
 
 export function renderCallBar(props: CallBarProps, variant: 'desktop' | 'mobile'): HTMLElement {
@@ -36,7 +39,7 @@ export function renderCallBar(props: CallBarProps, variant: 'desktop' | 'mobile'
 
   // O corpo inteiro é o caminho de volta para a sala, não só um ícone.
   const back = el('button', { class: 'callbar__back', type: 'button' }, [
-    el('span', { class: 'callbar__status' }, ['Conectado']),
+    el('span', { class: 'callbar__status' }, ['Em chamada']),
     el('span', { class: 'callbar__where' }, [where]),
   ]);
   back.title = `Voltar para ${where}`;
@@ -66,5 +69,26 @@ export function renderCallBar(props: CallBarProps, variant: 'desktop' | 'mobile'
   );
   leave.addEventListener('click', props.onDisconnect);
 
-  return el('div', { class: `callbar callbar--${variant}` }, [back, mute, leave]);
+  // Só no computador: navegador de celular não transmite tela.
+  const screen =
+    variant === 'desktop' &&
+    props.onToggleScreen !== undefined &&
+    el(
+      'button',
+      {
+        class: `icon-button callbar__btn${props.sharingScreen === true ? ' is-on' : ''}`,
+        type: 'button',
+        title: props.sharingScreen === true ? 'Parar a transmissão' : 'Transmitir tela',
+        'aria-pressed': String(props.sharingScreen === true),
+      },
+      [
+        iconEl(screenShareIcon(16)),
+        el('span', { class: 'sr-only' }, [
+          props.sharingScreen === true ? 'Parar a transmissão' : 'Transmitir tela',
+        ]),
+      ],
+    );
+  if (screen !== false) screen.addEventListener('click', props.onToggleScreen!);
+
+  return el('div', { class: `callbar callbar--${variant}` }, [back, mute, screen, leave]);
 }

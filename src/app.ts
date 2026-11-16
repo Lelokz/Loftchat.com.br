@@ -687,6 +687,8 @@ export function mountApp(
       onOpenRoom: () => store.openVoiceRoom(),
       onToggleMute: () => store.toggleMute(),
       onDisconnect: () => store.disconnectVoice(),
+      onToggleScreen: () => handleToggleScreenShare(),
+      sharingScreen: state.screenSharing,
     };
   }
 
@@ -792,6 +794,7 @@ export function mountApp(
         handleEnterVoice(channelId);
       },
       onOpenGroupMenu: handleOpenGroupMenu,
+      ...(state.membersLoaded ? { memberCount: state.members.length } : {}),
       voiceRosters: voiceRosters(state),
       // No mobile a faixa vai para cima do composer, e SÓ para lá: dois
       // `.callbar` no DOM ao mesmo tempo mudariam o documento do desktop, que
@@ -815,6 +818,7 @@ export function mountApp(
       displayName,
       initials: member?.initials ?? initials(displayName),
       muted: participant.muted,
+      sharingScreen: participant.sharingScreen,
     };
   }
 
@@ -1407,7 +1411,10 @@ export function mountApp(
       homeColumnChanged ||
       prev.channels !== state.channels ||
       prev.channelsLoaded !== state.channelsLoaded ||
-      prev.activeChannelId !== state.activeChannelId;
+      prev.activeChannelId !== state.activeChannelId ||
+      // O cabeçalho mostra quantos membros o grupo tem (proposta A).
+      prev.members !== state.members ||
+      prev.membersLoaded !== state.membersLoaded;
 
     const membersChanged =
       prev === null ||

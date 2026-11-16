@@ -66,3 +66,54 @@
   display: none;
   border-top: 1px solid var(--border);
 }
+
+/* Proposta A: no desktop a faixa vira o cartão "Em chamada" no pé da coluna.
+   Linha 1: onde estou (clique volta para a sala); linha 2: os botões. */
+.callbar--desktop {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-top: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-chat);
+}
+
+.callbar--desktop .callbar__back {
+  grid-column: 1 / -1;
+}
+
+.callbar--desktop .callbar__btn {
+  width: 100%;
+  height: 34px;
+  border-radius: 10px;
+  background-color: var(--surface-side);
+}
+
+.callbar--desktop .callbar__btn--danger {
+  background-color: var(--danger);
+  color: var(--danger-on);
+}
+
+.callbar--desktop .callbar__btn.is-on {
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+/* "Em chamada" com a bolinha verde de quem está conectado. */
+.callbar--desktop .callbar__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--online, #3ecf8e);
+}
+
+.callbar--desktop .callbar__status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+}

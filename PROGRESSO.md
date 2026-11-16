@@ -94,6 +94,21 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 1c — acabamento da coluna da esquerda (16/11/2026)
+
+- Cabeçalho do grupo: nome maior e "N membros" embaixo (`memberCount`; a
+  coluna de canais agora também redesenha quando os membros mudam).
+- Títulos de seção dos canais em caixa alta.
+- Canal de voz com alguém transmitindo ganha o selo **AO VIVO**
+  (`VoicePresenceView.sharingScreen`).
+- A faixa de chamada do desktop virou o cartão **"Em chamada"**: onde estou
+  (clique volta para a sala) e, embaixo, microfone, **transmitir tela** (só no
+  computador — navegador de celular não transmite) e sair.
+- `--header-h: 56px`: todos os cabeçalhos de coluna (canais, chat, privado,
+  amigos, abas do painel) na mesma altura, com as bordas alinhadas.
+- Testes: o da janela confere o AO VIVO aparecendo e sumindo para o amigo;
+  rodados desktop, painel, mobile e os de voz/faixa do loft.spec.
+
 ## Proposta A, etapa 1b — painel da direita com abas (16/11/2026)
 
 - `components/group-panel/`: a coluna 4 do grupo (ainda a `.members`, ainda

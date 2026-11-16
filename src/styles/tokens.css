@@ -69,7 +69,8 @@
   --backdrop: #0e0a1a99;
 
   /* --- métrica das colunas ------------------------------------------------ */
-  --topbar-h: 60px; /* barra de cima: marca, abas dos grupos, meu cartão */
+  --topbar-h: 60px;
+  --header-h: 56px; /* cabeçalho de cada coluna: alinhados entre si */ /* barra de cima: marca, abas dos grupos, meu cartão */
   --channels-w: 260px;
   --members-w: 240px;
   --call-stage-h: 210px;
