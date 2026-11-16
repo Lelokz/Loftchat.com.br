@@ -151,6 +151,12 @@
     --inset-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* No app Android a barra de cima do sistema fica escondida: os botões vão
+     até a borda de cima, sem espaço vazio (pedido do Leo, 16/11). */
+  :root.app-android {
+    --inset-top: 0px;
+  }
+
   /* A barra de cima fica; só a coluna do meio ocupa o resto; as outras viram gaveta. */
   .app {
     grid-template-rows: var(--topbar-h) minmax(0, 1fr);

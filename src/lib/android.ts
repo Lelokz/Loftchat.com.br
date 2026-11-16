@@ -14,6 +14,9 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
  */
 export function ligarAndroid(): void {
   if (!Capacitor.isNativePlatform()) return;
+  // A barra de cima do sistema fica escondida (MainActivity): o Loftchat vai
+  // até a borda de cima, SEM folga nenhuma — pedido do Leo, 16/11.
+  document.documentElement.classList.add('app-android');
 
   void App.addListener('backButton', ({ canGoBack }) => {
     const janelas = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
