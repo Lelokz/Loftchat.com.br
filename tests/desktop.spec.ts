@@ -207,7 +207,8 @@ test('seletor: mostra telas e janelas, esconde a própria janela do Loft, e desi
   await expect(seletor.locator('.screen-picker__card', { hasText: 'PalcoDeTeste' })).toBeVisible();
   // A janela do Loft não aparece: transmitir ela mesma vira túnel.
   const titulo = await janela.title();
-  await expect(seletor.locator('.screen-picker__card', { hasText: titulo })).toHaveCount(0);
+  // Pelo nome EXATO: uma aba do Loftchat aberta no navegador do PC também aparece, e pode.
+  await expect(seletor.locator(`.screen-picker__card[title="${titulo}"]`)).toHaveCount(0);
 
   // Sem escolher, o botão fica travado.
   await expect(seletor.getByRole('button', { name: 'Transmitir' })).toBeDisabled();

@@ -87,6 +87,8 @@ export interface Appearance {
   panelHidden: boolean;
   panelTabs: PanelTab[];
   panelFirst: PanelTab;
+  /** Etapa 8b: o chat da sala de voz no painel da direita (ligado = aparece e carrega). */
+  roomChat: boolean;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -100,6 +102,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   panelHidden: false,
   panelTabs: [...PANEL_TABS],
   panelFirst: 'membros',
+  roomChat: true,
 };
 
 const HEX_RE = /^#[0-9a-f]{6}$/;
@@ -119,6 +122,7 @@ export function parseAppearance(raw: unknown): Appearance {
     mySide: MY_SIDES.includes(r['mySide'] as MySide) ? (r['mySide'] as MySide) : 'direita',
     density: DENSITIES.includes(r['density'] as Density) ? (r['density'] as Density) : 'confortavel',
     ...painel(r),
+    roomChat: r['roomChat'] !== false,
   };
 }
 
@@ -146,7 +150,8 @@ export function sameAppearance(a: Appearance, b: Appearance): boolean {
     a.density === b.density &&
     a.panelHidden === b.panelHidden &&
     a.panelTabs.join() === b.panelTabs.join() &&
-    a.panelFirst === b.panelFirst
+    a.panelFirst === b.panelFirst &&
+    a.roomChat === b.roomChat
   );
 }
 

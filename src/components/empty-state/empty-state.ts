@@ -93,10 +93,10 @@ export function renderNoGroups({ onCreateGroup, onJoinByCode }: NoGroupsProps): 
 }
 
 /** Dentro da área de chat, quando o canal existe mas não tem mensagem. */
-export function renderNoMessages(): HTMLElement {
+export function renderNoMessages(texto = 'Seja a primeira pessoa a falar neste canal.'): HTMLElement {
   return el('div', { class: 'empty' }, [
     el('p', { class: 'empty__title empty__title--small' }, ['Nenhuma mensagem ainda']),
-    el('p', { class: 'empty__text' }, ['Seja a primeira pessoa a falar neste canal.']),
+    el('p', { class: 'empty__text' }, [texto]),
   ]);
 }
 

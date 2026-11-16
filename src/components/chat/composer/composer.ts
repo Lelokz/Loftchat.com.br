@@ -12,6 +12,8 @@ export interface ComposerProps {
    * PV. Ausente = `true` (canal, sem mudança para quem já chama isto hoje).
    */
   hashPrefix?: boolean;
+  /** Dica própria (o chat da sala, etapa 8b, numa coluna estreita). Ausente = "Mensagem para …". */
+  placeholder?: string;
   /** Grava a mensagem. Rejeita em caso de falha, e a rejeição vira erro na tela. */
   onSend: (body: string) => Promise<void>;
 }
@@ -28,12 +30,13 @@ const MAX_HEIGHT_PX = 140;
 export function renderComposer({
   channelName,
   hashPrefix = true,
+  placeholder,
   onSend,
 }: ComposerProps): HTMLElement {
   const input = el('textarea', {
     class: 'composer__input',
     rows: '1',
-    placeholder: `Mensagem para ${hashPrefix ? '#' : ''}${channelName}`,
+    placeholder: placeholder ?? `Mensagem para ${hashPrefix ? '#' : ''}${channelName}`,
     'aria-label': `Mensagem para ${channelName}`,
   });
 

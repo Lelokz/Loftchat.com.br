@@ -66,6 +66,11 @@ test('o painel do grupo: Agora mostra quem está na voz e leva para a sala; Fixa
   // Entrar pelo painel leva o amigo para a sala; dentro dela, o botão some.
   await sala.getByRole('button', { name: 'Entrar na sala' }).click();
   await expect(paginaAmigo.locator('.room')).toBeVisible({ timeout: 30_000 });
+  // Dentro da sala o painel vira o chat da sala (etapa 8b)…
+  await expect(paginaAmigo.locator('.room-panel .group-panel__tab.is-active')).toHaveText('Chat da sala');
+  // …e de volta ao #geral (ainda conectado) é o painel do grupo: os dois na sala, sem "Entrar".
+  await paginaAmigo.locator('.channels__body').getByRole('button', { name: 'geral' }).click();
+  await painel.getByRole('tab', { name: 'Agora' }).click();
   await expect(sala.locator('.group-panel__person')).toHaveCount(2, { timeout: 30_000 });
   await expect(sala.getByRole('button', { name: 'Entrar na sala' })).toHaveCount(0);
 

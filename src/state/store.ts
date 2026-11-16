@@ -228,6 +228,25 @@ export interface AppState {
   /** Fixadas do canal ativo — etapa 19. Ver o comentário em `pinnedDmMessages`. */
   pinnedMessages: PinnedMessage[];
   pinnedMessagesLoaded: boolean;
+
+  /**
+   * CHAT DA SALA (etapa 8b): as mensagens do canal de VOZ em que estou.
+   *
+   * Fatia separada de `messages` porque as duas vivem ao mesmo tempo: o chat
+   * da sala fica no painel da direita enquanto a coluna do meio é a sala, e
+   * `activeChannelId` continua sendo o canal de texto (voltar para ele não
+   * pode recarregar nada). Mesma coleção `messages`, com o id do canal de voz.
+   */
+  roomChatChannelId: string | null;
+  roomMessages: Message[];
+  roomMessagesLoaded: boolean;
+  roomMessagePages: number;
+  roomMessagesLoadingOlder: boolean;
+  roomMessagesAtStart: boolean;
+  roomMessagesAtPageCap: boolean;
+  roomMessagesError: string | null;
+  roomPinnedMessages: PinnedMessage[];
+  roomPinnedMessagesLoaded: boolean;
 }
 
 export interface Store {
@@ -238,6 +257,13 @@ export interface Store {
   setActiveChannel(channelId: string): void;
   /** Carrega a página anterior do histórico. Idempotente e com teto. */
   loadOlderMessages(): void;
+  /**
+   * Liga o chat da sala neste canal de voz (do grupo da chamada), ou desliga
+   * com `null`. Quem decide é o app: só enquanto estou conectado e com o chat
+   * da sala ligado nas preferências.
+   */
+  watchRoomChat(channelId: string | null): void;
+  loadOlderRoomMessages(): void;
   /**
    * Abre o PV com este amigo — não cria a conversa, só assina o histórico
    * (que pode estar vazio, se ninguém mandou a primeira mensagem ainda).
@@ -378,6 +404,16 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     messagesError: null,
     pinnedMessages: [],
     pinnedMessagesLoaded: false,
+    roomChatChannelId: null,
+    roomMessages: [],
+    roomMessagesLoaded: false,
+    roomMessagePages: 1,
+    roomMessagesLoadingOlder: false,
+    roomMessagesAtStart: false,
+    roomMessagesAtPageCap: false,
+    roomMessagesError: null,
+    roomPinnedMessages: [],
+    roomPinnedMessagesLoaded: false,
   };
 
   const listeners = new Set<(state: AppState) => void>();
@@ -396,6 +432,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
   let stopDmMessages: Unsubscribe | null = null;
   let stopPinnedMessages: Unsubscribe | null = null;
   let stopPinnedDmMessages: Unsubscribe | null = null;
+  let stopRoomMessages: Unsubscribe | null = null;
+  let stopRoomPinned: Unsubscribe | null = null;
 
   /* ------------------------------------------------------------------------ */
   /* Presença de voz                                                          */
@@ -734,6 +772,84 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     watchMessages(state.activeChannelId, pages);
   }
 
+  /**
+   * CHAT DA SALA (etapa 8b). O grupo é o DA CHAMADA, não o que estou olhando
+   * — mas o app só mostra o chat com a sala na tela, e aí os dois coincidem.
+   * Mesmo listener paginado do canal de texto, numa fatia própria.
+   */
+  function watchRoomMessages(channelId: string | null, pages = 1): void {
+    stopRoomMessages?.();
+    stopRoomMessages = null;
+
+    const groupId = state.voice?.groupId ?? null;
+    if (channelId === null || groupId === null) {
+      stopRoomPinned?.();
+      stopRoomPinned = null;
+      patch({
+        roomChatChannelId: null,
+        roomMessages: [],
+        roomMessagesLoaded: false,
+        roomMessagePages: 1,
+        roomMessagesLoadingOlder: false,
+        roomMessagesAtStart: false,
+        roomMessagesAtPageCap: false,
+        roomMessagesError: null,
+        roomPinnedMessages: [],
+        roomPinnedMessagesLoaded: false,
+      });
+      return;
+    }
+
+    if (pages === 1) {
+      patch({
+        roomChatChannelId: channelId,
+        roomMessages: [],
+        roomMessagesLoaded: false,
+        roomMessagePages: 1,
+        roomMessagesLoadingOlder: false,
+        roomMessagesAtStart: false,
+        roomMessagesAtPageCap: false,
+        roomMessagesError: null,
+        roomPinnedMessagesLoaded: false,
+      });
+      stopRoomPinned?.();
+      stopRoomPinned = subscribePinnedChannelMessages(
+        groupId,
+        channelId,
+        (roomPinnedMessages) => patch({ roomPinnedMessages, roomPinnedMessagesLoaded: true }),
+        (error) => {
+          console.error('Falha ao ler as fixadas da sala.', error);
+          patch({ roomPinnedMessages: [], roomPinnedMessagesLoaded: true });
+        },
+      );
+    }
+
+    stopRoomMessages = subscribeMessages(
+      groupId,
+      channelId,
+      pages,
+      (roomMessages, atStart) =>
+        patch({
+          roomMessages,
+          roomMessagesLoaded: true,
+          roomMessagesLoadingOlder: false,
+          roomMessagesAtStart: atStart,
+          roomMessagesAtPageCap: pages >= MAX_MESSAGE_PAGES,
+          roomMessagesError: null,
+        }),
+      (error) => {
+        // Sem acesso ao grupo da chamada: a saída do grupo cuida do resto.
+        console.error('Falha ao ler o chat da sala.', error);
+        patch({
+          roomMessages: [],
+          roomMessagesLoaded: true,
+          roomMessagesLoadingOlder: false,
+          roomMessagesError: messagesErrorMessage(error),
+        });
+      },
+    );
+  }
+
   function selectChannel(channelId: string | null): void {
     if (channelId === state.activeChannelId) return;
     patch({ activeChannelId: channelId });
@@ -975,6 +1091,21 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
     /** Trocar o canal de texto devolve a coluna do meio ao chat, sem desconectar. */
     loadOlderMessages,
+
+    watchRoomChat(channelId) {
+      // Já está assim: nada a fazer (o app chama isto a cada render).
+      if (channelId === state.roomChatChannelId) return;
+      watchRoomMessages(channelId);
+    },
+
+    loadOlderRoomMessages() {
+      if (state.roomMessagesLoadingOlder || state.roomMessagesAtStart) return;
+      if (state.roomMessagePages >= MAX_MESSAGE_PAGES) return;
+      if (state.roomChatChannelId === null) return;
+      const pages = state.roomMessagePages + 1;
+      patch({ roomMessagesLoadingOlder: true, roomMessagePages: pages });
+      watchRoomMessages(state.roomChatChannelId, pages);
+    },
 
     openDm(friendUid) {
       if (friendUid === state.activeDmUid) return;
@@ -1277,6 +1408,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       stopMembers?.();
       stopMessages?.();
       stopPinnedMessages?.();
+      stopRoomMessages?.();
+      stopRoomPinned?.();
       stopVoiceRoster?.();
       window.clearInterval(ghostSweep);
       // Sair da conta com uma chamada aberta tem que tirar você da sala dos

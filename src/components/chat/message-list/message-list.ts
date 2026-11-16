@@ -44,7 +44,7 @@ export interface MessageListProps {
    * Ausente = `'message'` (grupo, dono pode apagar). PV usa `'dm-message'`
    * (etapa 18): não tem dono, só o autor apaga.
    */
-  dataContext?: 'message' | 'dm-message';
+  dataContext?: 'message' | 'dm-message' | 'room-message';
   /** Rolou perto do topo — quem chama decide se busca. */
   onReachTop: () => void;
   /** Clique numa citação cuja original está carregada. */

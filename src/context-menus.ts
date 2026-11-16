@@ -46,9 +46,12 @@ export interface ContextMenuActions {
    * olhando se há um PV aberto (`state.activeDmUid`): as duas telas nunca
    * estão visíveis ao mesmo tempo, então isso basta para desambiguar.
    */
-  deleteMessage(messageId: string): void;
-  /** Começa a responder: a faixa aparece acima do composer. Grupo ou PV, mesma regra acima. */
-  replyToMessage(messageId: string): void;
+  deleteMessage(messageId: string, sala?: boolean): void;
+  /**
+   * Começa a responder: a faixa aparece acima do composer. Grupo ou PV, mesma regra acima.
+   * `sala` (etapa 8b): a mensagem é do chat da sala de voz, no painel da direita.
+   */
+  replyToMessage(messageId: string, sala?: boolean): void;
   /** Entra em edição no próprio balão. Só o autor chega aqui. Grupo ou PV, mesma regra acima. */
   editMessage(messageId: string): void;
   openVoiceDiagnostics(): void;
@@ -61,7 +64,7 @@ export interface ContextMenuActions {
    * ação — a regra é que muda quem pode chegar a ela (dono vs. qualquer um
    * dos dois).
    */
-  togglePinMessage(messageId: string): void;
+  togglePinMessage(messageId: string, sala?: boolean): void;
   /**
    * Rola até a mensagem original de uma fixada e destaca — "Ir para a
    * mensagem" no menu da PRÓPRIA fixada (não da mensagem original). Grupo
@@ -159,6 +162,7 @@ function messageItems(
   target: HTMLElement,
   actions: ContextMenuActions,
   state: AppState,
+  sala = false,
 ): MenuItem[] {
   const messageId = target.dataset['messageId'] ?? '';
   const authorId = target.dataset['authorId'] ?? '';
@@ -171,7 +175,7 @@ function messageItems(
 
   const items: MenuItem[] = [
     { label: 'Copiar texto', disabled: text === '', onSelect: () => copy(text, 'Copiado.') },
-    { label: 'Responder', onSelect: () => actions.replyToMessage(messageId) },
+    { label: 'Responder', onSelect: () => actions.replyToMessage(messageId, sala) },
   ];
 
   /*
@@ -188,10 +192,10 @@ function messageItems(
   // Fixar é só do DONO do grupo — conteúdo que todo mundo vê, e qualquer
   // membro poder fixar viraria bagunça (etapa 19). Mesma restrição da regra.
   if (isOwner(group, actions.uid)) {
-    const pinned = state.pinnedMessages.some((p) => p.messageId === messageId);
+    const pinned = (sala ? state.roomPinnedMessages : state.pinnedMessages).some((p) => p.messageId === messageId);
     items.push({
       label: pinned ? 'Desafixar' : 'Fixar mensagem',
-      onSelect: () => actions.togglePinMessage(messageId),
+      onSelect: () => actions.togglePinMessage(messageId, sala),
     });
   }
 
@@ -200,7 +204,7 @@ function messageItems(
       label: 'Apagar mensagem',
       danger: true,
       separatorBefore: true,
-      onSelect: () => actions.deleteMessage(messageId),
+      onSelect: () => actions.deleteMessage(messageId, sala),
     });
   }
 
@@ -537,6 +541,9 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
     switch (kind) {
       case 'message':
         items = messageItems(target, actions, state);
+        break;
+      case 'room-message':
+        items = messageItems(target, actions, state, true);
         break;
       case 'dm-message':
         items = dmMessageItems(target, actions, state);

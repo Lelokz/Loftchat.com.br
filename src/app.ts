@@ -49,6 +49,10 @@ import {
   unblockUser,
 } from './lib/friends';
 import { renderGroupPanel } from './components/group-panel/group-panel';
+import { renderRoomPanel } from './components/room-panel/room-panel';
+import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-panel';
+import { memberListContent } from './components/member-list/member-list';
+import { renderPinnedList } from './components/pinned/pinned-list';
 import type { AbaDoPainel, SalaAgora } from './components/group-panel/group-panel';
 import { closeGroupMenu, openGroupMenu } from './components/group-menu/group-menu';
 import type { GroupMenuItem } from './components/group-menu/group-menu';
@@ -439,13 +443,15 @@ export function mountApp(
    * Apaga mensagem de grupo OU de PV — a distinção é `state.activeDmUid`, o
    * mesmo critério usado no resto do app (as duas telas nunca convivem).
    */
-  const handleDeleteMessage = (messageId: string): void => {
-    const emDm = store.getState().activeDmUid !== null;
+  const handleDeleteMessage = (messageId: string, sala = false): void => {
+    const emDm = !sala && store.getState().activeDmUid !== null;
     openConfirmDialog({
       title: 'Apagar mensagem',
       description: emDm
         ? 'Ela some para os dois lados da conversa. Não dá para desfazer.'
-        : 'Ela some para todo mundo do canal. Não dá para desfazer.',
+        : sala
+          ? 'Ela some para todo mundo da sala. Não dá para desfazer.'
+          : 'Ela some para todo mundo do canal. Não dá para desfazer.',
       confirmLabel: 'Apagar',
       busyLabel: 'Apagando…',
       failureMessage: 'Não foi possível apagar a mensagem.',
@@ -463,9 +469,13 @@ export function mountApp(
    * fixando a mesma mensagem ao mesmo tempo — pode deixar mais de um
    * documento; ver `pinned-list.ts`).
    */
-  const handleTogglePinMessage = (messageId: string): void => {
+  const handleTogglePinMessage = (messageId: string, sala = false): void => {
     const state = store.getState();
-    const scopePins = state.activeDmUid !== null ? state.pinnedDmMessages : state.pinnedMessages;
+    const scopePins = sala
+      ? state.roomPinnedMessages
+      : state.activeDmUid !== null
+        ? state.pinnedDmMessages
+        : state.pinnedMessages;
     const existingIds = scopePins.filter((p) => p.messageId === messageId).map((p) => p.id);
 
     if (existingIds.length > 0) {
@@ -478,6 +488,20 @@ export function mountApp(
 
     if (scopePins.length >= MAX_PINNED_MESSAGES) {
       showToast(`Teto de ${MAX_PINNED_MESSAGES} fixadas. Desafixe algo antes de fixar outra.`);
+      return;
+    }
+
+    // Chat da sala (etapa 8b): mesma coleção, com o id do canal de voz.
+    if (sala) {
+      const alvo = state.roomMessages.find((m) => m.id === messageId);
+      if (alvo === undefined) return;
+      const autor = state.members.find((m) => m.id === alvo.authorId);
+      void pinChannelMessage(alvo.groupId, alvo.channelId, alvo, autor?.displayName ?? 'Usuário', user.uid).catch(
+        (error: unknown) => {
+          console.error('Falha ao fixar a mensagem.', error);
+          showToast('Não foi possível fixar.');
+        },
+      );
       return;
     }
 
@@ -590,8 +614,18 @@ export function mountApp(
    * Grupo ou PV — `state.activeDmUid` decide onde procurar a mensagem e o
    * nome do autor, as duas telas nunca convivem.
    */
-  const handleReplyToMessage = (messageId: string): void => {
+  const handleReplyToMessage = (messageId: string, sala = false): void => {
     const state = store.getState();
+
+    if (sala) {
+      const alvo = state.roomMessages.find((m) => m.id === messageId);
+      if (alvo === undefined) return;
+      const autor = state.members.find((m) => m.id === alvo.authorId);
+      replyingToSala = buildReplyTo(alvo, autor?.displayName ?? 'Usuário');
+      renderReplySala();
+      painelDaSala?.element.querySelector<HTMLTextAreaElement>('.composer__input')?.focus();
+      return;
+    }
 
     if (state.activeDmUid !== null) {
       const alvo = state.dmMessages.find((m) => m.id === messageId);
@@ -667,6 +701,39 @@ export function mountApp(
     clearReply();
     await sendMessage(groupId, channelId, user.uid, body, citando);
   };
+
+  /** Envia no chat da sala (etapa 8b): o canal de voz em que estou, no grupo da chamada. */
+  const handleSendSala = async (body: string): Promise<void> => {
+    const state = store.getState();
+    const groupId = state.voice?.groupId ?? null;
+    const channelId = state.roomChatChannelId;
+    if (groupId === null || channelId === null) return;
+    const citando = replyingToSala ?? undefined;
+    if (replyingToSala !== null) {
+      replyingToSala = null;
+      renderReplySala();
+    }
+    await sendMessage(groupId, channelId, user.uid, body, citando);
+  };
+
+  /** A faixa de "respondendo a…" do chat da sala. */
+  function renderReplySala(): void {
+    const slot = painelDaSala?.replySlot;
+    if (slot === undefined) return;
+    if (replyingToSala === null) {
+      slot.replaceChildren();
+      return;
+    }
+    slot.replaceChildren(
+      renderReplyBar({
+        replyTo: replyingToSala,
+        onCancel: () => {
+          replyingToSala = null;
+          renderReplySala();
+        },
+      }),
+    );
+  }
 
   /** Põe (ou tira) a faixa de resposta acima do composer — do chat ou do PV, o que estiver na tela. */
   function renderReplySlot(): void {
@@ -1007,6 +1074,7 @@ export function mountApp(
       joinedAt: entradaNaSala.em,
       layout: jeitoDaSala,
       onToggleLayout: alternarJeitoDaSala,
+      onTogglePanel: alternarPainel,
       participants,
       muted: state.voiceMuted,
       micDenied: state.voiceMicDenied,
@@ -1082,8 +1150,150 @@ export function mountApp(
     return previewEl;
   }
 
+  /*
+   * CHAT DA SALA (etapa 8b). Com a sala na tela e o chat da sala ligado, a
+   * coluna 4 vira o painel da sala: Chat da sala, Membros e Fixadas (as duas
+   * últimas seguem as abas escolhidas em Aparência). A casca é montada uma vez
+   * por sala — trocar de aba e chegar mensagem não apagam o que se digita.
+   */
+  let chatDaSalaLigado = accountAppearance().roomChat;
+  let painelDaSala: RoomPanelParts | null = null;
+  let painelDaSalaChave = '';
+  /** A casca acabou de nascer: a lista entra rolada para o fim. */
+  let painelDaSalaNovo = false;
+  let abaDaSala: AbaDaSala = 'chat';
+  let replyingToSala: ReplyTo | null = null;
+  let renderedRoomEditingId: string | null = null;
+
+  function painelDaSalaNaTela(state: AppState): boolean {
+    return chatDaSalaLigado && isViewingRoom(state);
+  }
+
+  function montarPainelDaSala(state: AppState): HTMLElement {
+    const canal = state.voice?.channelId ?? '';
+    const abas: AbaDaSala[] = [
+      'chat',
+      ...abasDoPainel.filter((a): a is 'membros' | 'fixadas' => a === 'membros' || a === 'fixadas'),
+    ];
+    if (!abas.includes(abaDaSala)) abaDaSala = 'chat';
+    const chave = `${canal}|${abas.join()}`;
+    if (painelDaSala === null || chave !== painelDaSalaChave) {
+      // Outra sala: começa no chat e sem resposta pendente.
+      if (!painelDaSalaChave.startsWith(`${canal}|`)) {
+        abaDaSala = 'chat';
+        replyingToSala = null;
+      }
+      painelDaSalaChave = chave;
+      painelDaSala = renderRoomPanel({
+        canal: voiceChannelName(state),
+        abas,
+        aba: abaDaSala,
+        onAba: (aba) => {
+          abaDaSala = aba;
+          painelDaSala?.setAba(aba);
+          if (painelDaSala !== null) preencherOutraAbaDaSala(store.getState(), painelDaSala);
+        },
+        onSend: handleSendSala,
+      });
+      painelDaSalaNovo = true;
+      renderReplySala();
+    }
+    preencherOutraAbaDaSala(state, painelDaSala);
+    return painelDaSala.element;
+  }
+
+  /** O conteúdo de Membros ou Fixadas (o chat tem a casca dele). */
+  function preencherOutraAbaDaSala(state: AppState, painel: RoomPanelParts): void {
+    if (abaDaSala === 'chat') {
+      painel.outroSlot.replaceChildren();
+      return;
+    }
+    const group = activeGroup(state) ?? null;
+    if (abaDaSala === 'membros') {
+      painel.outroSlot.replaceChildren(
+        ...memberListContent({ members: state.members, membersLoaded: state.membersLoaded, ownerId: group?.ownerId ?? null }).filter(
+          (n): n is HTMLElement => n !== false,
+        ),
+      );
+      return;
+    }
+    painel.outroSlot.replaceChildren(
+      renderPinnedList({
+        pins: state.roomPinnedMessages,
+        pinnedLoaded: state.roomPinnedMessagesLoaded,
+        reachabilityOf: (pin) => pinReachabilityIn(pin, state.roomMessages, state.roomMessagesAtStart),
+        canUnpin: group !== null && isOwner(group, user.uid),
+        onJumpTo: handleJumpToPin,
+      }),
+    );
+  }
+
+  /** As mensagens do chat da sala: erro > carregando > vazio > lista. */
+  function buildRoomMessages(state: AppState): HTMLElement {
+    if (state.roomMessagesError !== null) return renderMessagesError(state.roomMessagesError);
+    if (!state.roomMessagesLoaded) return renderLoading('Carregando mensagens…');
+    if (state.roomMessages.length === 0) return renderNoMessages('Escreva aqui o que não dá para falar: links, nomes, combinados.');
+
+    const authors = new Map<MemberId, Member>(state.members.map((member) => [member.id, member]));
+    const nome = voiceChannelName(state);
+    return renderMessageList({
+      messages: state.roomMessages,
+      authors,
+      currentMemberId: user.uid,
+      loadingOlder: state.roomMessagesLoadingOlder,
+      atStart: state.roomMessagesAtStart,
+      atPageCap: state.roomMessagesAtPageCap,
+      channelName: nome,
+      startLabel: `Começo do chat de ${nome}`,
+      dataContext: 'room-message',
+      onReachTop: () => store.loadOlderRoomMessages(),
+      onJumpTo: jumpToMessage,
+      editingId,
+      onEdit: (messageId, body) => {
+        editingId = null;
+        void editMessage(messageId, body).catch((error: unknown) => {
+          console.error('Falha ao editar a mensagem.', error);
+          showToast('Não foi possível salvar a edição.');
+        });
+        render(store.getState());
+      },
+      onCancelEdit: () => {
+        editingId = null;
+        render(store.getState());
+      },
+    });
+  }
+
+  /** Liga/desliga o chat da sala (preferência da conta, aqui ou em outro aparelho). */
+  function acompanharChatDaSala(ligado: boolean): void {
+    if (ligado === chatDaSalaLigado) return;
+    chatDaSalaLigado = ligado;
+    const state = store.getState();
+    if (isViewingRoom(state) && memberListEl !== null) memberListEl = swap(memberListEl, buildMemberList(state));
+    sincronizarChatDaSala(state);
+    render(store.getState());
+  }
+
+  /**
+   * O chat da sala só CARREGA enquanto estou conectado e com ele ligado. Fora
+   * do render (que é ouvinte do store): ligar a assinatura muda o store.
+   */
+  function sincronizarChatDaSala(state: AppState): void {
+    const quero = chatDaSalaLigado && state.voice !== null ? state.voice.channelId : null;
+    if (quero === state.roomChatChannelId) return;
+    queueMicrotask(() => {
+      const agora = store.getState();
+      store.watchRoomChat(chatDaSalaLigado && agora.voice !== null ? agora.voice.channelId : null);
+    });
+  }
+
   /** Coluna 4 do grupo: o painel com abas Agora, Membros e Fixadas (proposta A). */
   function buildMemberList(state: AppState): HTMLElement {
+    if (painelDaSalaNaTela(state)) return montarPainelDaSala(state);
+    // Saiu da sala (ou desligou o chat): a próxima entrada monta uma casca nova.
+    painelDaSala = null;
+    painelDaSalaChave = '';
+    replyingToSala = null;
     const group = activeGroup(state) ?? null;
     return renderGroupPanel({
       aba: abaDoPainel,
@@ -1281,6 +1491,14 @@ export function mountApp(
    * flutuante primeiro se estiver aberto; no PV não há painel para fechar.
    */
   function handleJumpToPin(messageId: string): void {
+    // Fixada do chat da sala: volta para a aba do chat e rola até ela.
+    if (painelDaSala !== null && memberListEl === painelDaSala.element && abaDaSala === 'fixadas') {
+      abaDaSala = 'chat';
+      painelDaSala.setAba('chat');
+      preencherOutraAbaDaSala(store.getState(), painelDaSala);
+      jumpToMessage(messageId);
+      return;
+    }
     if (store.getState().activeDmUid === null) pinsPanel?.close();
     jumpToMessage(messageId);
   }
@@ -1359,6 +1577,8 @@ export function mountApp(
    * mensagem de PV, alguém entrando no grupo —, e isso não pode piscar.
    */
   function swap(current: HTMLElement | null, next: HTMLElement, transicao = false): HTMLElement {
+    // A mesma casca (o painel da sala): tirar e pôr de volta perderia o foco e a rolagem.
+    if (current === next) return next;
     if (current === null) {
       root.append(next);
       return next;
@@ -1544,6 +1764,7 @@ export function mountApp(
     pastas = prefs.groupFolders;
     setAccountAppearance(prefs.appearance);
     acompanharPainel(prefs.appearance.panelTabs, prefs.appearance.panelFirst);
+    acompanharChatDaSala(prefs.appearance.roomChat);
     if (barraMudou && groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
     render(store.getState());
   });
@@ -1691,6 +1912,7 @@ export function mountApp(
 
   function render(state: AppState): void {
     acompanharFundo(state);
+    sincronizarChatDaSala(state);
     // Saiu da chamada: a próxima entrada começa o relógio do zero.
     if (state.voice === null) entradaNaSala = null;
     // Ainda carregando os grupos: não pinta nada; o splash de fora segue valendo.
@@ -1772,6 +1994,11 @@ export function mountApp(
       prev.voiceParticipants !== state.voiceParticipants ||
       prev.channels !== state.channels ||
       prev.voice !== state.voice ||
+      // Sala ↔ chat troca o painel da direita (etapa 8b), e as fixadas da sala.
+      prev.centerView !== state.centerView ||
+      prev.roomPinnedMessages !== state.roomPinnedMessages ||
+      prev.roomPinnedMessagesLoaded !== state.roomPinnedMessagesLoaded ||
+      (abaDaSala === 'fixadas' && prev.roomMessages !== state.roomMessages) ||
       prev.pinnedMessages !== state.pinnedMessages ||
       prev.pinnedMessagesLoaded !== state.pinnedMessagesLoaded ||
       (abaDoPainel === 'fixadas' &&
@@ -2093,6 +2320,32 @@ export function mountApp(
     }
 
     if (membersChanged) memberListEl = swap(memberListEl, buildMemberList(state), visaoMudou);
+
+    /* --- chat da sala (etapa 8b), no painel da direita ------------------- */
+    if (painelDaSala !== null && memberListEl === painelDaSala.element) {
+      const novo = painelDaSalaNovo;
+      painelDaSalaNovo = false;
+      const editandoMudou = renderedRoomEditingId !== editingId;
+      renderedRoomEditingId = editingId;
+      if (
+        novo ||
+        editandoMudou ||
+        prev === null ||
+        prev.roomMessages !== state.roomMessages ||
+        prev.roomMessagesLoaded !== state.roomMessagesLoaded ||
+        prev.roomMessagesLoadingOlder !== state.roomMessagesLoadingOlder ||
+        prev.roomMessagesAtStart !== state.roomMessagesAtStart ||
+        prev.roomMessagesError !== state.roomMessagesError ||
+        prev.members !== state.members
+      ) {
+        swapMessages(
+          painelDaSala.messagesSlot,
+          buildRoomMessages(state),
+          novo,
+          !novo && prev !== null && prev.roomMessagesLoaded && state.roomMessagesLoaded,
+        );
+      }
+    }
 
     previous = state;
   }

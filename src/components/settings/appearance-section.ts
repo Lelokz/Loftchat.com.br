@@ -403,6 +403,22 @@ function blocoDoPainel(atual: Appearance, onChange: () => void): HTMLElement {
       ]),
       el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Abas do painel do grupo']), abas]),
       el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Abre primeiro em']), primeira]),
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Chat da sala de voz']),
+        opcoes(
+          'Chat da sala de voz',
+          ['ligado', 'desligado'] as const,
+          { ligado: 'Ligado', desligado: 'Desligado' },
+          () => (atual.roomChat ? 'ligado' : 'desligado'),
+          (id) => {
+            atual.roomChat = id === 'ligado';
+            onChange();
+          },
+        ),
+        el('p', { class: 'settings__help' }, [
+          'Na sala de voz, o painel da direita abre no chat da própria sala. Desligado, ele mostra o painel do grupo de sempre.',
+        ]),
+      ]),
     );
   }
 

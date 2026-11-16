@@ -1,6 +1,7 @@
 import './voice-room.css';
 
 import { el, iconEl } from '../../lib/dom';
+import { panelToggleButton } from '../chat/chat';
 import {
   hangupIcon,
   menuIcon,
@@ -73,6 +74,8 @@ export interface VoiceRoomProps {
   joinedAt: number;
   layout: RoomLayout;
   onToggleLayout: () => void;
+  /** Etapa 8b: no computador, mostra/esconde o painel da direita (onde mora o chat da sala). */
+  onTogglePanel: () => void;
   participants: VoiceParticipantView[];
   muted: boolean;
   /** Entrei sem microfone: ouço, mas não falo. */
@@ -128,6 +131,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
     relogio(props.joinedAt),
     el('span', { class: 'room__header-spacer' }),
     trocarJeito,
+    panelToggleButton(props.onTogglePanel),
     drawerButton('Abrir membros', peopleIcon(18), props.onOpenMembers, 'right'),
   ]);
 

@@ -1,0 +1,38 @@
+/* Painel da direita na sala de voz (etapa 8b): o chat da sala e as outras abas. */
+
+/* Com o chat da sala, a coluna da direita fica mais larga: 240px não dá para escrever. */
+.app:has(> .members.room-panel) {
+  --members-w: 340px;
+}
+
+.room-panel .group-panel__tab {
+  white-space: nowrap;
+}
+
+/* A coluna tem largura fixa: o que vem dentro (balões, caixa) se ajusta a ela. */
+.members.room-panel {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.room-panel__chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.room-panel__chat[hidden],
+.room-panel .members__body[hidden] {
+  display: none;
+}
+
+/* A coluna é estreita: menos margem dos lados que no chat do meio. */
+.room-panel .messages {
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+
+.room-panel .composer {
+  padding-inline: var(--space-2);
+}

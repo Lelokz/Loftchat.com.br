@@ -106,6 +106,31 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 8b — o chat da sala (16/11/2026)
+
+- Com a sala de voz na tela, o painel da direita vira **Chat da sala /
+  Membros / Fixadas** (Membros e Fixadas seguem as abas escolhidas em
+  Aparência; o chat aparece sempre). Abre no chat.
+- As mensagens são do PRÓPRIO canal de voz: mesma coleção `messages`, com o
+  id do canal de voz — a regra já aceitava (não olha o tipo do canal), nada
+  mudou nas regras. Não vazam para o #geral. Fatia própria no store
+  (`roomMessages`, `roomPinnedMessages`), paginada igual ao chat, e só
+  carrega enquanto estou conectado e com o chat da sala ligado.
+- Mandar, responder (faixa no próprio painel), editar, fixar (dono) e
+  apagar pelo mesmo menu das mensagens (`data-context="room-message"`).
+  "Ir para a mensagem" numa fixada volta para a aba do chat.
+- A casca do painel é montada uma vez por sala: trocar de aba e chegar
+  mensagem não apagam o que se está digitando.
+- Na sala a coluna da direita fica com 340px (240 não dava para escrever);
+  caixa com a dica curta "Mensagem na sala".
+- **Liga/desliga**: Configurações → Aparência → "Chat da sala de voz"
+  (Ligado/Desligado, guardado na conta). Desligado, a sala mostra o painel
+  do grupo de sempre e o chat da sala nem carrega.
+- O botão de mostrar/esconder o painel também está no cabeçalho da sala.
+- Testes: `tests/sala-chat.spec.ts` (abas, mandar, receber da Ana, rascunho
+  sobrevive à troca de aba, responder, fixar, não vaza para o #geral,
+  desligar e religar).
+
 ## Proposta A, etapa 8a — o jeito da sala de voz (16/11/2026)
 
 A sala de voz (item 8 do plano) dividida em **8a** (jeito da sala), **8b**
