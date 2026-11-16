@@ -57,10 +57,17 @@ export function avatarEl(
   text: string,
   size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'sm',
   extraClass = '',
+  photo?: string,
 ): HTMLSpanElement {
+  const comFoto = photo !== undefined && photo !== '';
   return el(
     'span',
-    { class: `avatar avatar--${size}${extraClass ? ` ${extraClass}` : ''}`, 'aria-hidden': 'true' },
-    [text],
+    {
+      class: `avatar avatar--${size}${comFoto ? ' avatar--foto' : ''}${extraClass ? ` ${extraClass}` : ''}`,
+      'aria-hidden': 'true',
+    },
+    // A foto já chega validada (lib/images.ts, safeImage) — e vai num `src`,
+    // nunca em HTML.
+    [comFoto ? el('img', { class: 'avatar__img', src: photo, alt: '', draggable: 'false' }) : text],
   );
 }

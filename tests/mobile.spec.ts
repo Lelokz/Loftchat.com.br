@@ -131,7 +131,7 @@ test('sem grupo nenhum, a barra de cima leva ao Privado e às Configurações (o
   // Antes (rail lateral) isso exigia abrir uma gaveta; na proposta A a barra
   // de cima, com a aba Privado e o meu cartão, está sempre na tela.
   await expect(page.getByText('Nenhum grupo por aqui ainda')).toBeVisible();
-  await page.getByRole('button', { name: 'Configurações' }).click();
+  await page.getByRole('button', { name: 'Configurações', exact: true }).click();
   const configuracoes = page.getByRole('dialog', { name: 'Configurações' });
   await expect(configuracoes.getByRole('button', { name: 'Sair da conta' })).toBeVisible();
   await page.keyboard.press('Escape');

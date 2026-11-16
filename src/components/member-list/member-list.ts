@@ -65,9 +65,12 @@ function section(people: Member[], ownerId: MemberId | null): HTMLElement | fals
             class: 'member',
             'data-context': 'member',
             'data-member-id': member.id,
+            // Clique abre o cartão da pessoa (etapa 2c, ver app.ts).
+            'data-profile-uid': member.id,
+            tabindex: 0,
           },
           [
-            avatarEl(member.initials, 'sm'),
+            avatarEl(member.initials, 'sm', '', member.photo),
             el('span', { class: 'member__name', title: member.displayName }, [
               member.displayName,
             ]),

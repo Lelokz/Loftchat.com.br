@@ -199,7 +199,7 @@ export async function signInThroughUi(
   await page.getByLabel("Senha", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   // A engrenagem aparece no computador E no celular (o "sair" some no celular).
-  await expect(page.getByRole("button", { name: "Configurações" })).toBeVisible(
+  await expect(page.getByRole("button", { name: "Configurações", exact: true })).toBeVisible(
     {
       timeout: 30_000,
     },

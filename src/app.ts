@@ -22,6 +22,8 @@ import {
 } from './components/empty-state/empty-state';
 import { renderGroupBar } from './components/group-bar/group-bar';
 import { openSettings } from './components/settings/settings';
+import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
+import type { Vinculo } from './components/person-card/person-popover';
 import { renderHomeColumn } from './components/home/home-column';
 import { renderFriendsScreen } from './components/home/friends-screen';
 import type { FriendsScreenParts, FriendsScreenProps, FriendsTab } from './components/home/friends-screen';
@@ -31,6 +33,7 @@ import {
   pairId,
   removeFriendship,
   sendFriendRequest,
+  publicProfile,
   uidOfUsername,
   unblockUser,
 } from './lib/friends';
@@ -120,6 +123,17 @@ export function mountApp(
 ): AppHandle {
   const me = sessionMember(user, username);
   const store: Store = createStore(user, onFatalError);
+
+  // A minha foto (etapa 2b) mora no perfil público: busca uma vez e redesenha
+  // o meu cartão quando chegar.
+  void publicProfile(user.uid)
+    .then((perfil) => {
+      if (perfil?.photo === undefined || !root.isConnected) return;
+      me.photo = perfil.photo;
+      previous = null;
+      render(store.getState());
+    })
+    .catch(() => undefined);
 
   const root = document.createElement('div');
   root.className = 'app';
@@ -262,6 +276,9 @@ export function mountApp(
   const handleCreateGroup = (): void => {
     openCreateGroupDialog(async (name) => {
       const created = await createGroup(user.uid, name);
+      // Criar pelo "+" da barra de cima estando no Privado tem que ABRIR o
+      // grupo novo — antes ele era criado e a tela continuava no Privado.
+      store.setView('group');
       store.focusGroup(created.groupId, created.generalChannelId);
     });
   };
@@ -619,6 +636,8 @@ export function mountApp(
         me.initials = perfil.initials;
         if (perfil.username === undefined) delete me.username;
         else me.username = perfil.username;
+        if (perfil.photo === undefined) delete me.photo;
+        else me.photo = perfil.photo;
         previous = null;
         render(store.getState());
       },
@@ -836,6 +855,7 @@ export function mountApp(
       uid: participant.uid,
       displayName,
       initials: member?.initials ?? initials(displayName),
+      photo: member?.photo,
       muted: participant.muted,
       sharingScreen: participant.sharingScreen,
     };
@@ -868,6 +888,7 @@ export function mountApp(
           displayName: view.displayName,
           initials: view.initials,
           status: 'online',
+          ...(view.photo === undefined ? {} : { photo: view.photo }),
         },
         // O meu bloco segue o estado local do botão, não o documento: o botão
         // tem que responder na hora, sem esperar o round-trip da escrita.
@@ -1063,6 +1084,7 @@ export function mountApp(
       uid,
       displayName: profile?.displayName ?? 'Usuário',
       initials: profile?.initials ?? '?',
+      photo: profile?.photo,
       ...(profile?.username === undefined ? {} : { username: profile.username }),
     };
   }
@@ -1082,7 +1104,16 @@ export function mountApp(
     const friend = friendView(state, friendUid);
     const authors = new Map<MemberId, Member>([
       [user.uid, me],
-      [friendUid, { id: friendUid, displayName: friend.displayName, initials: friend.initials, status: 'online' }],
+      [
+        friendUid,
+        {
+          id: friendUid,
+          displayName: friend.displayName,
+          initials: friend.initials,
+          status: 'online',
+          ...(friend.photo === undefined ? {} : { photo: friend.photo }),
+        },
+      ],
     ]);
 
     return renderMessageList({
@@ -1897,6 +1928,81 @@ export function mountApp(
     unpinMessage: handleUnpin,
   });
 
+  /* --- cartão da pessoa (etapa 2c) ---------------------------------------- */
+
+  /**
+   * Clique no nome ou na foto de alguém (qualquer elemento com
+   * `data-profile-uid`) abre o cartão flutuante dela. Um ouvinte só, na raiz,
+   * como os menus de contexto — os componentes só marcam o elemento.
+   */
+  function abrirCartao(anchor: HTMLElement): void {
+    const uid = anchor.dataset['profileUid'] ?? '';
+    if (uid === '') return;
+    const state = store.getState();
+    const conhecido =
+      uid === user.uid
+        ? me
+        : (state.members.find((m) => m.id === uid) ??
+          (() => {
+            const perfil = state.friendProfiles.get(uid);
+            return perfil === undefined
+              ? undefined
+              : { displayName: perfil.displayName, initials: perfil.initials, photo: perfil.photo };
+          })());
+    const amizade = state.friendships.find((f) => f.members.includes(uid) && f.members.includes(user.uid));
+    const vinculo: Vinculo =
+      uid === user.uid
+        ? 'eu'
+        : state.blockedUids.includes(uid)
+          ? 'bloqueado'
+          : amizade?.status === 'accepted'
+            ? 'amigo'
+            : amizade !== undefined
+              ? 'pedido'
+              : 'nada';
+
+    openPersonPopover({
+      uid,
+      anchor,
+      fallback: {
+        displayName: conhecido?.displayName ?? 'Usuário',
+        initials: conhecido?.initials ?? '?',
+        photo: conhecido?.photo,
+      },
+      vinculo,
+      onMessage: () => {
+        setDrawer(null);
+        store.setView('home');
+        store.openDm(uid);
+      },
+      onAddFriend: async () => {
+        try {
+          const resultado = await sendFriendRequest(user.uid, uid);
+          showToast(resultado === 'accepted' ? 'Agora vocês são amigos.' : 'Pedido de amizade enviado.');
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Não foi possível mandar o pedido.');
+          throw error;
+        }
+      },
+      onEditProfile: handleOpenSettings,
+    });
+  }
+
+  const onProfileClick = (event: MouseEvent): void => {
+    const alvo = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-profile-uid]');
+    if (alvo === null || alvo === undefined) return;
+    abrirCartao(alvo);
+  };
+  const onProfileKey = (event: KeyboardEvent): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const alvo = event.target as HTMLElement;
+    if (alvo.dataset['profileUid'] === undefined) return;
+    event.preventDefault();
+    abrirCartao(alvo);
+  };
+  root.addEventListener('click', onProfileClick);
+  root.addEventListener('keydown', onProfileKey);
+
   const unsubscribe = store.subscribe(render);
   render(store.getState());
 
@@ -1907,6 +2013,9 @@ export function mountApp(
     },
     destroy(): void {
       closeGroupMenu();
+      closePersonPopover();
+      root.removeEventListener('click', onProfileClick);
+      root.removeEventListener('keydown', onProfileKey);
       uninstallMenus();
       document.removeEventListener('keydown', onShortcut);
       document.removeEventListener('fullscreenchange', onFullscreenChange);

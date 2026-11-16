@@ -310,15 +310,30 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
         // Na primeira do bloco ele traz as iniciais; nas continuações fica vazio,
         // reservando a largura para o texto não desalinhar.
         !isMine &&
-          el("span", { class: "message__avatar" }, [
-            continued ? false : avatarEl(author.initials, "sm"),
-          ]),
+          el(
+            "span",
+            continued
+              ? { class: "message__avatar" }
+              : { class: "message__avatar", "data-profile-uid": message.authorId },
+            [continued ? false : avatarEl(author.initials, "sm", "", author.photo)],
+          ),
 
         el("div", { class: "message__bubble" }, [
           // Nome e horário só na primeira mensagem do bloco.
           !continued &&
             el("div", { class: "message__meta" }, [
-              el("span", { class: "message__author" }, [author.displayName]),
+              el(
+                "span",
+                isMine
+                  ? { class: "message__author" }
+                  : {
+                      class: "message__author",
+                      "data-profile-uid": message.authorId,
+                      role: "button",
+                      tabindex: 0,
+                    },
+                [author.displayName],
+              ),
               el("time", { class: "message__time", datetime: message.sentAt }, [
                 formatTime(message.sentAt),
               ]),

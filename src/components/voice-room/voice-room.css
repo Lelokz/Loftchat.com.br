@@ -381,6 +381,7 @@
   font-size: var(--font-size-md);
   font-weight: 600;
   user-select: none;
+  overflow: hidden;
 }
 
 .room__person-name {

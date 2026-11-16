@@ -35,6 +35,7 @@ export interface VoicePresenceView {
   uid: string;
   displayName: string;
   initials: string;
+  photo?: string | undefined;
   muted: boolean;
   /** Está transmitindo a tela agora. */
   sharingScreen: boolean;
@@ -98,8 +99,8 @@ function voiceRoster(people: VoicePresenceView[]): HTMLElement {
     'ul',
     { class: 'channel__roster' },
     people.map((person) =>
-      el('li', { class: 'channel__peer', title: person.displayName }, [
-        avatarEl(person.initials, 'xs'),
+      el('li', { class: 'channel__peer', title: person.displayName, 'data-profile-uid': person.uid }, [
+        avatarEl(person.initials, 'xs', '', person.photo),
         el('span', { class: 'channel__peer-name' }, [person.displayName]),
         person.muted &&
           el('span', { class: 'channel__peer-muted', title: 'Microfone desligado' }, [

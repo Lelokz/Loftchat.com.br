@@ -104,7 +104,7 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
         'aria-current': isActive ? 'true' : undefined,
       },
       [
-        avatarEl(profile?.initials ?? '?', 'sm'),
+        avatarEl(profile?.initials ?? '?', 'sm', '', profile?.photo),
         el('span', { class: 'home-column__dm-text' }, [
           el('span', { class: 'home-column__dm-name' }, [profile?.displayName ?? 'Usuário']),
           el('span', { class: 'home-column__dm-preview' }, [

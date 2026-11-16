@@ -10,6 +10,7 @@ import type { Unsubscribe } from 'firebase/firestore';
 
 import { isPermissionDenied, messagesErrorMessage } from '../lib/firestore-errors';
 import { pairId, subscribeBlocks, subscribeFriendships, publicProfile } from '../lib/friends';
+import { loadProfileArt } from '../lib/profile';
 import {
   subscribeChannels,
   subscribeDmMessages,
@@ -504,7 +505,13 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
     await Promise.all(
       faltando.map(async (uid) => {
-        const perfil = await publicProfile(uid).catch(() => null);
+        // O banner e o fundo moram em `profileArt/` (etapa 2b): vêm juntos,
+        // porque o cartão do PV é feito destes perfis.
+        const [perfil, art] = await Promise.all([
+          publicProfile(uid).catch(() => null),
+          loadProfileArt(uid).catch(() => ({})),
+        ]);
+        if (perfil !== null) Object.assign(perfil, art);
         // Guarda até o "não achei", como um perfil mínimo: sem isso, um uid sem
         // documento seria buscado de novo a cada render.
         profileCache.set(

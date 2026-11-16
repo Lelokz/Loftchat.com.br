@@ -45,6 +45,7 @@ import { db } from './firebase';
 import { isPermissionDenied } from './firestore-errors';
 import { pairId } from './friends';
 import { initials } from './format';
+import { safeImage } from './images';
 import { generateInviteCode } from './invite-code';
 import type {
   Attachment,
@@ -265,6 +266,7 @@ function toPinnedMessage(id: string, data: DocumentData): PinnedMessage {
 function toMember(uid: MemberId, data: DocumentData | undefined): Member {
   const displayName =
     data !== undefined && typeof data['displayName'] === 'string' ? data['displayName'] : 'Usuário';
+  const photo = safeImage(data?.['photo'], 'foto');
   return {
     id: uid,
     displayName,
@@ -274,6 +276,7 @@ function toMember(uid: MemberId, data: DocumentData | undefined): Member {
         : initials(displayName),
     // Presença de verdade é outra etapa; por ora todo membro aparece online.
     status: 'online',
+    ...(photo === undefined ? {} : { photo }),
   };
 }
 

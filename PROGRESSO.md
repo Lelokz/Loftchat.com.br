@@ -94,6 +94,64 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 2c — cartão ao clicar em alguém (16/11/2026)
+
+- Clicar no nome ou na foto de alguém — lista de membros, nome/foto na
+  mensagem, pessoa no painel "Agora", lista de quem está na sala — abre o
+  **cartão flutuante** (`components/person-card/person-popover.ts`): faixa,
+  foto, fundo, nome na fonte da pessoa, `@` e bio. Um ouvinte só na raiz do
+  app; os componentes só marcam `data-profile-uid`. Enter/espaço também abre.
+- Abre NA HORA com o que já se sabe (nome, iniciais, foto) e completa com o
+  perfil e as imagens lidos de novo — mostra sempre a versão mais nova (isso
+  resolve, no cartão, o "perfil de amigo lido uma vez por sessão" da 2b).
+- Botão conforme o vínculo: eu → "Editar perfil" (abre Configurações);
+  amigo → "Enviar mensagem" (abre o PV); pedido pendente → aviso; bloqueado
+  → aviso; ninguém → "Adicionar amigo" (manda o pedido ali mesmo).
+- Fecha com Esc, clique fora, rolagem ou mudança de tamanho da janela.
+- **Esc das Configurações**: o Chrome agrupa os "fechar com Esc" de diálogos
+  abertos sem clique (o ajustador abre depois da escolha do arquivo) e,
+  depois de alguns, engolia o Esc seguinte — medido nos testes, o `cancel`
+  nem disparava. Agora as Configurações tratam o Esc elas mesmas (só quando
+  são o diálogo de cima).
+- **Teste "rolar ao topo" instável desde a etapa 1** (antes 3 de 3, depois
+  1 de 3): o APP estava certo (âncora parada a 63px nas duas trocas, medido
+  com logs); o teste é que media o "antes" num nó já trocado, porque o
+  histórico passou a entrar mais rápido. Agora rola e mede no mesmo evaluate.
+  5 de 5.
+- Testes: `tests/cartao.spec.ts` (membros, mensagem, bio nova, pedido,
+  "Editar perfil", "Enviar mensagem" → PV).
+
+## Proposta A, etapa 2b — as 3 imagens do perfil com ajustador (16/11/2026)
+
+- **Ajustador** (`components/image-adjuster/`): arrastar para mover, zoom
+  pela barra, rodinha do mouse ou dois dedos (e setas/+/− no teclado), no
+  formato final — círculo da foto, faixa do banner, retrato do fundo. A foto
+  mostra miniaturas "no cartão / nas mensagens / na chamada" e o tamanho
+  final ("Sai como 256×256, uns N KB"). Tudo no aparelho: só o recorte sai.
+- **Onde moram** (`lib/images.ts`): foto 256×256 em `users/{uid}.photo`
+  (vem junto com o perfil que já é lido, então aparece em mensagens,
+  membros, painel, chamada, amigos, PV e no meu cartão); banner 960×280 e
+  fundo do cartão 540×720 em `profileArt/{uid}`, lidos só para mostrar o
+  cartão. WebP (JPEG se o aparelho não gerar WebP), qualidade baixando até
+  caber no teto (foto 90 mil caracteres, banner/fundo 300 mil).
+- **Regra**: `imageOk()` — só `data:image/webp|jpeg;base64,…` e dentro do
+  teto; `profileArt` só com `banner`/`cardBg`, só o dono escreve, qualquer
+  logado lê. No cliente, `safeImage()` confere de novo antes de pôr na tela.
+- Configurações → Perfil ganhou "Imagens do perfil" (Escolher/Trocar,
+  Ajustar, Remover). "Ajustar" usa o arquivo original enquanto a tela está
+  aberta; depois, ajusta o recorte salvo.
+- Cartão de pessoa: banner como imagem da faixa; fundo do cartão com véu
+  escuro por cima (texto legível sobre qualquer imagem).
+- Modais agora têm nome acessível (título ligado por `aria-labelledby`).
+- **Defeito achado e corrigido**: criar grupo pelo "+" estando no Privado
+  criava o grupo mas a tela ficava no Privado. Agora abre o grupo novo.
+- Testes novos em `configuracoes.spec.ts`: imagens de ponta a ponta (com
+  arrastar e zoom) e regras das imagens. Fotos: `design/etapa2-ajustar-*`,
+  `etapa2-config-imagens`, `etapa2-pv-cartao-imagens`, `etapa2-grupo-com-foto`.
+- Limite conhecido: o perfil dos AMIGOS (cartão do PV, lista de amigos) é
+  lido uma vez por sessão; foto nova de um amigo aparece ali depois de
+  recarregar. Nos grupos (membros, mensagens) é ao vivo. Fica para a 2c.
+
 ## Proposta A, etapa 2a — Configurações em tela inteira + Perfil (16/11/2026)
 
 O Leo mandou seguir direto pelas etapas (o programa independente fica para

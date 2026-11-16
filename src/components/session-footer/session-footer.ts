@@ -62,7 +62,7 @@ export function renderSessionFooter(
   settingsButton.addEventListener('click', onOpenSettings);
 
   return el('footer', { class: 'session-footer' }, [
-    avatarEl(member.initials, 'sm'),
+    avatarEl(member.initials, 'sm', '', member.photo),
     identidade,
     settingsButton,
     signOutButton,

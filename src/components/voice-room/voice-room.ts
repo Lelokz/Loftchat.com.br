@@ -166,7 +166,9 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
         },
         [
           el('span', { class: 'room__person-avatar', 'aria-hidden': 'true' }, [
-            participant.member.initials,
+            participant.member.photo === undefined
+              ? participant.member.initials
+              : el('img', { class: 'avatar__img', src: participant.member.photo, alt: '', draggable: 'false' }),
           ]),
           el('span', { class: 'room__person-name', title: participant.member.displayName }, [
             participant.isSelf

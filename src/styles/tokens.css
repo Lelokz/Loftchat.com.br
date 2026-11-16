@@ -60,6 +60,11 @@
   /* Barra flutuante (salvar alterações nas configurações). */
   --shadow-float: 0 8px 24px #00000066;
 
+  /* Véu sobre o fundo do cartão de perfil (etapa 2b): o texto fica legível
+     sobre qualquer imagem. */
+  --card-veu-claro: #140f2699;
+  --card-veu-escuro: #140f26dd;
+
   /* --- bilhete: mensagem fixada (detalhe 7.4 do lab) ---------------------- */
   --note-paper: #fff1a8;
   --note-text: #4a3b12; /* 9.56:1 sobre o papel */

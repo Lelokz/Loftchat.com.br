@@ -66,7 +66,7 @@ function personRow(
       ...(clickable ? { 'data-context': 'friend', 'data-friend-uid': uid } : {}),
     },
     [
-      avatarEl(profile?.initials ?? '?', 'sm'),
+      avatarEl(profile?.initials ?? '?', 'sm', '', profile?.photo),
       el('div', { class: 'friends__identity' }, [
         el('span', { class: 'friends__name' }, [nome]),
         // Sem `@` a pessoa é inencontrável — e mostrar o uid cru não ajudaria

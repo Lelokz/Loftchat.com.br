@@ -2665,10 +2665,17 @@ test("rolar ao topo carrega o histórico sem arrancar a posição de leitura", a
    * tela: o que precisa ficar parado é o que está sob os olhos NO INSTANTE em
    * que o histórico entra.
    */
-  await lista.evaluate((node) => {
+  /*
+   * Rolar e medir no MESMO evaluate (16/11/2026): o histórico passou a entrar
+   * tão rápido que, entre dois evaluates, a lista já tinha sido trocada — e o
+   * "antes" saía de um nó recém-desligado (top 0), acusando um salto que o
+   * app não deu (medido: a âncora ficou em 63px nas duas trocas). Aqui o
+   * evento de rolagem só dispara depois que a medida já foi tirada.
+   */
+  const antes = await lista.evaluate((node, id) => {
     node.scrollTop = 120;
-  });
-  const antes = await ancora.evaluate((node) => node.getBoundingClientRect().top);
+    return document.querySelector(`[data-message-id="${id}"]`)!.getBoundingClientRect().top;
+  }, ancoraId);
 
   await expect(page.locator(".message")).toHaveCount(70, { timeout: 60_000 });
 

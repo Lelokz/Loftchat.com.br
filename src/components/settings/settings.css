@@ -471,3 +471,74 @@
     flex: 1;
   }
 }
+
+/* --- imagens do perfil (etapa 2b) ---------------------------------------- */
+
+.settings__images {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.settings__image {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+}
+
+.settings__image-avatar {
+  margin-bottom: var(--space-2);
+}
+
+.settings__image-sample {
+  height: 64px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken) center / cover no-repeat;
+}
+
+.settings__image-sample.is-vazio {
+  border: 2px dashed var(--border-strong);
+}
+
+.settings__image-title {
+  font-weight: 700;
+}
+
+.settings__image-spec {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.settings__image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.settings__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings__link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .settings__images {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

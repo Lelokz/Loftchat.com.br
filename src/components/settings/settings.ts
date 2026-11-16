@@ -4,7 +4,7 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
-import { el, iconEl } from '../../lib/dom';
+import { avatarEl, el, iconEl } from '../../lib/dom';
 import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, shieldIcon } from '../../lib/icons';
 import {
   CARD_COLOR_IDS,
@@ -16,7 +16,11 @@ import {
   nameFontId,
 } from '../../lib/person-theme';
 import type { CardColorId, NameFontId } from '../../lib/person-theme';
-import { bioProblem, displayNameProblem, saveProfile } from '../../lib/profile';
+import { bioProblem, displayNameProblem, loadProfileArt, saveProfile } from '../../lib/profile';
+import type { ProfileArt } from '../../lib/profile';
+import { IMAGE_SPECS } from '../../lib/images';
+import type { ImageKind } from '../../lib/images';
+import { openImageAdjuster } from '../image-adjuster/image-adjuster';
 import {
   claimUsername,
   publicProfile,
@@ -34,7 +38,12 @@ export interface SettingsOptions {
   user: User;
   onSignOut: () => void;
   /** Depois de salvar: o app atualiza o meu cartão na barra de cima. */
-  onSaved: (perfil: { displayName: string; initials: string; username: string | undefined }) => void;
+  onSaved: (perfil: {
+    displayName: string;
+    initials: string;
+    username: string | undefined;
+    photo: string | undefined;
+  }) => void;
 }
 
 type Secao = 'perfil' | 'conta';
@@ -46,17 +55,27 @@ interface Rascunho {
   bio: string;
   accentId: CardColorId;
   fontId: NameFontId;
+  /** Imagens (data URL); '' = sem imagem. */
+  photo: string;
+  banner: string;
+  cardBg: string;
 }
 
-function rascunhoDe(perfil: UserProfile | null, user: User): Rascunho {
+function rascunhoDe(perfil: UserProfile | null, art: ProfileArt, user: User): Rascunho {
   return {
     displayName: perfil?.displayName ?? user.displayName ?? '',
     username: perfil?.username ?? '',
     bio: perfil?.bio ?? '',
     accentId: cardColorId(perfil?.accentId),
     fontId: nameFontId(perfil?.fontId),
+    photo: perfil?.photo ?? '',
+    banner: art.banner ?? '',
+    cardBg: art.cardBg ?? '',
   };
 }
+
+/** Qual campo do rascunho guarda cada imagem. */
+const CAMPO_DA_IMAGEM = { foto: 'photo', banner: 'banner', fundo: 'cardBg' } as const;
 
 function iguais(a: Rascunho, b: Rascunho): boolean {
   return (
@@ -64,7 +83,10 @@ function iguais(a: Rascunho, b: Rascunho): boolean {
     a.username === b.username &&
     a.bio.trim() === b.bio.trim() &&
     a.accentId === b.accentId &&
-    a.fontId === b.fontId
+    a.fontId === b.fontId &&
+    a.photo === b.photo &&
+    a.banner === b.banner &&
+    a.cardBg === b.cardBg
   );
 }
 
@@ -91,7 +113,7 @@ export function openSettings(options: SettingsOptions): void {
   const dialog = el('dialog', { class: 'settings', 'aria-label': 'Configurações' });
   aberta = dialog;
 
-  let salvo: Rascunho = rascunhoDe(null, user);
+  let salvo: Rascunho = rascunhoDe(null, {}, user);
   let atual: Rascunho = { ...salvo };
   let trocasFeitas = 0;
   let carregado = false;
@@ -198,8 +220,91 @@ export function openSettings(options: SettingsOptions): void {
         bio: atual.bio,
         accentId: atual.accentId,
         fontId: atual.fontId,
+        photo: atual.photo,
+        banner: atual.banner,
+        cardBg: atual.cardBg,
       }),
     );
+  }
+
+  /* --- imagens ------------------------------------------------------------ */
+
+  /**
+   * O ARQUIVO ORIGINAL de cada imagem escolhida nesta visita. "Ajustar" usa
+   * ele (mais nítido); depois de fechar, ajusta-se o recorte salvo.
+   */
+  const originais = new Map<ImageKind, File>();
+
+  function escolherArquivo(kind: ImageKind): void {
+    const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif' });
+    input.addEventListener('change', () => {
+      const arquivo = input.files?.[0];
+      if (arquivo === undefined) return;
+      originais.set(kind, arquivo);
+      ajustar(kind, arquivo);
+    });
+    input.click();
+  }
+
+  function ajustar(kind: ImageKind, source: File | string): void {
+    openImageAdjuster({
+      kind,
+      source,
+      onApply: (url) => {
+        atual[CAMPO_DA_IMAGEM[kind]] = url;
+        mostrar('perfil');
+      },
+      onPickAnother: () => escolherArquivo(kind),
+    }).catch((error: unknown) => {
+      showToast(error instanceof Error ? error.message : 'Não deu para abrir essa imagem.');
+    });
+  }
+
+  function blocoDeImagem(kind: ImageKind): HTMLElement {
+    const spec = IMAGE_SPECS[kind];
+    const valor = atual[CAMPO_DA_IMAGEM[kind]];
+    const tem = valor !== '';
+
+    let amostra: HTMLElement;
+    if (kind === 'foto') {
+      const nome = atual.displayName.trim() || 'Seu nome';
+      amostra = avatarEl(initials(nome), 'xl', 'settings__image-avatar', tem ? valor : undefined);
+    } else {
+      amostra = el('div', { class: `settings__image-sample settings__image-sample--${kind}` });
+      if (tem) amostra.style.backgroundImage = `url("${valor}")`;
+      else amostra.classList.add('is-vazio');
+    }
+
+    const acoes = el('div', { class: 'settings__image-actions' });
+    const botao = (rotulo: string, aria: string, acao: () => void): HTMLButtonElement => {
+      const b = el('button', { class: 'settings__link', type: 'button', 'aria-label': aria }, [rotulo]);
+      b.addEventListener('click', acao);
+      return b;
+    };
+    const nomeMinusculo = spec.label.toLowerCase();
+    acoes.append(
+      botao(tem ? 'Trocar' : 'Escolher imagem', `${tem ? 'Trocar' : 'Escolher'} ${nomeMinusculo}`, () =>
+        escolherArquivo(kind),
+      ),
+    );
+    if (tem) {
+      acoes.append(
+        botao('Ajustar', `Ajustar ${nomeMinusculo}`, () => ajustar(kind, originais.get(kind) ?? valor)),
+        botao('Remover', `Remover ${nomeMinusculo}`, () => {
+          atual[CAMPO_DA_IMAGEM[kind]] = '';
+          originais.delete(kind);
+          mostrar('perfil');
+        }),
+      );
+    }
+
+    const formato = kind === 'foto' ? 'círculo' : kind === 'banner' ? 'faixa' : 'cartão inteiro';
+    return el('div', { class: `settings__image settings__image--${kind}` }, [
+      amostra,
+      el('span', { class: 'settings__image-title' }, [spec.label]),
+      el('span', { class: 'settings__image-spec' }, [`${formato} · ${spec.width}×${spec.height}`]),
+      acoes,
+    ]);
   }
 
   function mudou(): void {
@@ -360,6 +465,15 @@ export function openSettings(options: SettingsOptions): void {
         el('h2', { class: 'settings__title' }, ['Perfil']),
         el('p', { class: 'settings__subtitle' }, ['Como as pessoas te veem no Loftchat.']),
       ]),
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Imagens do perfil']),
+        el('div', { class: 'settings__images' }, [
+          blocoDeImagem('foto'),
+          blocoDeImagem('banner'),
+          blocoDeImagem('fundo'),
+        ]),
+        el('p', { class: 'settings__help' }, ['Arraste e aproxime cada uma no formato em que ela aparece.']),
+      ]),
       el('div', { class: 'settings__row' }, [
         campo(
           'Nome de exibição',
@@ -397,13 +511,15 @@ export function openSettings(options: SettingsOptions): void {
         trocasFeitas += 1;
         salvo = { ...salvo, username: atual.username };
       }
-      await saveProfile(user, atual);
+      const artChanged = atual.banner !== salvo.banner || atual.cardBg !== salvo.cardBg;
+      await saveProfile(user, atual, artChanged);
       salvo = { ...atual, displayName: atual.displayName.trim(), bio: atual.bio.trim() };
       atual = { ...salvo };
       onSaved({
         displayName: salvo.displayName,
         initials: initials(salvo.displayName),
         username: salvo.username === '' ? undefined : salvo.username,
+        photo: salvo.photo === '' ? undefined : salvo.photo,
       });
       showToast('Perfil salvo.');
       salvando = false;
@@ -515,7 +631,26 @@ export function openSettings(options: SettingsOptions): void {
     event.preventDefault();
     fechar();
   });
+  /*
+   * O ESC É NOSSO, não só do navegador. O Chrome agrupa os "fechar com Esc"
+   * de diálogos abertos sem clique da pessoa — o ajustador abre depois que o
+   * arquivo é escolhido, sem clique — e, depois de alguns, o Esc seguinte era
+   * engolido sem fechar nada (medido nos testes: o `cancel` nem disparava).
+   * Só age quando as Configurações são o diálogo de cima e não há cartão
+   * flutuante aberto.
+   */
+  const onKey = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    const abertos = document.querySelectorAll('dialog[open]');
+    if (abertos[abertos.length - 1] !== dialog) return;
+    if (document.querySelector('.person-popover') !== null) return;
+    event.preventDefault();
+    fechar();
+  };
+  document.addEventListener('keydown', onKey);
+
   dialog.addEventListener('close', () => {
+    document.removeEventListener('keydown', onKey);
     dialog.remove();
     aberta = null;
   });
@@ -526,11 +661,12 @@ export function openSettings(options: SettingsOptions): void {
   // No celular, abre na lista de seções; no computador, já no Perfil.
   if (window.matchMedia('(max-width: 768px)').matches) dialog.classList.remove('settings--secao-aberta');
 
-  void publicProfile(user.uid)
-    .catch(() => null)
-    .then((perfil) => {
+  void Promise.all([
+    publicProfile(user.uid).catch(() => null),
+    loadProfileArt(user.uid).catch((): ProfileArt => ({})),
+  ]).then(([perfil, art]) => {
       if (aberta !== dialog) return;
-      salvo = rascunhoDe(perfil, user);
+      salvo = rascunhoDe(perfil, art, user);
       atual = { ...salvo };
       trocasFeitas = perfil?.usernameChanges ?? 0;
       carregado = true;

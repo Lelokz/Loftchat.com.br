@@ -4,6 +4,8 @@
 .person-card {
   --card-cor: var(--accent);
   --card-cor-fim: var(--surface-raised);
+  --card-veu-topo: var(--card-veu-claro);
+  --card-veu-base: var(--card-veu-escuro);
 
   overflow: hidden;
   border: 1px solid var(--border);
@@ -14,7 +16,19 @@
 
 .person-card__banner {
   height: 84px;
-  background: linear-gradient(120deg, var(--card-cor-fim), var(--card-cor));
+  background: linear-gradient(120deg, var(--card-cor-fim), var(--card-cor)) center / cover no-repeat;
+}
+
+/* Fundo do cartão: a imagem da pessoa com um véu da cor do cartão por cima. */
+.person-card--fundo {
+  background:
+    linear-gradient(180deg, var(--card-veu-topo), var(--card-veu-base)),
+    var(--card-fundo) center / cover no-repeat,
+    var(--surface-raised);
+}
+
+.person-card--fundo .person-card__bio {
+  background-color: var(--card-veu-base);
 }
 
 .person-card__body {
@@ -25,6 +39,7 @@
 }
 
 .person-card__avatar {
+  position: relative;
   margin-top: calc(var(--avatar-xl) / -2);
   border: 4px solid var(--surface-raised);
   box-sizing: content-box;
@@ -60,4 +75,53 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   white-space: pre-line;
+}
+
+/* --- cartão flutuante (etapa 2c) — ver person-popover.ts ------------------ */
+
+.person-popover {
+  position: fixed;
+  z-index: 50;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  outline: none;
+}
+
+.person-popover__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.person-popover__main {
+  flex: 1;
+  padding: 10px var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
+  color: var(--accent-on);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.person-popover__main:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.person-popover__main:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.person-popover__note {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* O que abre um cartão ao clicar. */
+[data-profile-uid] {
+  cursor: pointer;
 }

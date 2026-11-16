@@ -14,6 +14,7 @@ export interface PessoaNaSala {
   uid: MemberId;
   displayName: string;
   initials: string;
+  photo?: string | undefined;
   muted: boolean;
   transmitindo: boolean;
 }
@@ -106,8 +107,8 @@ function agora(salas: SalaAgora[], onEntrar: (channelId: ChannelId) => void): HT
         'ul',
         { class: 'group-panel__people' },
         sala.pessoas.map((p) =>
-          el('li', { class: 'group-panel__person' }, [
-            avatarEl(p.initials, 'sm'),
+          el('li', { class: 'group-panel__person', 'data-profile-uid': p.uid, tabindex: 0 }, [
+            avatarEl(p.initials, 'sm', '', p.photo),
             el('span', { class: 'group-panel__person-name' }, [p.displayName]),
             p.muted && el('span', { class: 'group-panel__muted', title: 'Microfone desligado' }, [iconEl(micIcon(13))]),
           ]),

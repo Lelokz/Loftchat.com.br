@@ -28,6 +28,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Imagem do perfil (etapa 2b): só WebP ou JPEG em base64, até `max`
+    // caracteres — o mesmo formato e teto de src/lib/images.ts. Nada que
+    // vire outra coisa dentro de um `src` ou `url(...)` na tela de outra pessoa.
+    function imageOk(value, max) {
+      return value is string && value.size() <= max
+        && value.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/=]+$');
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -150,7 +158,8 @@ service cloud.firestore {
           && (!changed('accentId')
                 || d.get('accentId', 'roxo') in ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'])
           && (!changed('fontId')
-                || d.get('fontId', 'nunito') in ['nunito', 'classica', 'pixelada', 'forte']);
+                || d.get('fontId', 'nunito') in ['nunito', 'classica', 'pixelada', 'forte'])
+          && (!changed('photo') || !('photo' in d) || imageOk(d.photo, 90000));
       }
 
       allow delete: if signedIn() && userId == uid();
@@ -159,6 +168,20 @@ service cloud.firestore {
     /* ---------------------------- userPrivate --------------------------- */
     // Existe desde já para a Entrega 3 não precisar migrar nada. NADA aqui é
     // legível por outra pessoa — é o par privado de `users`.
+
+    /* ---------------------------- profileArt ---------------------------- */
+    // Banner e fundo do cartão (etapa 2b). Separados de `users/` para a lista
+    // de membros não baixar imagem grande que nem mostra. Qualquer um logado
+    // lê (é o cartão público); só o dono escreve, e só estes dois campos.
+
+    match /profileArt/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['banner', 'cardBg'])
+        && (!('banner' in request.resource.data) || imageOk(request.resource.data.banner, 300000))
+        && (!('cardBg' in request.resource.data) || imageOk(request.resource.data.cardBg, 300000));
+      allow delete: if signedIn() && userId == uid();
+    }
 
     match /userPrivate/{userId} {
       allow read, write: if signedIn() && userId == uid();

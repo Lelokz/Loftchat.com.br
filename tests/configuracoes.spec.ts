@@ -39,7 +39,7 @@ async function entrar(
 }
 
 async function abrirConfiguracoes(page: Page) {
-  await page.getByRole('button', { name: 'Configurações' }).click();
+  await page.getByRole('button', { name: 'Configurações', exact: true }).click();
   const tela = page.getByRole('dialog', { name: 'Configurações' });
   await expect(tela).toBeVisible();
   await expect(tela.getByLabel('Nome de exibição')).toBeVisible({ timeout: 15_000 });
@@ -200,7 +200,7 @@ test('no celular: a engrenagem abre a lista de seções, entra no Perfil, volta 
   test.setTimeout(90_000);
   const a = await entrar(browser, 'Celular conf', { width: 390, height: 844 });
 
-  await a.page.getByRole('button', { name: 'Configurações' }).click();
+  await a.page.getByRole('button', { name: 'Configurações', exact: true }).click();
   const tela = a.page.getByRole('dialog', { name: 'Configurações' });
   await expect(tela.getByRole('button', { name: 'Perfil' })).toBeVisible();
   await expect(tela.getByLabel('Nome de exibição')).toBeHidden();
@@ -219,4 +219,157 @@ test('no celular: a engrenagem abre a lista de seções, entra no Perfil, volta 
   await expect(tela).toBeHidden();
 
   await a.context.close();
+});
+
+/* --- etapa 2b: imagens do perfil com ajustador ---------------------------- */
+
+/** Uma imagem de teste feita no próprio navegador (degradê com um quadrado). */
+async function imagemDeTeste(page: Page, largura: number, altura: number): Promise<Buffer> {
+  const base64 = await page.evaluate(
+    ([w, h]) => {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d')!;
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#ff7a00');
+      g.addColorStop(1, '#2a60ff');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(w / 3, h / 3, w / 6, h / 6);
+      return c.toDataURL('image/png').split(',')[1]!;
+    },
+    [largura, altura] as const,
+  );
+  return Buffer.from(base64, 'base64');
+}
+
+async function escolherImagem(page: Page, botao: string, largura: number, altura: number) {
+  const tela = page.getByRole('dialog', { name: 'Configurações' });
+  const escolha = page.waitForEvent('filechooser');
+  await tela.getByRole('button', { name: botao }).click();
+  await (await escolha).setFiles({
+    name: 'teste.png',
+    mimeType: 'image/png',
+    buffer: await imagemDeTeste(page, largura, altura),
+  });
+}
+
+test('foto, banner e fundo: escolher, ajustar (arrastar e zoom), salvar pequeno, e o amigo vê', async ({
+  browser,
+}) => {
+  test.setTimeout(150_000);
+  const a = await entrar(browser, 'Imagens A');
+  const b = await entrar(browser, 'Imagens B');
+
+  await b.page.getByRole('button', { name: 'Privado', exact: true }).click();
+  await b.page.getByRole('button', { name: 'Amigos', exact: true }).click();
+  await b.page.locator('.friends__tab[data-tab="adicionar"]').click();
+  await b.page.locator('.friends__input').fill(usernameFor(a.account));
+  await b.page.locator('.friends__submit').click();
+  await expect(b.page.locator('.friends__note')).toHaveText('Pedido enviado.', { timeout: 30_000 });
+  await a.page.getByRole('button', { name: 'Privado', exact: true }).click();
+  await a.page.getByRole('button', { name: 'Amigos', exact: true }).click();
+  await a.page.locator('.friends__tab[data-tab="pendentes"]').click();
+  await a.page.getByRole('button', { name: 'Aceitar' }).click();
+
+  const tela = await abrirConfiguracoes(a.page);
+
+  // FOTO: o ajustador abre no formato de círculo, com as miniaturas.
+  await escolherImagem(a.page, 'Escolher foto', 1200, 800);
+  const ajustador = a.page.getByRole('dialog', { name: 'Ajustar foto' });
+  await expect(ajustador).toBeVisible();
+  await expect(ajustador.locator('.adjuster__mini')).toHaveCount(3);
+  await expect(ajustador.locator('.adjuster__size')).toContainText('Sai como 256×256');
+
+  // Zoom pela barra e pela rodinha; arrastar move.
+  const palco = ajustador.locator('.adjuster__stage');
+  await ajustador.getByRole('slider', { name: 'Aproximar' }).fill('2');
+  const caixa = (await palco.boundingBox())!;
+  await a.page.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
+  await a.page.mouse.wheel(0, -300);
+  expect(Number(await ajustador.getByRole('slider', { name: 'Aproximar' }).inputValue())).toBeGreaterThan(2);
+  await a.page.mouse.down();
+  await a.page.mouse.move(caixa.x + caixa.width / 2 + 60, caixa.y + caixa.height / 2 + 30, { steps: 5 });
+  await a.page.mouse.up();
+  await ajustador.getByRole('button', { name: 'Aplicar' }).click();
+  await expect(ajustador).toBeHidden();
+  await expect(tela.locator('.settings__image--foto img')).toBeVisible();
+  await expect(tela.locator('.settings__preview .person-card__avatar img')).toBeVisible();
+
+  // BANNER e FUNDO.
+  await escolherImagem(a.page, 'Escolher banner', 1600, 600);
+  await a.page.getByRole('dialog', { name: 'Ajustar banner' }).getByRole('button', { name: 'Aplicar' }).click();
+  await escolherImagem(a.page, 'Escolher fundo do cartão', 900, 1400);
+  await a.page
+    .getByRole('dialog', { name: 'Ajustar fundo do cartão' })
+    .getByRole('button', { name: 'Aplicar' })
+    .click();
+  await expect(tela.locator('.settings__preview .person-card--fundo')).toBeVisible();
+
+  await tela.getByRole('button', { name: 'Salvar' }).click();
+  await expect(tela.getByRole('region', { name: 'Alterações não salvas' })).toBeHidden({ timeout: 15_000 });
+
+  // No banco: recortes pequenos, em WebP.
+  const perfil = await readDocViaRest(a.account, `users/${a.account.uid}`);
+  const foto = perfil.fields?.['photo']?.stringValue ?? '';
+  expect(foto).toMatch(/^data:image\/webp;base64,/);
+  expect(foto.length).toBeLessThanOrEqual(90_000);
+  const arte = await readDocViaRest(a.account, `profileArt/${a.account.uid}`);
+  expect(arte.fields?.['banner']?.stringValue).toMatch(/^data:image\/webp;base64,/);
+  expect(arte.fields?.['cardBg']?.stringValue).toMatch(/^data:image\/webp;base64,/);
+
+  // A foto aparece no meu cartão da barra de cima.
+  await a.page.keyboard.press('Escape');
+  await expect(a.page.locator('.group-bar .session-footer .avatar img')).toBeVisible();
+
+  // O amigo vê foto, banner e fundo no cartão do PV.
+  await b.page.reload();
+  await b.page.getByRole('button', { name: 'Privado', exact: true }).click();
+  await b.page.getByRole('button', { name: 'Amigos', exact: true }).click();
+  await b.page.locator('.friends__tab[data-tab="amigos"]').click();
+  await expect(b.page.locator('.friends__row--clickable .avatar img')).toBeVisible({ timeout: 15_000 });
+  await b.page.locator('.friends__row--clickable').first().click();
+  const cartao = b.page.locator('.profile-card');
+  await expect(cartao.locator('.person-card__avatar img')).toBeVisible({ timeout: 15_000 });
+  await expect(cartao).toHaveClass(/person-card--fundo/);
+  expect(
+    await cartao.locator('.person-card__banner').evaluate((n) => (n as HTMLElement).style.backgroundImage),
+  ).toContain('data:image/webp');
+
+  // Remover a foto volta para as iniciais.
+  const tela2 = await abrirConfiguracoes(a.page);
+  await tela2.getByRole('button', { name: 'Remover foto' }).click();
+  await tela2.getByRole('button', { name: 'Salvar' }).click();
+  await expect(tela2.getByRole('region', { name: 'Alterações não salvas' })).toBeHidden({ timeout: 15_000 });
+  const depois = await readDocViaRest(a.account, `users/${a.account.uid}`);
+  expect(depois.fields?.['photo']).toBeUndefined();
+
+  await a.context.close();
+  await b.context.close();
+});
+
+test('a REGRA só aceita imagem WebP/JPEG em base64 e no tamanho, e só o dono mexe no próprio cartão', async ({
+  browser,
+}) => {
+  test.setTimeout(90_000);
+  const a = await entrar(browser, 'Regra img A');
+  const b = await entrar(browser, 'Regra img B');
+  const meu = `users/${a.account.uid}`;
+
+  expect(await patchDocViaRest(a.account, meu, { photo: 'data:image/svg+xml;base64,PHN2Zz4=' })).toBe(403);
+  expect(await patchDocViaRest(a.account, meu, { photo: 'javascript:alert(1)' })).toBe(403);
+  expect(await patchDocViaRest(a.account, meu, { photo: `data:image/webp;base64,${'A'.repeat(90_001)}` })).toBe(403);
+  expect(await patchDocViaRest(a.account, meu, { photo: 'data:image/webp;base64,UklGRg==' })).toBe(200);
+
+  const arte = `profileArt/${a.account.uid}`;
+  expect(await patchDocViaRest(a.account, arte, { banner: 'data:image/jpeg;base64,/9j/4A==' })).toBe(200);
+  expect(await patchDocViaRest(a.account, arte, { outra: 'coisa' })).toBe(403);
+  expect(await patchDocViaRest(b.account, arte, { banner: 'data:image/jpeg;base64,/9j/4A==' })).toBe(403);
+  // Qualquer pessoa logada LÊ (é o cartão público).
+  expect((await readDocViaRest(b.account, arte)).status).toBe(200);
+
+  await a.context.close();
+  await b.context.close();
 });

@@ -10,6 +10,10 @@ export interface PersonCardData {
   bio?: string | undefined;
   accentId?: string | undefined;
   fontId?: string | undefined;
+  /** Imagens já validadas (lib/images.ts) — ausentes = cor do cartão e iniciais. */
+  photo?: string | undefined;
+  banner?: string | undefined;
+  cardBg?: string | undefined;
 }
 
 /**
@@ -23,10 +27,13 @@ export function renderPersonCard(data: PersonCardData, extra: HTMLElement[] = []
   const nome = el('span', { class: 'person-card__name' }, [data.displayName]);
   const bio = data.bio?.trim() ?? '';
 
-  const card = el('div', { class: 'person-card' }, [
-    el('div', { class: 'person-card__banner', 'aria-hidden': 'true' }),
+  const banner = el('div', { class: 'person-card__banner', 'aria-hidden': 'true' });
+  if (data.banner) banner.style.backgroundImage = `url("${data.banner}")`;
+
+  const card = el('div', { class: `person-card${data.cardBg ? ' person-card--fundo' : ''}` }, [
+    banner,
     el('div', { class: 'person-card__body' }, [
-      avatarEl(data.initials, 'xl', 'person-card__avatar'),
+      avatarEl(data.initials, 'xl', 'person-card__avatar', data.photo),
       el('div', { class: 'person-card__identity' }, [
         nome,
         data.username !== undefined &&
@@ -39,5 +46,8 @@ export function renderPersonCard(data: PersonCardData, extra: HTMLElement[] = []
   ]);
 
   applyPersonLook(card, nome, data);
+  // O fundo entra como variável: o CSS põe um véu escuro por cima, para o
+  // texto continuar legível sobre qualquer imagem.
+  if (data.cardBg) card.style.setProperty('--card-fundo', `url("${data.cardBg}")`);
   return card;
 }

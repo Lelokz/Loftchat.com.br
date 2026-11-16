@@ -50,6 +50,8 @@ export interface ModalOptions {
   onClose?: () => void;
 }
 
+let modalCount = 0;
+
 export function openModal(options: ModalOptions): ModalController {
   const {
     title,
@@ -80,7 +82,12 @@ export function openModal(options: ModalOptions): ModalController {
   confirmButton.disabled = confirmDisabled;
   const cancelButton = el('button', { class: 'modal__cancel', type: 'button' }, [cancelLabel]);
 
-  const dialog = el('dialog', { class: wide ? 'modal modal--wide' : 'modal' });
+  // O título dá nome ao diálogo (leitor de tela e testes: getByRole('dialog', { name })).
+  const titleId = `modal-titulo-${++modalCount}`;
+  const dialog = el('dialog', {
+    class: wide ? 'modal modal--wide' : 'modal',
+    'aria-labelledby': titleId,
+  });
 
   /*
    * Saída esmaecendo (transição 1, etapa 20): o fantasma é fotografado ANTES
@@ -125,7 +132,7 @@ export function openModal(options: ModalOptions): ModalController {
   // <form> de verdade: Enter em qualquer campo confirma.
   const form = el('form', { class: 'modal__form', novalidate: true }, [
     el('header', { class: 'modal__header' }, [
-      el('h2', { class: 'modal__title' }, [title]),
+      el('h2', { class: 'modal__title', id: titleId }, [title]),
       description !== undefined && el('p', { class: 'modal__description' }, [description]),
     ]),
     body,

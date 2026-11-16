@@ -36,6 +36,7 @@ import {
 import type { Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
+import { safeImage } from './images';
 import { MAX_USERNAME_CHANGES } from '../types/models';
 import type { Block, Friendship, MemberId, UserProfile } from '../types/models';
 
@@ -374,5 +375,7 @@ export async function publicProfile(uid: MemberId): Promise<UserProfile | null> 
   for (const campo of ['bio', 'accentId', 'fontId'] as const) {
     if (typeof data[campo] === 'string') Object.assign(perfil, { [campo]: data[campo] });
   }
+  const photo = safeImage(data['photo'], 'foto');
+  if (photo !== undefined) Object.assign(perfil, { photo });
   return perfil;
 }

@@ -151,6 +151,19 @@ hr {
   font-size: var(--font-size-xl);
 }
 
+/* Com foto: a imagem preenche o círculo (já vem recortada quadrada). */
+.avatar--foto {
+  overflow: hidden;
+}
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
 /* Ícone SVG inline — herda a cor de quem o contém. */
 .icon {
   display: inline-flex;

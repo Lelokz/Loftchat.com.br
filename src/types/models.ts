@@ -72,6 +72,15 @@ export interface UserProfile {
   bio?: string;
   accentId?: string;
   fontId?: string;
+  /** Foto 256×256 (data URL), etapa 2b. Ver lib/images.ts. */
+  photo?: string;
+  /**
+   * Banner e fundo do cartão — NÃO moram em `users/` (moram em
+   * `profileArt/{uid}`); o cliente junta aqui depois de ler, só para quem
+   * precisa mostrar o cartão.
+   */
+  banner?: string;
+  cardBg?: string;
 }
 
 /** Quantas trocas de `@` cada conta tem direito. Cobrado na regra, não só na tela. */
@@ -157,6 +166,8 @@ export interface Member {
   initials: string;
   /** O `@`, quando se sabe (o meu sempre). */
   username?: string;
+  /** Foto (data URL), quando a pessoa pôs uma. */
+  photo?: string;
   /**
    * ATENÇÃO — presença como campo simples só serve para o mock.
    *
