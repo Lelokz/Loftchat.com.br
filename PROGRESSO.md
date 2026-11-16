@@ -118,6 +118,14 @@ NOVA (aprovado: "muito foda esse design").
   que agora é o SITE. Para testar a janela com o chat, usar `LOFT_URL` com o
   Vite (`npm run dev`) até a fase 2 pôr o código dentro do programa.
 - Para desfazer: o console do Firebase guarda as versões do hosting.
+- **Defeito achado pelo Leo:** no Chrome do celular onde ele tinha aberto o
+  Loft antigo, o chat velho continuou aparecendo (até recarregando), e num
+  navegador novo aparecia o site. Causa: o Firebase Hosting manda
+  `Cache-Control: max-age=3600` por padrão — o navegador guarda cada página
+  1 h sem perguntar. Eu tinha conferido só o service worker (que não guarda
+  nada) e não o cache HTTP. Corrigido: `firebase.json` manda `no-cache` em
+  TUDO (`"source": "**"`). Conferido no ar.
+
 
 ## Publicação de 16/11/2026 (madrugada)
 
