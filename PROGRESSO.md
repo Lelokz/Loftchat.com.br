@@ -147,6 +147,15 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Regras do banco publicadas (16/11/2026, ~18h50)
+
+As regras do Firestore mudaram 7 vezes na proposta A (perfil, grupos,
+canais, boas-vindas, fundo do chat) e nunca tinham sido publicadas — o
+`npm run deploy` publica só o site. No app Android (Firebase de verdade)
+salvar o perfil dava "Missing or insufficient permissions". Publicadas
+regras e índices com o OK do Leo (`firebase deploy --only
+firestore:rules,firestore:indexes`). **Regra mudou = publicar junto (com OK).**
+
 ## Etapa 10b (parte comum) — "Em chamada" no Android (16/11/2026)
 
 - Serviço em primeiro plano do tipo MICROFONE (`ServicoDaChamada.java`) com
