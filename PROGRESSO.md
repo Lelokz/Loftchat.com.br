@@ -147,6 +147,34 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Etapa 10c — transmitir a tela do celular (16/11/2026, ~20h50)
+
+Decisão do Leo: **B** — a chamada continua na página do app (como hoje) +
+"Em chamada"; só a captura da tela do celular é nativa.
+
+- **Android** (`PluginDaTransmissao.java` + `ServicoDaTransmissao.java`):
+  autorização do próprio Android → serviço em primeiro plano do tipo
+  "projeção de mídia" com a notificação "Transmitindo a tela" + Parar. A
+  tela vai para uma tela virtual de até 1280 px no lado maior (acompanha o
+  celular girando), e cada imagem sai em JPEG pelo canal de mensagens da
+  WebView (`androidx.webkit`). Ritmo: até ~15 por segundo, a próxima só
+  depois do "ok" da página (celular lento não acumula fila); tela parada
+  reenvia a última a cada segundo (quem entra depois vê a imagem).
+- **Página** (`src/lib/android-tela.ts`): JPEG → `MediaStreamTrackGenerator`
+  (continua andando com o app atrás); sem ele, um <canvas>. O motor da
+  chamada ganhou `FonteDeTela` (outra origem no lugar do getDisplayMedia) e
+  manda a faixa pelo mesmo caminho da tela do PC.
+- Sem som do celular (aviso próprio: "vai só a imagem").
+- A página do app tem prioridade alta mesmo com o app atrás
+  (`setRendererPriorityPolicy`).
+- Testes: `android-tela.spec.ts` (Android de mentira, os dois caminhos:
+  gerador e canvas; girar; parar pelos dois lados) — pegou um defeito real
+  (o canal chegava e era descartado). Regressão: sala, celular, voz,
+  código do grupo, compartilhar tela no navegador e no programa (20/20).
+- **Só montado** (sem emulador): falta o teste do Leo no celular. Riscos
+  conhecidos: WebView sem o gerador → canvas, que pode parar de atualizar
+  com o app atrás; desempenho em celular fraco.
+
 ## Código do grupo, botões travados e barra de cima (16/11/2026, ~19h45)
 
 - **Código do grupo** (pedido do Leo: a página do convite não existe no ar):

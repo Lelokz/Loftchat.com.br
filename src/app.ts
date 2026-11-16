@@ -1114,7 +1114,11 @@ export function mountApp(
         maximized: state.screenMaximized,
         supported: screenShareSupported(),
         ...(emAppAndroid()
-          ? { unsupportedReason: 'Transmitir a tela do celular ainda não chegou: vem numa próxima versão do app.' }
+          ? {
+              unsupportedReason:
+                'Este celular não deixa transmitir a tela: atualize o "Android System WebView" na Play Store.',
+              audioMissingText: 'Do celular vai só a imagem: o som do celular não vai junto.',
+            }
           : {}),
         ready: state.voiceReady,
       },

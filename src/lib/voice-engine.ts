@@ -160,6 +160,18 @@ export interface ScreenAudioExtra {
   stop(): void;
 }
 
+/**
+ * Outra origem para a tela, no lugar do getDisplayMedia: o app Android
+ * captura a tela do celular pelo próprio Android (ver lib/android-tela.ts).
+ * `parar` é chamado quando a transmissão para, por qualquer caminho.
+ */
+export interface FonteDeTela {
+  stream: MediaStream;
+  surface: string;
+  label: string;
+  parar(): void;
+}
+
 export interface ScreenCapture {
   /** 'monitor', 'window' ou 'browser'. */
   surface: string;
@@ -198,7 +210,10 @@ export interface VoiceEngine {
    * o som do PC chega por um microfone virtual). O motor desliga ele junto com
    * a transmissão.
    */
-  startScreenShare(audioExtra?: () => Promise<ScreenAudioExtra | null>): Promise<ScreenCapture | null>;
+  startScreenShare(
+    audioExtra?: () => Promise<ScreenAudioExtra | null>,
+    fonte?: () => Promise<FonteDeTela | null>,
+  ): Promise<ScreenCapture | null>;
   stopScreenShare(): Promise<void>;
   isSharing(): boolean;
   localScreen(): MediaStream | null;
@@ -350,6 +365,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
   /** A captura de tela em andamento, ou null. Fonte da verdade do "estou transmitindo". */
   let screenStream: MediaStream | null = null;
   let stopScreenAudioExtra: (() => void) | null = null;
+  /** A origem da tela quando não é o getDisplayMedia (app Android). */
+  let pararFonte: (() => void) | null = null;
   let denied = false;
   // Etapa 8c: o microfone, a saída e os filtros escolhidos em Voz e áudio.
   let ajustes = loadVoiceSettings();
@@ -1053,6 +1070,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     screenStream = null;
     stopScreenAudioExtra?.();
     stopScreenAudioExtra = null;
+    pararFonte?.();
+    pararFonte = null;
 
     for (const peer of peers.values()) {
       // Pode não ter canal ainda: quem responde só adota na primeira oferta.
@@ -1175,21 +1194,30 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
      *
      * Devolve o que foi capturado, ou null quando a pessoa fechou o seletor.
      */
-    async startScreenShare(audioExtra) {
+    async startScreenShare(audioExtra, fonte) {
       if (screenStream !== null) return null;
 
       let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: SCREEN_QUALITY,
-          // Pede o som do sistema junto, para o áudio do jogo ir com a imagem.
-          audio: true,
-        });
-      } catch (error) {
-        // Fechar o seletor é desistência, não falha: nada de erro na tela.
-        const name = (error as Error).name;
-        if (name === 'NotAllowedError' || name === 'AbortError') return null;
-        throw error;
+      let surface: string | null = null;
+      if (fonte !== undefined) {
+        const origem = await fonte();
+        if (origem === null) return null;
+        stream = origem.stream;
+        surface = origem.surface;
+        pararFonte = origem.parar;
+      } else {
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: SCREEN_QUALITY,
+            // Pede o som do sistema junto, para o áudio do jogo ir com a imagem.
+            audio: true,
+          });
+        } catch (error) {
+          // Fechar o seletor é desistência, não falha: nada de erro na tela.
+          const name = (error as Error).name;
+          if (name === 'NotAllowedError' || name === 'AbortError') return null;
+          throw error;
+        }
       }
 
       screenStream = stream;
@@ -1197,6 +1225,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       if (video === undefined) {
         stream.getTracks().forEach((track) => track.stop());
         screenStream = null;
+        pararFonte?.();
+        pararFonte = null;
         return null;
       }
 
@@ -1228,7 +1258,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
 
       const settings = video.getSettings() as MediaTrackSettings & { displaySurface?: string };
       return {
-        surface: settings.displaySurface ?? 'desconhecido',
+        surface: surface ?? settings.displaySurface ?? 'desconhecido',
         label: video.label,
         stream,
         hasAudio: stream.getAudioTracks().length > 0,
@@ -1319,6 +1349,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       // A tela para JUNTO com a chamada: é o terceiro caminho de parar.
       screenStream?.getTracks().forEach((track) => track.stop());
       screenStream = null;
+      pararFonte?.();
+      pararFonte = null;
       for (const peerUid of [...peers.keys()]) dropPeer(peerUid);
       watchers.clear();
       localStream?.getTracks().forEach((track) => track.stop());

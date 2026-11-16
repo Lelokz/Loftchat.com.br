@@ -3,6 +3,7 @@ package br.com.loftchat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
+import android.webkit.WebView;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -18,7 +19,15 @@ public class MainActivity extends BridgeActivity {
         // plugins ao montar a ponte.
         registerPlugin(PluginDaChamada.class);
         registerPlugin(PluginDaTela.class);
+        registerPlugin(PluginDaTransmissao.class);
         super.onCreate(savedInstanceState);
+
+        // A página continua com prioridade alta com o app atrás: a voz e a
+        // tela transmitida (etapa 10c) não podem engasgar quando a pessoa
+        // abre outro app para mostrar.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getBridge().getWebView().setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+        }
 
         // O Loftchat vai até a borda de cima, por trás do furinho da câmera
         // (o chat só desce os BOTÕES a altura dele, pelo env(safe-area-inset-top)).

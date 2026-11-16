@@ -50,6 +50,8 @@ export interface ScreenShareView {
   supported: boolean;
   /** O motivo, quando não sabe (o app Android diz que ainda vem). */
   unsupportedReason?: string;
+  /** O aviso de "foi sem som", quando o do PC não serve (app Android). */
+  audioMissingText?: string;
   /** O motor de voz já subiu? Antes disso o botão não teria o que fazer. */
   ready: boolean;
 }
@@ -287,8 +289,9 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
   if (screen.isMine && screen.audioMissing) {
     notices.push(
       el('p', { class: 'room__notice', role: 'alert' }, [
-        'Este navegador não mandou o som do sistema junto — vai só a imagem. ' +
-          'O som do jogo não está sendo transmitido.',
+        screen.audioMissingText ??
+          'Este navegador não mandou o som do sistema junto — vai só a imagem. ' +
+            'O som do jogo não está sendo transmitido.',
       ]),
     );
   }

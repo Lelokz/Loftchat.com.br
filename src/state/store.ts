@@ -34,6 +34,8 @@ import {
 import type { PresenceSession } from '../lib/voice-presence';
 import { clearMySignals } from '../lib/voice-signaling';
 import { startVoiceEngine } from '../lib/voice-engine';
+import { emAppAndroid } from '../lib/android';
+import { capturarTelaDoAndroid, transmissaoDoAndroidDisponivel } from '../lib/android-tela';
 import type { PeerDiagnostic, ScreenAudioExtra, VoiceEngine } from '../lib/voice-engine';
 import type {
   Channel,
@@ -328,6 +330,8 @@ export interface Store {
  * de desktop, e não adianta oferecer um botão que só pode falhar.
  */
 export function screenShareSupported(): boolean {
+  // O app Android não tem getDisplayMedia: quem captura é o Android (etapa 10c).
+  if (emAppAndroid()) return transmissaoDoAndroidDisponivel();
   return typeof navigator.mediaDevices?.getDisplayMedia === 'function';
 }
 
@@ -340,7 +344,9 @@ function describeSurface(surface: string, label: string): string {
         ? 'Janela'
         : surface === 'browser'
           ? 'Aba do navegador'
-          : 'Compartilhando';
+          : surface === 'celular'
+            ? 'Tela do celular'
+            : 'Compartilhando';
   // O label do navegador ajuda quando existe, mas é cru ("screen:0:0").
   return label === '' || label.startsWith('screen:') ? kind : `${kind} — ${label}`;
 }
@@ -1350,7 +1356,10 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
       let capture;
       try {
-        capture = await engine.startScreenShare(janela?.audioDoPc);
+        capture = await engine.startScreenShare(
+          janela?.audioDoPc,
+          emAppAndroid() ? capturarTelaDoAndroid : undefined,
+        );
       } catch (error) {
         console.error('Não foi possível compartilhar a tela.', error);
         return 'Não foi possível compartilhar a tela.';

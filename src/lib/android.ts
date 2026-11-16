@@ -1,6 +1,8 @@
 import { App } from '@capacitor/app';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
+import { conferirTransmissaoDoAndroid } from './android-tela';
+
 /**
  * O APP ANDROID (etapa 10a, Capacitor). Só faz algo dentro do app; no site e
  * no programa não liga nada.
@@ -20,6 +22,7 @@ export function emAppAndroid(): boolean {
 export function ligarAndroid(): void {
   if (!Capacitor.isNativePlatform()) return;
   document.documentElement.classList.add('app-android');
+  conferirTransmissaoDoAndroid();
   /*
    * A BARRA DE CIMA DO SISTEMA: o app pede para escondê-la (MainActivity).
    * Se o celular obedeceu, o Loftchat vai até a borda de cima, sem folga
