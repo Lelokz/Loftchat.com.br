@@ -1123,3 +1123,29 @@ export async function cleanupFirestore(
 
   return { removidos: removed, falhas };
 }
+
+/**
+ * Como `patchDocViaRest`, mas com valores JÁ no formato da REST do Firestore
+ * (`{ mapValue: ... }`, `{ arrayValue: ... }`, `{ integerValue: "1" }`) — para
+ * testar a regra com mapas, listas e números.
+ */
+export async function patchDocRawViaRest(
+  account: TestAccount,
+  path: string,
+  fields: Record<string, unknown>,
+): Promise<number> {
+  const idToken = await tokenOf(account);
+  if (idToken === undefined) return 0;
+  const mask = Object.keys(fields)
+    .map((name) => `updateMask.fieldPaths=${name}`)
+    .join("&");
+  const response = await fetch(`${FS}/${path}?${mask}&key=${API_KEY}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ fields }),
+  });
+  return response.status;
+}

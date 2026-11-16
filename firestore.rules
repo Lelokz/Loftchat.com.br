@@ -159,7 +159,38 @@ service cloud.firestore {
                 || d.get('accentId', 'roxo') in ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'])
           && (!changed('fontId')
                 || d.get('fontId', 'nunito') in ['nunito', 'classica', 'pixelada', 'forte'])
-          && (!changed('photo') || !('photo' in d) || imageOk(d.photo, 90000));
+          && (!changed('photo') || !('photo' in d) || imageOk(d.photo, 90000))
+          && (!changed('nameColor')
+                || d.get('nameColor', 'padrao')
+                     in ['padrao', 'roxo', 'rosa', 'vermelho', 'laranja', 'amarelo', 'verde', 'azul'])
+          && (!changed('customStatus') || !('customStatus' in d) || statusOk(d.customStatus))
+          && (!changed('links') || !('links' in d) || linksOk(d.links));
+      }
+
+      /*
+       * STATUS (etapa 2d): emoji curto, texto até 60, prazo em milissegundos
+       * (0 = sem prazo). Só estas três chaves.
+       */
+      function statusOk(s) {
+        return s is map
+          && s.keys().hasOnly(['emoji', 'text', 'until'])
+          && s.get('emoji', '') is string && s.get('emoji', '').size() <= 16
+          && s.get('text', '') is string && s.get('text', '').size() <= 60
+          && s.get('until', 0) is int && s.get('until', 0) >= 0;
+      }
+
+      /*
+       * LINKS (etapa 2d): até 3, cada um https:// e até 200 caracteres, sem
+       * espaço, aspas nem < > — só endereço de site, nunca javascript: e afins.
+       */
+      function linkOk(l) {
+        return l is string && l.size() <= 200 && l.matches('https://[^\\s<>"]+');
+      }
+      function linksOk(ls) {
+        return ls is list && ls.size() >= 1 && ls.size() <= 3
+          && linkOk(ls[0])
+          && (ls.size() < 2 || linkOk(ls[1]))
+          && (ls.size() < 3 || linkOk(ls[2]));
       }
 
       allow delete: if signedIn() && userId == uid();

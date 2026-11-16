@@ -161,6 +161,8 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
         photo: perfil.photo,
         banner: 'banner' in art ? art.banner : undefined,
         cardBg: 'cardBg' in art ? art.cardBg : undefined,
+        customStatus: perfil.customStatus,
+        links: perfil.links,
       });
     },
   );

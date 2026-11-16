@@ -75,7 +75,7 @@ test('mudar nome, bio, cor e fonte: a prévia acompanha, salvar grava e o amigo 
 
   await tela.getByLabel('Nome de exibição').fill('Lelokz Teste');
   await tela.getByLabel('Bio').fill('editor de vídeo · canal no YouTube');
-  await tela.getByRole('radio', { name: 'Rosa' }).click();
+  await tela.getByRole('radiogroup', { name: 'Cor do cartão' }).getByRole('radio', { name: 'Rosa' }).click();
   await tela.getByRole('radio', { name: 'Pixelada' }).click();
 
   // A prévia acompanha sem salvar.
@@ -176,10 +176,10 @@ test('Desfazer volta tudo como estava, e a REGRA recusa cor, fonte e bio fora da
 
   const tela = await abrirConfiguracoes(a.page);
   await tela.getByLabel('Bio').fill('isso vai sumir');
-  await tela.getByRole('radio', { name: 'Verde' }).click();
+  await tela.getByRole('radiogroup', { name: 'Cor do cartão' }).getByRole('radio', { name: 'Verde' }).click();
   await tela.getByRole('button', { name: 'Desfazer' }).click();
   await expect(tela.getByLabel('Bio')).toHaveValue('');
-  await expect(tela.getByRole('radio', { name: 'Roxo' })).toHaveAttribute('aria-checked', 'true');
+  await expect(tela.getByRole('radiogroup', { name: 'Cor do cartão' }).getByRole('radio', { name: 'Roxo' })).toHaveAttribute('aria-checked', 'true');
   await expect(tela.getByRole('region', { name: 'Alterações não salvas' })).toBeHidden();
   await a.page.keyboard.press('Escape');
   await expect(tela).toBeHidden();

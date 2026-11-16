@@ -2,6 +2,7 @@ import './member-list.css';
 
 import { avatarEl, el } from '../../lib/dom';
 import { renderLoading } from '../empty-state/empty-state';
+import { statusLine } from '../person-card/person-card';
 import type { Member, MemberId } from '../../types/models';
 
 export interface MemberListProps {
@@ -71,8 +72,10 @@ function section(people: Member[], ownerId: MemberId | null): HTMLElement | fals
           },
           [
             avatarEl(member.initials, 'sm', '', member.photo),
-            el('span', { class: 'member__name', title: member.displayName }, [
-              member.displayName,
+            el('span', { class: 'member__text' }, [
+              el('span', { class: 'member__name', title: member.displayName }, [member.displayName]),
+              // O status da pessoa (etapa 2d), se ela pôs um e ainda vale.
+              statusLine(member.customStatus, 'member__status') ?? false,
             ]),
             member.id === ownerId && el('span', { class: 'member__role' }, ['dono']),
           ],

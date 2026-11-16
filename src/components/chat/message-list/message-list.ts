@@ -1,6 +1,7 @@
 import "./message-list.css";
 
 import { avatarEl, el, iconEl } from "../../../lib/dom";
+import { nameColorId } from "../../../lib/person-theme";
 import { clipIcon, fileIcon, micIcon } from "../../../lib/icons";
 import {
   formatBytes,
@@ -331,6 +332,10 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
                       "data-profile-uid": message.authorId,
                       role: "button",
                       tabindex: 0,
+                      // A cor que a PESSOA escolheu (etapa 2d) — lista
+                      // fechada; o CSS pinta com os --nome-* de tokens.css.
+                      "data-name-color":
+                        nameColorId(author.nameColor) === "padrao" ? undefined : nameColorId(author.nameColor),
                     },
                 [author.displayName],
               ),

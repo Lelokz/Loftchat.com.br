@@ -46,6 +46,8 @@ export function renderProfileCard(props: ProfileCardProps): HTMLElement {
       photo: profile?.photo,
       banner: profile?.banner,
       cardBg: profile?.cardBg,
+      customStatus: profile?.customStatus,
+      links: profile?.links,
     },
     [actions],
   );

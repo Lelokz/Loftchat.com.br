@@ -1085,6 +1085,7 @@ export function mountApp(
       displayName: profile?.displayName ?? 'Usuário',
       initials: profile?.initials ?? '?',
       photo: profile?.photo,
+      nameColor: profile?.nameColor,
       ...(profile?.username === undefined ? {} : { username: profile.username }),
     };
   }
@@ -1112,6 +1113,7 @@ export function mountApp(
           initials: friend.initials,
           status: 'online',
           ...(friend.photo === undefined ? {} : { photo: friend.photo }),
+          ...(friend.nameColor === undefined ? {} : { nameColor: friend.nameColor }),
         },
       ],
     ]);

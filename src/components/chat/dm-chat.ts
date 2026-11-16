@@ -9,6 +9,7 @@ export interface DmFriendView {
   displayName: string;
   initials: string;
   photo?: string | undefined;
+  nameColor?: string | undefined;
   /** Sem a arroba. Ausente = a pessoa ainda não escolheu `@` (cadastro antigo). */
   username?: string;
 }

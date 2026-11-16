@@ -37,6 +37,7 @@ import type { Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { safeImage } from './images';
+import { parseLinks, parseStatus } from './profile-extras';
 import { MAX_USERNAME_CHANGES } from '../types/models';
 import type { Block, Friendship, MemberId, UserProfile } from '../types/models';
 
@@ -372,10 +373,14 @@ export async function publicProfile(uid: MemberId): Promise<UserProfile | null> 
   if (typeof data['pendingUsername'] === 'string') {
     Object.assign(perfil, { pendingUsername: data['pendingUsername'] });
   }
-  for (const campo of ['bio', 'accentId', 'fontId'] as const) {
+  for (const campo of ['bio', 'accentId', 'fontId', 'nameColor'] as const) {
     if (typeof data[campo] === 'string') Object.assign(perfil, { [campo]: data[campo] });
   }
   const photo = safeImage(data['photo'], 'foto');
   if (photo !== undefined) Object.assign(perfil, { photo });
+  const customStatus = parseStatus(data['customStatus']);
+  if (customStatus !== undefined) Object.assign(perfil, { customStatus });
+  const links = parseLinks(data['links']);
+  if (links.length > 0) Object.assign(perfil, { links });
   return perfil;
 }

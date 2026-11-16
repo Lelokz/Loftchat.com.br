@@ -188,6 +188,92 @@
   min-height: 84px;
 }
 
+/* --- status e links (etapa 2d) ------------------------------------------- */
+
+.settings__status {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.settings__emoji-button {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings__emoji-button:hover,
+.settings__emoji-button[aria-expanded='true'] {
+  border-color: var(--border-strong);
+  background-color: var(--surface-hover);
+}
+
+.settings__emoji-button:focus-visible,
+.settings__emoji:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.settings__select {
+  width: auto;
+  flex: none;
+  max-width: 44%;
+  cursor: pointer;
+}
+
+.settings__emojis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-sunken);
+}
+
+.settings__emojis[hidden] {
+  display: none;
+}
+
+.settings__emoji {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.settings__emoji:hover,
+.settings__emoji[aria-pressed='true'] {
+  background-color: var(--surface-hover);
+}
+
+.settings__emojis-none {
+  margin-left: var(--space-2);
+}
+
+.settings__link-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings__input[aria-invalid] {
+  border-color: var(--danger);
+}
+
 .settings__arroba {
   position: relative;
   display: flex;
@@ -321,6 +407,43 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Mensagem de mentira na prévia: o nome na cor escolhida (etapa 2d). */
+.settings__msg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.settings__msg-bubble {
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-bubble);
+  box-shadow: var(--shadow-bubble);
+}
+
+.settings__msg-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.settings__msg-name {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.settings__msg-time {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.settings__msg-text {
+  margin: 0;
+  color: var(--text-primary);
 }
 
 /* --- fechar -------------------------------------------------------------- */

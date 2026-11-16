@@ -50,6 +50,19 @@
   /* Só a casinha da barra de grupos — ícone, sem texto por cima. */
   --accent-gradient: linear-gradient(180deg, #9361f0, #7b3fe4);
 
+  /*
+   * COR DO NOME NAS MENSAGENS (proposta A, etapa 2d) — escolha da pessoa,
+   * lista fechada em lib/person-theme.ts. Tons claros: todos >= 7:1 sobre o
+   * balão (#231a40) e >= 8:1 sobre o chat.
+   */
+  --nome-roxo: #b79cff;
+  --nome-rosa: #f590c4;
+  --nome-vermelho: #ff8f8f;
+  --nome-laranja: #f2b26b;
+  --nome-amarelo: #ecd36a;
+  --nome-verde: #5cd6b0;
+  --nome-azul: #8db7ff;
+
   /* --- perigo: botão de sair da chamada, sair da conta e erros ------------- */
   --danger: #f2557a; /* 5.64:1 sobre o chat */
   --danger-hover: #f57391;

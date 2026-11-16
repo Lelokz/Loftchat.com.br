@@ -94,6 +94,37 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 2d — status, links e cor do nome (16/11/2026)
+
+- **Status** (Configurações → Perfil): emoji de uma grade própria (32
+  emojis, abre embaixo do campo, sem janela por cima), texto até 60 e prazo
+  — Não limpar, 30 min, 1 h, 4 h, Hoje (até meia-noite), 7 dias. Depois de
+  salvo, o prazo vira "Manter (até 14:30)". "Limpar status" apaga. Grava
+  `users/{uid}.customStatus = {emoji, text, until}` (`until` em ms, 0 = sem
+  prazo). O vencido SOME sozinho na tela (`activeStatus`), mesmo ainda no
+  banco. Aparece no cartão (pílula embaixo do `@`) e na lista de membros
+  (linha pequena embaixo do nome, ao vivo).
+- **Links**: até 3. "youtube.com/@x" vira `https://youtube.com/@x`, `http://`
+  vira `https://`; o que não parece site avisa ao sair do campo e trava o
+  salvar. No cartão viram pílulas (`↗ youtube.com/@x`) que abrem em outra
+  aba com `rel="noopener noreferrer nofollow"`.
+- **Cor do nome nas mensagens**: Padrão + 7 cores (roxo, rosa, vermelho,
+  laranja, amarelo, verde, azul), tons claros em `tokens.css` (`--nome-*`),
+  todos >= 7:1 sobre o balão. Pinta o nome nas mensagens dos OUTROS (no meu
+  balão roxo o nome continua branco, por contraste). A prévia das
+  Configurações ganhou "Nas mensagens", uma mensagem de mentira com a cor.
+  Vai por `data-name-color` + CSS, nunca estilo escrito à mão.
+- **Regra**: `nameColor` só da lista; `customStatus` só com as 3 chaves,
+  texto <= 60, `until` inteiro >= 0; `links` lista de 1 a 3, cada um
+  `https://` sem espaço/aspas/`< >` e <= 200. Código em
+  `lib/profile-extras.ts` (status, prazos, links).
+- Limite que continua: no cartão do PV e na lista de amigos o perfil do
+  amigo é lido uma vez por sessão (status novo aparece ao recarregar). Nos
+  grupos (membros, mensagens) e no cartão flutuante é sempre o mais novo.
+- Testes: `tests/status-links.spec.ts` (ponta a ponta com 2 contas + regra).
+  Os testes antigos de cor do cartão agora escolhem pelo grupo ("Rosa" e
+  "Verde" existem nas duas listas). Fotos: `design/etapa2d-*`.
+
 ## Proposta A, etapa 2c — cartão ao clicar em alguém (16/11/2026)
 
 - Clicar no nome ou na foto de alguém — lista de membros, nome/foto na

@@ -2,6 +2,8 @@ import './person-card.css';
 
 import { avatarEl, el } from '../../lib/dom';
 import { applyPersonLook } from '../../lib/person-theme';
+import { activeStatus, linkLabel } from '../../lib/profile-extras';
+import type { CustomStatus } from '../../lib/profile-extras';
 
 export interface PersonCardData {
   displayName: string;
@@ -14,6 +16,20 @@ export interface PersonCardData {
   photo?: string | undefined;
   banner?: string | undefined;
   cardBg?: string | undefined;
+  /** Etapa 2d. O status vencido não aparece. */
+  customStatus?: CustomStatus | undefined;
+  links?: string[] | undefined;
+}
+
+/** "😴 dormindo" — a linha do status, ou null se não há (ou venceu). */
+export function statusLine(status: CustomStatus | undefined, extraClass: string): HTMLElement | null {
+  const vale = activeStatus(status);
+  if (vale === undefined) return null;
+  const texto = vale.text.trim();
+  return el('span', { class: `person-status ${extraClass}`, title: texto }, [
+    vale.emoji !== '' && el('span', { class: 'person-status__emoji', 'aria-hidden': texto === '' ? 'false' : 'true' }, [vale.emoji]),
+    texto !== '' && el('span', { class: 'person-status__text' }, [texto]),
+  ]);
 }
 
 /**
@@ -40,7 +56,20 @@ export function renderPersonCard(data: PersonCardData, extra: HTMLElement[] = []
           data.username !== '' &&
           el('span', { class: 'person-card__handle' }, [`@${data.username}`]),
       ]),
+      statusLine(data.customStatus, 'person-card__status') ?? false,
       bio !== '' && el('p', { class: 'person-card__bio' }, [bio]),
+      (data.links?.length ?? 0) > 0 &&
+        el(
+          'ul',
+          { class: 'person-card__links', 'aria-label': 'Links' },
+          (data.links ?? []).map((link) =>
+            el('li', {}, [
+              el('a', { class: 'person-card__link', href: link, target: '_blank', rel: 'noopener noreferrer nofollow' }, [
+                linkLabel(link),
+              ]),
+            ]),
+          ),
+        ),
       ...extra,
     ]),
   ]);

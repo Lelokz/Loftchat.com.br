@@ -141,6 +141,15 @@
   color: var(--text-secondary);
 }
 
+/* Cor do nome escolhida pela pessoa (etapa 2d, lib/person-theme.ts). */
+.message__author[data-name-color='roxo'] { color: var(--nome-roxo); }
+.message__author[data-name-color='rosa'] { color: var(--nome-rosa); }
+.message__author[data-name-color='vermelho'] { color: var(--nome-vermelho); }
+.message__author[data-name-color='laranja'] { color: var(--nome-laranja); }
+.message__author[data-name-color='amarelo'] { color: var(--nome-amarelo); }
+.message__author[data-name-color='verde'] { color: var(--nome-verde); }
+.message__author[data-name-color='azul'] { color: var(--nome-azul); }
+
 .message__time {
   font-size: var(--font-size-xs);
   color: var(--text-muted);

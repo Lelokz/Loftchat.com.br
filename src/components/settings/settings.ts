@@ -10,13 +10,28 @@ import {
   CARD_COLOR_IDS,
   CARD_COLORS,
   cardColorId,
+  NAME_COLOR_IDS,
+  NAME_COLOR_LABELS,
   NAME_FONT_IDS,
   NAME_FONTS,
   applyNameFont,
+  nameColorId,
   nameFontId,
 } from '../../lib/person-theme';
-import type { CardColorId, NameFontId } from '../../lib/person-theme';
-import { bioProblem, displayNameProblem, loadProfileArt, saveProfile } from '../../lib/profile';
+import type { CardColorId, NameColorId, NameFontId } from '../../lib/person-theme';
+import { bioProblem, displayNameProblem, extrasProblem, loadProfileArt, saveProfile } from '../../lib/profile';
+import {
+  activeStatus,
+  linkProblem,
+  MAX_LINKS,
+  MAX_STATUS_TEXT,
+  normalizeLink,
+  STATUS_DURATIONS,
+  STATUS_EMOJIS,
+  statusUntil,
+  untilLabel,
+} from '../../lib/profile-extras';
+import type { CustomStatus, StatusDurationId } from '../../lib/profile-extras';
 import type { ProfileArt } from '../../lib/profile';
 import { IMAGE_SPECS } from '../../lib/images';
 import type { ImageKind } from '../../lib/images';
@@ -55,6 +70,15 @@ interface Rascunho {
   bio: string;
   accentId: CardColorId;
   fontId: NameFontId;
+  nameColor: NameColorId;
+  /** Status (etapa 2d). '' nos dois = sem status. */
+  statusEmoji: string;
+  statusText: string;
+  /** Por quanto tempo; 'manter' = o prazo que já está salvo (`statusUntil`). */
+  statusDuracao: StatusDurationId | 'manter';
+  statusUntil: number;
+  /** Os links como a pessoa escreveu (normalizados só na hora de salvar). */
+  links: string[];
   /** Imagens (data URL); '' = sem imagem. */
   photo: string;
   banner: string;
@@ -62,12 +86,22 @@ interface Rascunho {
 }
 
 function rascunhoDe(perfil: UserProfile | null, art: ProfileArt, user: User): Rascunho {
+  // Status vencido = sem status (ele some sozinho, mesmo ainda no banco).
+  const status = activeStatus(perfil?.customStatus);
+  const links = [...(perfil?.links ?? [])];
+  while (links.length < MAX_LINKS) links.push('');
   return {
     displayName: perfil?.displayName ?? user.displayName ?? '',
     username: perfil?.username ?? '',
     bio: perfil?.bio ?? '',
     accentId: cardColorId(perfil?.accentId),
     fontId: nameFontId(perfil?.fontId),
+    nameColor: nameColorId(perfil?.nameColor),
+    statusEmoji: status?.emoji ?? '',
+    statusText: status?.text ?? '',
+    statusDuracao: status === undefined ? 'hoje' : status.until === 0 ? 'nunca' : 'manter',
+    statusUntil: status?.until ?? 0,
+    links,
     photo: perfil?.photo ?? '',
     banner: art.banner ?? '',
     cardBg: art.cardBg ?? '',
@@ -77,8 +111,28 @@ function rascunhoDe(perfil: UserProfile | null, art: ProfileArt, user: User): Ra
 /** Qual campo do rascunho guarda cada imagem. */
 const CAMPO_DA_IMAGEM = { foto: 'photo', banner: 'banner', fundo: 'cardBg' } as const;
 
+function semStatus(r: Rascunho): boolean {
+  return r.statusEmoji === '' && r.statusText.trim() === '';
+}
+
+/** O status do rascunho no formato do banco (o prazo é contado a partir de agora). */
+function statusDoRascunho(r: Rascunho): CustomStatus | null {
+  if (semStatus(r)) return null;
+  const until = r.statusDuracao === 'manter' ? r.statusUntil : statusUntil(r.statusDuracao);
+  return { emoji: r.statusEmoji, text: r.statusText.trim(), until };
+}
+
+function linksDoRascunho(r: Rascunho): string[] {
+  return r.links.map(normalizeLink).filter((l) => l !== '');
+}
+
 function iguais(a: Rascunho, b: Rascunho): boolean {
   return (
+    a.nameColor === b.nameColor &&
+    a.statusEmoji === b.statusEmoji &&
+    a.statusText.trim() === b.statusText.trim() &&
+    (semStatus(a) || a.statusDuracao === b.statusDuracao) &&
+    linksDoRascunho(a).join(' ') === linksDoRascunho(b).join(' ') &&
     a.displayName.trim() === b.displayName.trim() &&
     a.username === b.username &&
     a.bio.trim() === b.bio.trim() &&
@@ -88,6 +142,11 @@ function iguais(a: Rascunho, b: Rascunho): boolean {
     a.banner === b.banner &&
     a.cardBg === b.cardBg
   );
+}
+
+/** Cópia do rascunho (a lista de links não pode ser a mesma nos dois). */
+function copia(r: Rascunho): Rascunho {
+  return { ...r, links: [...r.links] };
 }
 
 let aberta: HTMLDialogElement | null = null;
@@ -114,7 +173,7 @@ export function openSettings(options: SettingsOptions): void {
   aberta = dialog;
 
   let salvo: Rascunho = rascunhoDe(null, {}, user);
-  let atual: Rascunho = { ...salvo };
+  let atual: Rascunho = copia(salvo);
   let trocasFeitas = 0;
   let carregado = false;
   let salvando = false;
@@ -182,7 +241,7 @@ export function openSettings(options: SettingsOptions): void {
   barra.hidden = true;
 
   desfazer.addEventListener('click', () => {
-    atual = { ...salvo };
+    atual = copia(salvo);
     mostrar('perfil');
   });
   salvar.addEventListener('click', () => void salvarPerfil());
@@ -223,8 +282,25 @@ export function openSettings(options: SettingsOptions): void {
         photo: atual.photo,
         banner: atual.banner,
         cardBg: atual.cardBg,
+        customStatus: statusDoRascunho(atual) ?? undefined,
+        links: linksDoRascunho(atual).filter((l) => linkProblem(l) === null),
       }),
+      el('span', { class: 'settings__preview-label' }, ['Nas mensagens']),
+      previaMensagem(nome),
     );
+  }
+
+  /** Uma mensagem de mentira, com o nome na cor escolhida. */
+  function previaMensagem(nome: string): HTMLElement {
+    const autor = el('span', { class: 'settings__msg-name' }, [nome]);
+    if (atual.nameColor !== 'padrao') autor.style.color = `var(--nome-${atual.nameColor})`;
+    return el('div', { class: 'settings__msg', 'aria-hidden': 'true' }, [
+      avatarEl(initials(nome), 'sm', '', atual.photo === '' ? undefined : atual.photo),
+      el('div', { class: 'settings__msg-bubble' }, [
+        el('div', { class: 'settings__msg-meta' }, [autor, el('span', { class: 'settings__msg-time' }, ['agora'])]),
+        el('p', { class: 'settings__msg-text' }, ['Bora jogar mais tarde?']),
+      ]),
+    ]);
   }
 
   /* --- imagens ------------------------------------------------------------ */
@@ -457,6 +533,30 @@ export function openSettings(options: SettingsOptions): void {
       fontes.append(botao);
     }
 
+    /* --- cor do nome nas mensagens (etapa 2d) --- */
+    const coresDoNome = el('div', {
+      class: 'settings__swatches',
+      role: 'radiogroup',
+      'aria-label': 'Cor do nome nas mensagens',
+    });
+    for (const id of NAME_COLOR_IDS) {
+      const botao = el('button', {
+        class: 'settings__swatch',
+        type: 'button',
+        role: 'radio',
+        title: NAME_COLOR_LABELS[id],
+        'aria-label': NAME_COLOR_LABELS[id],
+        'aria-checked': String(atual.nameColor === id),
+      });
+      botao.style.setProperty('--swatch', id === 'padrao' ? 'var(--text-secondary)' : `var(--nome-${id})`);
+      botao.addEventListener('click', () => {
+        atual.nameColor = id;
+        for (const outro of coresDoNome.children) outro.setAttribute('aria-checked', String(outro === botao));
+        mudou();
+      });
+      coresDoNome.append(botao);
+    }
+
     erroGeral = el('p', { class: 'settings__error', role: 'alert' });
     erroGeral.hidden = true;
 
@@ -489,15 +589,153 @@ export function openSettings(options: SettingsOptions): void {
         ),
       ]),
       campo('Bio', 'settings-bio', bio, el('p', { class: 'settings__help' }, [`Até ${MAX_BIO} caracteres. `, contador])),
+      blocoDoStatus(),
+      blocoDosLinks(),
       el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Cor do cartão']), cores]),
       el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Fonte do nome']), fontes]),
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Cor do nome nas mensagens']),
+        coresDoNome,
+        el('p', { class: 'settings__help' }, ['É assim que os outros veem o seu nome quando você escreve.']),
+      ]),
       erroGeral,
     ];
   }
 
+  /* --- status (etapa 2d) ------------------------------------------------- */
+
+  function blocoDoStatus(): HTMLElement {
+    const emojiBotao = el('button', {
+      class: 'settings__emoji-button',
+      type: 'button',
+      'aria-label': atual.statusEmoji === '' ? 'Escolher emoji do status' : `Emoji do status: ${atual.statusEmoji}. Trocar`,
+      'aria-expanded': 'false',
+      'aria-controls': 'settings-emojis',
+    });
+    if (atual.statusEmoji === '') emojiBotao.append(iconEl(faceIcon(20)));
+    else emojiBotao.textContent = atual.statusEmoji;
+
+    // A grade de emojis abre EMBAIXO, dentro da página — nada de janela por cima.
+    const grade = el('div', { class: 'settings__emojis', id: 'settings-emojis', role: 'group', 'aria-label': 'Emojis' });
+    grade.hidden = true;
+    const escolher = (emoji: string): void => {
+      atual.statusEmoji = emoji;
+      mostrar('perfil');
+      document.getElementById('settings-status')?.focus();
+    };
+    for (const emoji of STATUS_EMOJIS) {
+      const b = el('button', { class: 'settings__emoji', type: 'button', 'aria-pressed': String(atual.statusEmoji === emoji) }, [
+        emoji,
+      ]);
+      b.addEventListener('click', () => escolher(emoji));
+      grade.append(b);
+    }
+    if (atual.statusEmoji !== '') {
+      const sem = el('button', { class: 'settings__link settings__emojis-none', type: 'button' }, ['Sem emoji']);
+      sem.addEventListener('click', () => escolher(''));
+      grade.append(sem);
+    }
+    emojiBotao.addEventListener('click', () => {
+      grade.hidden = !grade.hidden;
+      emojiBotao.setAttribute('aria-expanded', String(!grade.hidden));
+      if (!grade.hidden) grade.querySelector<HTMLButtonElement>('button')?.focus();
+    });
+
+    const texto = el('input', {
+      id: 'settings-status',
+      class: 'settings__input',
+      type: 'text',
+      maxlength: MAX_STATUS_TEXT,
+      placeholder: 'O que você está fazendo?',
+      autocomplete: 'off',
+    });
+    texto.value = atual.statusText;
+
+    const prazo = el('select', { class: 'settings__input settings__select', 'aria-label': 'Limpar o status depois de' });
+    if (atual.statusDuracao === 'manter' || salvo.statusDuracao === 'manter') {
+      prazo.append(el('option', { value: 'manter' }, [`Manter (${untilLabel(salvo.statusUntil)})`]));
+    }
+    for (const { id, label } of STATUS_DURATIONS) prazo.append(el('option', { value: id }, [label]));
+    prazo.value = atual.statusDuracao;
+    prazo.addEventListener('change', () => {
+      atual.statusDuracao = prazo.value as Rascunho['statusDuracao'];
+      mudou();
+    });
+
+    const limpar = el('button', { class: 'settings__link', type: 'button' }, ['Limpar status']);
+    limpar.hidden = semStatus(atual);
+    limpar.addEventListener('click', () => {
+      atual.statusEmoji = '';
+      atual.statusText = '';
+      mostrar('perfil');
+    });
+    texto.addEventListener('input', () => {
+      atual.statusText = texto.value;
+      limpar.hidden = semStatus(atual);
+      mudou();
+    });
+
+    return el('div', { class: 'settings__field' }, [
+      el('label', { class: 'settings__label', for: 'settings-status' }, ['Status']),
+      el('div', { class: 'settings__status' }, [emojiBotao, texto, prazo]),
+      grade,
+      el('p', { class: 'settings__help' }, [
+        'Aparece no seu cartão e na lista de membros. Some sozinho no prazo escolhido. ',
+        limpar,
+      ]),
+    ]);
+  }
+
+  /* --- links (etapa 2d) -------------------------------------------------- */
+
+  function blocoDosLinks(): HTMLElement {
+    const linhas = atual.links.map((valor, i) => {
+      const id = `settings-link-${i}`;
+      const input = el('input', {
+        id,
+        class: 'settings__input',
+        type: 'text',
+        inputmode: 'url',
+        autocomplete: 'url',
+        spellcheck: 'false',
+        autocapitalize: 'none',
+        maxlength: 220,
+        placeholder: i === 0 ? 'youtube.com/@voce' : 'Outro link (opcional)',
+        'aria-label': `Link ${i + 1}`,
+      });
+      input.value = valor;
+      const aviso = el('p', { class: 'settings__help', id: `${id}-aviso`, 'data-tom': 'erro' });
+      aviso.hidden = true;
+      input.setAttribute('aria-describedby', `${id}-aviso`);
+      // O aviso aparece ao sair do campo (enquanto digita "you..." ainda não é link).
+      const conferir = (): void => {
+        const problema = linkProblem(normalizeLink(input.value));
+        aviso.hidden = problema === null;
+        aviso.textContent = problema ?? '';
+        input.toggleAttribute('aria-invalid', problema !== null);
+      };
+      input.addEventListener('input', () => {
+        atual.links[i] = input.value;
+        if (!aviso.hidden) conferir();
+        mudou();
+      });
+      input.addEventListener('blur', conferir);
+      if (valor !== '') conferir();
+      return el('div', { class: 'settings__link-row' }, [input, aviso]);
+    });
+    return el('div', { class: 'settings__field' }, [
+      el('span', { class: 'settings__label' }, ['Links']),
+      ...linhas,
+      el('p', { class: 'settings__help' }, [`Até ${MAX_LINKS}: canal, rede social, site. Aparecem no seu cartão.`]),
+    ]);
+  }
+
   async function salvarPerfil(): Promise<void> {
     if (salvando) return;
-    const problema = displayNameProblem(atual.displayName) ?? bioProblem(atual.bio);
+    const problema =
+      displayNameProblem(atual.displayName) ??
+      bioProblem(atual.bio) ??
+      extrasProblem({ customStatus: statusDoRascunho(atual), links: linksDoRascunho(atual) });
     if (problema !== null) {
       mostrarErro(problema);
       return;
@@ -512,9 +750,22 @@ export function openSettings(options: SettingsOptions): void {
         salvo = { ...salvo, username: atual.username };
       }
       const artChanged = atual.banner !== salvo.banner || atual.cardBg !== salvo.cardBg;
-      await saveProfile(user, atual, artChanged);
-      salvo = { ...atual, displayName: atual.displayName.trim(), bio: atual.bio.trim() };
-      atual = { ...salvo };
+      const status = statusDoRascunho(atual);
+      const links = linksDoRascunho(atual);
+      await saveProfile(user, { ...atual, customStatus: status, links }, artChanged);
+      while (links.length < MAX_LINKS) links.push('');
+      salvo = {
+        ...atual,
+        displayName: atual.displayName.trim(),
+        bio: atual.bio.trim(),
+        statusText: status?.text ?? '',
+        statusEmoji: status?.emoji ?? '',
+        // Depois de salvo, o prazo vira "manter o que está salvo".
+        statusDuracao: status === null ? 'hoje' : status.until === 0 ? 'nunca' : 'manter',
+        statusUntil: status?.until ?? 0,
+        links,
+      };
+      atual = copia(salvo);
       onSaved({
         displayName: salvo.displayName,
         initials: initials(salvo.displayName),
@@ -667,7 +918,7 @@ export function openSettings(options: SettingsOptions): void {
   ]).then(([perfil, art]) => {
       if (aberta !== dialog) return;
       salvo = rascunhoDe(perfil, art, user);
-      atual = { ...salvo };
+      atual = copia(salvo);
       trocasFeitas = perfil?.usernameChanges ?? 0;
       carregado = true;
       if (secaoAtual === 'perfil') {

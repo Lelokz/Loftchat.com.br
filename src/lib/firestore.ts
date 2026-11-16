@@ -46,6 +46,7 @@ import { isPermissionDenied } from './firestore-errors';
 import { pairId } from './friends';
 import { initials } from './format';
 import { safeImage } from './images';
+import { parseStatus } from './profile-extras';
 import { generateInviteCode } from './invite-code';
 import type {
   Attachment,
@@ -267,6 +268,8 @@ function toMember(uid: MemberId, data: DocumentData | undefined): Member {
   const displayName =
     data !== undefined && typeof data['displayName'] === 'string' ? data['displayName'] : 'Usuário';
   const photo = safeImage(data?.['photo'], 'foto');
+  const customStatus = parseStatus(data?.['customStatus']);
+  const nameColor = typeof data?.['nameColor'] === 'string' ? (data['nameColor'] as string) : undefined;
   return {
     id: uid,
     displayName,
@@ -277,6 +280,8 @@ function toMember(uid: MemberId, data: DocumentData | undefined): Member {
     // Presença de verdade é outra etapa; por ora todo membro aparece online.
     status: 'online',
     ...(photo === undefined ? {} : { photo }),
+    ...(customStatus === undefined ? {} : { customStatus }),
+    ...(nameColor === undefined ? {} : { nameColor }),
   };
 }
 

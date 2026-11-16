@@ -77,6 +77,75 @@
   white-space: pre-line;
 }
 
+/* --- status e links (etapa 2d) ------------------------------------------- */
+
+/* A linha do status — no cartão, na lista de membros e nas Configurações. */
+.person-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.person-status__emoji {
+  flex: none;
+  line-height: 1;
+}
+
+.person-status__text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.person-card__status {
+  align-self: flex-start;
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.person-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person-card__link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-sunken);
+  color: var(--accent-text);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.person-card__link::before {
+  content: '↗ ';
+}
+
+.person-card__link:hover {
+  text-decoration: underline;
+}
+
+.person-card__link:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
 /* --- cartão flutuante (etapa 2c) — ver person-popover.ts ------------------ */
 
 .person-popover {

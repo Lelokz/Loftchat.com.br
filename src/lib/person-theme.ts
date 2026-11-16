@@ -79,3 +79,30 @@ export function applyNameFont(nameEl: HTMLElement, fontId: unknown): void {
   nameEl.style.fontWeight = String(fonte.weight);
   nameEl.style.textTransform = fonte.upper ? 'uppercase' : '';
 }
+
+/* -------------------------------------------------------------------------- */
+/* Cor do nome nas mensagens (etapa 2d)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A cor do NOME de quem escreve, nas mensagens dos outros. "padrao" = a cor
+ * de sempre. Os tons moram em tokens.css (`--nome-*`), todos com contraste
+ * medido sobre o balão — por isso é lista fechada, como a cor do cartão.
+ */
+export const NAME_COLOR_IDS = ['padrao', 'roxo', 'rosa', 'vermelho', 'laranja', 'amarelo', 'verde', 'azul'] as const;
+export type NameColorId = (typeof NAME_COLOR_IDS)[number];
+
+export const NAME_COLOR_LABELS: Record<NameColorId, string> = {
+  padrao: 'Padrão',
+  roxo: 'Roxo',
+  rosa: 'Rosa',
+  vermelho: 'Vermelho',
+  laranja: 'Laranja',
+  amarelo: 'Amarelo',
+  verde: 'Verde',
+  azul: 'Azul',
+};
+
+export function nameColorId(value: unknown): NameColorId {
+  return NAME_COLOR_IDS.includes(value as NameColorId) ? (value as NameColorId) : 'padrao';
+}

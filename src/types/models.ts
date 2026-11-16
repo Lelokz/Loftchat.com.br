@@ -9,6 +9,8 @@
  * Nesta etapa nada disso é lido de rede: `src/data/mock.ts` monta tudo em memória.
  */
 
+import type { CustomStatus } from '../lib/profile-extras';
+
 export type GroupId = string;
 export type ChannelId = string;
 export type MemberId = string;
@@ -74,6 +76,13 @@ export interface UserProfile {
   fontId?: string;
   /** Foto 256×256 (data URL), etapa 2b. Ver lib/images.ts. */
   photo?: string;
+  /**
+   * Etapa 2d: cor do nome nas mensagens (lista fechada), status com emoji e
+   * prazo, e até 3 links. Ver lib/person-theme.ts e lib/profile-extras.ts.
+   */
+  nameColor?: string;
+  customStatus?: CustomStatus;
+  links?: string[];
   /**
    * Banner e fundo do cartão — NÃO moram em `users/` (moram em
    * `profileArt/{uid}`); o cliente junta aqui depois de ler, só para quem
@@ -168,6 +177,9 @@ export interface Member {
   username?: string;
   /** Foto (data URL), quando a pessoa pôs uma. */
   photo?: string;
+  /** Cor do nome nas mensagens e status escolhido (etapa 2d). */
+  nameColor?: string;
+  customStatus?: CustomStatus;
   /**
    * ATENÇÃO — presença como campo simples só serve para o mock.
    *

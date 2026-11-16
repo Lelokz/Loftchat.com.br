@@ -30,6 +30,17 @@
   background-color: var(--surface-hover);
 }
 
+.member__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.member__status {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .member__name {
   min-width: 0;
   overflow: hidden;
