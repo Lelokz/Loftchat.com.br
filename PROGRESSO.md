@@ -94,6 +94,25 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 1b — painel da direita com abas (16/11/2026)
+
+- `components/group-panel/`: a coluna 4 do grupo (ainda a `.members`, ainda
+  a gaveta da direita no celular) ganhou as abas **Agora**, **Membros** e
+  **Fixadas**. Começa em Membros (o que a coluna mostrava antes).
+- **Agora**: cada sala de voz com alguém dentro — quem está, quem está mudo,
+  "AO VIVO" e "Fulano está transmitindo" — com botão "Entrar na sala" /
+  "Assistir" (some se eu já estou nela). Sem ninguém: aviso. Bolinha vermelha
+  na aba quando alguém transmite.
+- **Fixadas**: a mesma `renderPinnedList` do painel flutuante (que continua
+  existindo pelo botão de alfinete).
+- `member-list` exporta `memberListContent` para o painel reaproveitar.
+- `membersChanged` (app.ts) agora também olha voz, canais, fixadas e — só
+  com a aba Fixadas aberta — as mensagens (de onde vem o "alcançável").
+- Pegadinha: `.group-panel { grid-template-rows }` perdia para a regra de
+  `.members` (mesmo peso, CSS carregado depois) — virou `.members.group-panel`.
+- Teste: `tests/painel.spec.ts` (duas pessoas: Agora em tempo real, entrar
+  pelo painel, fixada aparecendo para o outro).
+
 ## Proposta A, etapa 1a — a barra de cima (16/11/2026)
 
 - `group-bar` deixou de ser a coluna vertical: é a BARRA DE CIMA (linha 1 do

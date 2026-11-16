@@ -33,7 +33,8 @@ import {
   uidOfUsername,
   unblockUser,
 } from './lib/friends';
-import { renderMemberList } from './components/member-list/member-list';
+import { renderGroupPanel } from './components/group-panel/group-panel';
+import type { AbaDoPainel, SalaAgora } from './components/group-panel/group-panel';
 import { closeGroupMenu, openGroupMenu } from './components/group-menu/group-menu';
 import type { GroupMenuItem } from './components/group-menu/group-menu';
 import {
@@ -144,6 +145,8 @@ export function mountApp(
   let dmChatFriendUid: string | null = null;
   /** O painel flutuante de fixadas do grupo, enquanto aberto — `null` quando fechado. */
   let pinsPanel: PinnedPanel | null = null;
+  /** Aba do painel da direita do grupo (Agora, Membros, Fixadas). */
+  let abaDoPainel: AbaDoPainel = 'membros';
 
   let previous: AppState | null = null;
 
@@ -939,12 +942,44 @@ export function mountApp(
     return previewEl;
   }
 
+  /** Coluna 4 do grupo: o painel com abas Agora, Membros e Fixadas (proposta A). */
   function buildMemberList(state: AppState): HTMLElement {
-    return renderMemberList({
-      members: state.members,
-      membersLoaded: state.membersLoaded,
-      ownerId: activeGroup(state)?.ownerId ?? null,
+    const group = activeGroup(state) ?? null;
+    return renderGroupPanel({
+      aba: abaDoPainel,
+      onAba: (aba) => {
+        abaDoPainel = aba;
+        memberListEl = swap(memberListEl, buildMemberList(store.getState()));
+      },
+      salas: salasAgora(state),
+      onEntrar: (channelId) => {
+        setDrawer(null);
+        handleEnterVoice(channelId);
+      },
+      membros: {
+        members: state.members,
+        membersLoaded: state.membersLoaded,
+        ownerId: group?.ownerId ?? null,
+      },
+      fixadas: buildGroupPins(state, group !== null && isOwner(group, user.uid)),
     });
+  }
+
+  /** As salas de voz do grupo com alguém dentro — a aba Agora. */
+  function salasAgora(state: AppState): SalaAgora[] {
+    const salas: SalaAgora[] = [];
+    for (const channel of state.channels) {
+      if (channel.kind !== 'voice') continue;
+      const aqui = state.voiceParticipants.filter((p) => p.channelId === channel.id);
+      if (aqui.length === 0) continue;
+      salas.push({
+        id: channel.id,
+        nome: channel.name,
+        pessoas: aqui.map((p) => ({ ...presenceView(state, p), transmitindo: p.sharingScreen })),
+        estouAqui: state.voice?.channelId === channel.id,
+      });
+    }
+    return salas;
   }
 
   /**
@@ -1379,7 +1414,15 @@ export function mountApp(
       groupsChanged ||
       viewChanged ||
       prev.members !== state.members ||
-      prev.membersLoaded !== state.membersLoaded;
+      prev.membersLoaded !== state.membersLoaded ||
+      // As abas Agora e Fixadas do painel (proposta A).
+      prev.voiceParticipants !== state.voiceParticipants ||
+      prev.channels !== state.channels ||
+      prev.voice !== state.voice ||
+      prev.pinnedMessages !== state.pinnedMessages ||
+      prev.pinnedMessagesLoaded !== state.pinnedMessagesLoaded ||
+      (abaDoPainel === 'fixadas' &&
+        (prev.messages !== state.messages || prev.messagesAtStart !== state.messagesAtStart));
 
     // `viewChanged` também importa aqui: trocar para a tela inicial (ou
     // voltar) não mexe em `groups`/`activeGroupId`, e sem este termo o rail

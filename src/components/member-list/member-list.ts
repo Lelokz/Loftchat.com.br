@@ -34,13 +34,20 @@ export function renderMemberList({
   membersLoaded,
   ownerId,
 }: MemberListProps): HTMLElement {
-  const body = !membersLoaded
-    ? [renderLoading()]
-    : [section(members, ownerId)];
+  const body = memberListContent({ members, membersLoaded, ownerId });
 
   return el('aside', { class: 'members', 'aria-label': 'Membros' }, [
     el('div', { class: 'members__body column-scroll scroll-area' }, body),
   ]);
+}
+
+/** Só o conteúdo da lista — o painel com abas do grupo (group-panel) usa isto. */
+export function memberListContent({
+  members,
+  membersLoaded,
+  ownerId,
+}: MemberListProps): Array<HTMLElement | false> {
+  return !membersLoaded ? [renderLoading()] : [section(members, ownerId)];
 }
 
 function section(people: Member[], ownerId: MemberId | null): HTMLElement | false {
