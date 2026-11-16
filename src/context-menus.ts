@@ -314,7 +314,7 @@ function groupItems(
   if (owner) {
     items.push(
       { label: 'Configurações do grupo', onSelect: () => actions.groupSettings(groupId) },
-      { label: 'Copiar link de convite', onSelect: () => actions.copyInviteLink(groupId) },
+      { label: 'Copiar código do grupo', onSelect: () => actions.copyInviteLink(groupId) },
       { label: 'Renomear grupo', onSelect: () => actions.renameGroup(groupId) },
     );
   }

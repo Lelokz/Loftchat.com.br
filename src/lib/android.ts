@@ -12,11 +12,25 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
  *      empilham um estado no histórico ao abrir) e que se sai de uma rota;
  *   3. senão, minimiza o app (nunca fecha: a chamada continua).
  */
+/** Rodando dentro do app Android? */
+export function emAppAndroid(): boolean {
+  return Capacitor.isNativePlatform();
+}
+
 export function ligarAndroid(): void {
   if (!Capacitor.isNativePlatform()) return;
-  // A barra de cima do sistema fica escondida (MainActivity): o Loftchat vai
-  // até a borda de cima, SEM folga nenhuma — pedido do Leo, 16/11.
   document.documentElement.classList.add('app-android');
+  /*
+   * A BARRA DE CIMA DO SISTEMA: o app pede para escondê-la (MainActivity).
+   * Se o celular obedeceu, o Loftchat vai até a borda de cima, sem folga
+   * nenhuma (pedido do Leo); se não, os botões ficam abaixo da barra, como
+   * antes. Quem sabe é o `PluginDaTela.java`.
+   */
+  const marcar = (): void => document.documentElement.classList.add('barra-escondida');
+  void tela.addListener('escondida', marcar);
+  void tela.estado().then(({ escondida }) => {
+    if (escondida) marcar();
+  });
 
   void App.addListener('backButton', ({ canGoBack }) => {
     const janelas = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
@@ -33,6 +47,14 @@ export function ligarAndroid(): void {
     void App.minimizeApp();
   });
 }
+
+/** A barra de cima do sistema sumiu de verdade? (`PluginDaTela.java`) */
+interface Tela {
+  estado(): Promise<{ escondida: boolean }>;
+  addListener(evento: 'escondida', ouvinte: () => void): Promise<{ remove: () => Promise<void> }>;
+}
+
+const tela = registerPlugin<Tela>('Tela');
 
 /** O "Em chamada" do Android (etapa 10b): `android/.../PluginDaChamada.java`. */
 interface Chamada {

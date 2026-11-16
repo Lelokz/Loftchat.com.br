@@ -52,10 +52,10 @@ const origem = origemDe(endereco);
  * LINK DE CONVITE (etapa 9b): o site manda para `loftchat://convite/CÓDIGO`, o
  * sistema abre o programa com esse endereço nos argumentos (ou entrega à
  * janela que já está aberta, pelo `second-instance`). Só o código passa
- * adiante, conferido: 8 letras do alfabeto do convite (src/lib/invite-code.ts).
+ * adiante, conferido: 6 (ou 8, os antigos) letras do alfabeto do convite (src/lib/invite-code.ts).
  */
 const LINK = 'loftchat';
-const CODIGO = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/;
+const CODIGO = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}(?:[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{2})?$/;
 
 function conviteDosArgumentos(argv) {
   for (const arg of argv) {

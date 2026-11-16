@@ -42,7 +42,7 @@
 (function () {
   // O código vem do endereço: /convite/ABCD2345. Mesmo alfabeto do chat (src/lib/invite-code.ts).
   var bruto = decodeURIComponent(location.pathname.split('/convite/')[1] || '').split('/')[0].trim().toUpperCase();
-  var certo = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(bruto);
+  var certo = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}(?:[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{2})?$/.test(bruto);
   if (!certo) {
     document.getElementById('titulo').innerHTML = 'Esse convite <span style="color:var(--cor-texto)">não parece certo.</span>';
     document.getElementById('texto').textContent = 'Confira se o link chegou inteiro, ou peça um convite novo para quem te chamou.';

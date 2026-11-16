@@ -17,7 +17,7 @@ import type { TestAccount } from './helpers';
  * Etapa 10a — o app Android de verdade, num emulador de Android.
  *
  * Roda só quando pedido: `LOFT_ANDROID_APK` aponta para um APK de TESTE (o
- * `scripts/android.sh` com `VITE_USE_EMULATOR='127.0.0.1:9099|127.0.0.1:8080'`)
+ * `scripts/android.sh` com `VITE_USE_EMULATOR='127.0.0.1:9099|127.0.0.1:8088'`)
  * e um emulador de Android está ligado. O app chega ao Firebase de teste do
  * PC pelo `adb reverse`, e o teste mexe na tela do app pelo depurador da
  * WebView (só existe na versão de teste).
@@ -51,7 +51,7 @@ test.afterAll(async () => {
 /** Abre o app do zero e devolve a página da WebView, pelo depurador. */
 async function abrirApp(): Promise<Page> {
   adb('reverse', 'tcp:9099', 'tcp:9099');
-  adb('reverse', 'tcp:8080', 'tcp:8080');
+  adb('reverse', 'tcp:8088', 'tcp:8088');
   adb('install', '-r', APK);
   adb('shell', 'pm', 'clear', PACOTE);
   adb('shell', 'pm', 'grant', PACOTE, 'android.permission.RECORD_AUDIO');

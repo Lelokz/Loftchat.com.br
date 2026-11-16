@@ -132,67 +132,128 @@ export function openRenameGroupDialog(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Convite: gera o código assim que abre e mostra o link pronto.
- * Se a gravação falhar, a mensagem aparece e sobra um botão de tentar de novo.
+ * CONVIDAR PESSOAS (16/11/2026): o CÓDIGO DO GRUPO em destaque — 6 letras e
+ * números, fixo, que o dono passa adiante; a pessoa digita em "+" → "Entrar
+ * num grupo". O link vai junto, menor. "Trocar código" apaga o atual (para de
+ * valer na hora) e sorteia outro — para quando o código vazou.
  */
-export function openInviteDialog(onGenerate: () => Promise<string>): void {
-  const status = el('p', { class: 'modal__note' }, ['Gerando o link…']);
-  const body = el('div', { class: 'modal__field' }, [status]);
+export interface InviteDialogProps {
+  /** O código atual do grupo (cria um se o grupo ainda não tem). */
+  codigo: () => Promise<string>;
+  /** Apaga o atual e devolve um novo. */
+  trocar: () => Promise<string>;
+  /** O link de convite deste código. */
+  link: (codigo: string) => string;
+}
+
+export function openInviteDialog(props: InviteDialogProps): void {
+  const body = el('div', { class: 'modal__field' }, [el('p', { class: 'modal__note' }, ['Buscando o código…'])]);
 
   const controller = openModal({
     title: 'Convidar pessoas',
-    description: 'Quem abrir este link entra no grupo depois de fazer login.',
+    description: 'Passe o código do grupo: a pessoa toca no + ao lado dos grupos, em "Entrar num grupo", e digita.',
     body,
     confirmLabel: 'Fechar',
     cancelLabel: 'Fechar',
   });
 
-  const showLink = (url: string): void => {
-    const linkInput = el('input', { class: 'modal__link', type: 'text', readonly: true });
+  const copiar = (texto: string, botao: HTMLElement, nota: HTMLElement, feito: string): void => {
+    void navigator.clipboard
+      .writeText(texto)
+      .then(() => {
+        botao.textContent = 'Copiado';
+        nota.textContent = feito;
+      })
+      .catch(() => {
+        nota.textContent = 'Não deu para copiar sozinho — copie à mão.';
+      });
+  };
+
+  const mostrar = (codigo: string): void => {
+    const nota = el('p', { class: 'modal__note' }, ['Só você, o dono, vê este código.']);
+    const copiarCodigo = el('button', { class: 'modal__copy', type: 'button' }, ['Copiar código']);
+    copiarCodigo.addEventListener('click', () => copiar(codigo, copiarCodigo, nota, 'Código copiado.'));
+
+    const url = props.link(codigo);
+    const linkInput = el('input', { class: 'modal__link', type: 'text', readonly: true, 'aria-label': 'Link de convite' });
     linkInput.value = url;
+    const copiarLink = el('button', { class: 'modal__copy modal__copy--leve', type: 'button' }, ['Copiar link']);
+    copiarLink.addEventListener('click', () => copiar(url, copiarLink, nota, 'Link copiado.'));
 
-    const copyButton = el('button', { class: 'modal__copy', type: 'button' }, ['Copiar']);
-    const note = el('p', { class: 'modal__note' }, ['O link não expira nesta etapa.']);
-
-    copyButton.addEventListener('click', () => {
-      void navigator.clipboard
-        .writeText(url)
-        .then(() => {
-          copyButton.textContent = 'Copiado';
-          note.textContent = 'Link copiado para a área de transferência.';
-        })
-        .catch(() => {
-          // Clipboard bloqueado: seleciona para a pessoa copiar à mão.
-          linkInput.select();
-          note.textContent = 'Não consegui copiar sozinho — o link já está selecionado.';
-        });
+    const trocar = el('button', { class: 'modal__trocar', type: 'button' }, ['Trocar código']);
+    trocar.addEventListener('click', () => {
+      // Confirma no próprio lugar (sem outra janela): o antigo para de valer.
+      if (trocar.dataset['confirmar'] !== '1') {
+        trocar.dataset['confirmar'] = '1';
+        trocar.textContent = 'Trocar mesmo? O código atual para de valer';
+        return;
+      }
+      trocar.textContent = 'Trocando…';
+      trocar.setAttribute('disabled', '');
+      void props.trocar().then(mostrar, (erro: unknown) => {
+        controller.setError(firestoreErrorMessage(erro, 'Não foi possível trocar o código.'));
+        mostrar(codigo);
+      });
     });
 
-    body.replaceChildren(el('div', { class: 'modal__link-row' }, [linkInput, copyButton]), note);
+    body.replaceChildren(
+      el('div', { class: 'modal__codigo-linha' }, [
+        el('code', { class: 'modal__codigo', 'aria-label': 'Código do grupo' }, [codigo]),
+        copiarCodigo,
+      ]),
+      el('p', { class: 'modal__note' }, ['Ou mande o link:']),
+      el('div', { class: 'modal__link-row' }, [linkInput, copiarLink]),
+      nota,
+      trocar,
+    );
   };
 
-  const showRetry = (error: unknown): void => {
-    console.error('Não foi possível gerar o convite.', error);
-    controller.setError(firestoreErrorMessage(error, 'Não foi possível gerar o convite.'));
-
-    const retry = el('button', { class: 'modal__copy', type: 'button' }, ['Tentar de novo']);
-    retry.addEventListener('click', () => {
-      controller.setError('');
-      body.replaceChildren(el('p', { class: 'modal__note' }, ['Gerando o link…']));
-      void generate();
+  const tentar = (): void => {
+    void props.codigo().then(mostrar, (erro: unknown) => {
+      console.error('Não foi possível buscar o código do grupo.', erro);
+      controller.setError(firestoreErrorMessage(erro, 'Não foi possível buscar o código do grupo.'));
+      const denovo = el('button', { class: 'modal__copy', type: 'button' }, ['Tentar de novo']);
+      denovo.addEventListener('click', () => {
+        controller.setError('');
+        body.replaceChildren(el('p', { class: 'modal__note' }, ['Buscando o código…']));
+        tentar();
+      });
+      body.replaceChildren(denovo);
     });
-    body.replaceChildren(retry);
   };
+  tentar();
+}
 
-  async function generate(): Promise<void> {
-    try {
-      showLink(await onGenerate());
-    } catch (error) {
-      showRetry(error);
-    }
-  }
+/**
+ * ENTRAR NUM GRUPO (16/11/2026): o campo do código (ou do link), pelo "+" ao
+ * lado dos grupos. `entrar` devolve a mensagem de erro, ou null quando aceitou
+ * (aí a tela do convite assume: mostra o grupo e o botão de entrar).
+ */
+export function openJoinGroupDialog(entrar: (texto: string) => string | null): void {
+  const { field, input } = modalField('join-group-code', 'Código do grupo', {
+    placeholder: 'Ex.: K7M2QX',
+    maxlength: '120',
+    autocomplete: 'off',
+    autocapitalize: 'characters',
+    spellcheck: 'false',
+  });
+  input.classList.add('modal__input--codigo');
 
-  void generate();
+  openModal({
+    title: 'Entrar num grupo',
+    description: 'Digite o código que o dono do grupo te passou (ou cole o link do convite).',
+    body: field,
+    confirmLabel: 'Continuar',
+    initialFocus: input,
+    async onConfirm(controller) {
+      const erro = entrar(input.value);
+      if (erro !== null) {
+        controller.setError(erro);
+        return;
+      }
+      controller.close();
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */

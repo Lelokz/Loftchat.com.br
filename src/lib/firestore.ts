@@ -820,6 +820,32 @@ export async function createInvite(
   throw new Error('Não foi possível sortear um código livre.');
 }
 
+/**
+ * O CÓDIGO DO GRUPO (16/11/2026): um código fixo por grupo, que o dono passa
+ * adiante. É um convite como os outros (o id do documento em `invites`); o
+ * "fixo" é usar sempre o que já existe. Grupo sem nenhum (os de antes desta
+ * mudança) ganha um aqui. Só o dono chega aqui: a regra de `invites` só deixa
+ * o dono listar os convites do próprio grupo.
+ */
+export async function groupInviteCode(groupId: string, groupName: string, uid: MemberId): Promise<string> {
+  const existentes = await withTimeout(
+    getDocs(query(collection(db, 'invites'), where('groupId', '==', groupId), limit(1))),
+  );
+  const atual = existentes.docs[0];
+  if (atual !== undefined) return atual.id;
+  return await createInvite(groupId, groupName, uid);
+}
+
+/**
+ * TROCAR O CÓDIGO: apaga todos os convites do grupo (o código antigo para de
+ * valer na hora) e sorteia um novo. Para quando o código vazou.
+ */
+export async function newGroupInviteCode(groupId: string, groupName: string, uid: MemberId): Promise<string> {
+  const todos = await withTimeout(getDocs(query(collection(db, 'invites'), where('groupId', '==', groupId))));
+  await Promise.all(todos.docs.map((d) => withTimeout(deleteDoc(d.ref))));
+  return await createInvite(groupId, groupName, uid);
+}
+
 export async function getInvite(code: string): Promise<Invite | null> {
   const snapshot = await getDoc(doc(db, 'invites', code));
   if (!snapshot.exists()) return null;

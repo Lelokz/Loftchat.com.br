@@ -48,6 +48,8 @@ export interface ScreenShareView {
   maximized: boolean;
   /** Este navegador não sabe compartilhar tela (celular). */
   supported: boolean;
+  /** O motivo, quando não sabe (o app Android diz que ainda vem). */
+  unsupportedReason?: string;
   /** O motor de voz já subiu? Antes disso o botão não teria o que fazer. */
   ready: boolean;
 }
@@ -79,6 +81,11 @@ export interface VoiceRoomProps {
   onTogglePanel: () => void;
   /** Etapa 8c: a engrenagem abre Configurações → Voz e áudio. */
   onOpenVoiceSettings: () => void;
+  /**
+   * Toque num botão TRAVADO: mostra o motivo num aviso. No celular não existe
+   * "passar o mouse" para ler a dica — sem isto o botão parecia não fazer nada.
+   */
+  onAviso: (texto: string) => void;
   participants: VoiceParticipantView[];
   muted: boolean;
   /** Entrei sem microfone: ouço, mas não falo. */
@@ -385,16 +392,18 @@ function screenButton(props: VoiceRoomProps): HTMLElement {
   if (!screen.supported) {
     return controlButton(
       screenShareIcon(19),
-      'Compartilhar tela só funciona no computador',
+      screen.unsupportedReason ?? 'Compartilhar tela só funciona no computador',
       true,
       null,
+      false,
+      props.onAviso,
     );
   }
 
   // A sala aparece antes de o motor terminar de subir. Um botão clicável que
   // não faz nada nesse intervalo é pior do que um botão travado que diz por quê.
   if (!screen.ready) {
-    return controlButton(screenShareIcon(19), 'Conectando à sala…', true, null);
+    return controlButton(screenShareIcon(19), 'Conectando à sala…', true, null, false, props.onAviso);
   }
 
   const takenByOther = screen.sharerName !== null && !screen.isMine;
@@ -404,6 +413,8 @@ function screenButton(props: VoiceRoomProps): HTMLElement {
       `${screen.sharerName} já está transmitindo`,
       true,
       null,
+      false,
+      props.onAviso,
     );
   }
 
@@ -433,6 +444,7 @@ function controlButton(
   isOff: boolean,
   onClick: (() => void) | null,
   danger = false,
+  aviso?: (texto: string) => void,
 ): HTMLElement {
   const classes = ['room__btn', isOff ? 'is-off' : '', danger ? 'room__btn--danger' : '']
     .filter((part) => part !== '')
@@ -443,8 +455,13 @@ function controlButton(
     el('span', { class: 'sr-only' }, [label]),
   ]);
 
-  if (onClick === null) button.disabled = true;
-  else button.addEventListener('click', onClick);
+  if (onClick !== null) button.addEventListener('click', onClick);
+  else if (aviso === undefined) button.disabled = true;
+  else {
+    // TRAVADO, mas tocável: diz o motivo (o celular não mostra a dica do mouse).
+    button.setAttribute('aria-disabled', 'true');
+    button.addEventListener('click', () => aviso(label));
+  }
   return button;
 }
 

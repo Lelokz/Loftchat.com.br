@@ -217,14 +217,18 @@ export async function openCreateGroupDialog(page: Page) {
   const fromEmptyState = page.getByRole("button", {
     name: "Criar meu primeiro grupo",
   });
+  // O "+" ao lado dos grupos abre um menu: Criar grupo / Entrar num grupo (16/11/2026).
   const fromRail = page.getByRole("button", {
-    name: "Criar grupo",
+    name: "Criar ou entrar num grupo",
     exact: true,
   });
 
   if (await fromEmptyState.isVisible().catch(() => false))
     await fromEmptyState.click();
-  else await fromRail.first().click();
+  else {
+    await fromRail.first().click();
+    await page.getByRole("menuitem", { name: "Criar grupo", exact: true }).click();
+  }
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: 15_000 });

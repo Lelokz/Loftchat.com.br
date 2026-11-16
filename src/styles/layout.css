@@ -151,9 +151,10 @@
     --inset-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* No app Android a barra de cima do sistema fica escondida: os botões vão
-     até a borda de cima, sem espaço vazio (pedido do Leo, 16/11). */
-  :root.app-android {
+  /* App Android cujo celular ESCONDEU a barra de cima do sistema: os botões
+     vão até a borda de cima, sem espaço vazio (pedido do Leo, 16/11). Celular
+     que não esconde: fica a folga da barra, como antes (src/lib/android.ts). */
+  :root.barra-escondida {
     --inset-top: 0px;
   }
 

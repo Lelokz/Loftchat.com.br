@@ -33,7 +33,8 @@ export interface GroupBarProps {
   me: Member;
   onSelectGroup: (groupId: GroupId) => void;
   onOpenHome: () => void;
-  onCreateGroup: () => void;
+  /** O "+": abre o menu Criar grupo / Entrar num grupo (16/11/2026). */
+  onCreateGroup: (anchor: HTMLElement) => void;
   onSignOut: () => void;
   onOpenSettings: () => void;
 }
@@ -149,10 +150,10 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
 
   const addButton = el(
     'button',
-    { class: 'group-bar__add', type: 'button', title: 'Criar grupo' },
-    [iconEl(plusIcon(18)), el('span', { class: 'sr-only' }, ['Criar grupo'])],
+    { class: 'group-bar__add', type: 'button', title: 'Criar ou entrar num grupo' },
+    [iconEl(plusIcon(18)), el('span', { class: 'sr-only' }, ['Criar ou entrar num grupo'])],
   );
-  addButton.addEventListener('click', onCreateGroup);
+  addButton.addEventListener('click', () => onCreateGroup(addButton));
 
   const lista = el('ul', { class: `group-bar__tabs group-bar__tabs--${props.tabMode}` }, [
     el('li', {}, [privado]),

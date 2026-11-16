@@ -4,6 +4,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
 
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -16,6 +17,7 @@ public class MainActivity extends BridgeActivity {
         // O "Em chamada" (etapa 10b), antes do super: o Capacitor carrega os
         // plugins ao montar a ponte.
         registerPlugin(PluginDaChamada.class);
+        registerPlugin(PluginDaTela.class);
         super.onCreate(savedInstanceState);
 
         // O Loftchat vai até a borda de cima, por trás do furinho da câmera
@@ -44,6 +46,17 @@ public class MainActivity extends BridgeActivity {
         // (o Loftchat é escuro).
         barras.setAppearanceLightStatusBars(false);
         barras.setAppearanceLightNavigationBars(false);
+        conferirSeEscondeu();
+    }
+
+    /** Pediu para esconder: confere, logo depois, se o celular obedeceu (ver PluginDaTela). */
+    private void conferirSeEscondeu() {
+        getWindow().getDecorView().postDelayed(() -> {
+            WindowInsetsCompat agora = ViewCompat.getRootWindowInsets(getWindow().getDecorView());
+            if (agora != null && !agora.isVisible(WindowInsetsCompat.Type.statusBars())) {
+                PluginDaTela.marcarEscondida();
+            }
+        }, 400);
     }
 
     @Override

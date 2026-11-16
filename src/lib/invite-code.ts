@@ -1,13 +1,15 @@
 /**
- * Código de convite: 8 caracteres, sem símbolos ambíguos.
+ * Código do grupo: 6 letras e números, sem símbolos ambíguos (decisão do Leo,
+ * 16/11/2026 — curto para ditar e digitar, e não só números).
  *
  * O alfabeto tira `0/O` e `1/I/L`, que são os pares que as pessoas erram ao ler
  * um código em voz alta ou copiar de uma tela. Sobram 32 símbolos, então
- * 32^8 ≈ 1,1 trilhão de combinações.
+ * 32^6 ≈ 1 bilhão de combinações. Os códigos antigos, de 8, continuam valendo.
  */
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
+const ACEITOS = [6, 8];
 
 export function generateInviteCode(): string {
   // 32 é potência de dois e divide 256 exatamente, então o resto de 256/32 é
@@ -22,10 +24,11 @@ export function generateInviteCode(): string {
 
 /** Normaliza o que veio da URL: maiúsculas e só caracteres do alfabeto. */
 export function normalizeInviteCode(raw: string): string {
-  return raw.trim().toUpperCase();
+  // Digitado com espaço ou traço ("K7M 2QX", "K7M-2QX"): vale igual.
+  return raw.trim().toUpperCase().replace(/[\s-]/g, '');
 }
 
 export function isWellFormedInviteCode(code: string): boolean {
-  if (code.length !== CODE_LENGTH) return false;
+  if (!ACEITOS.includes(code.length)) return false;
   return [...code].every((char) => ALPHABET.includes(char));
 }

@@ -50,7 +50,7 @@ import {
 } from './lib/friends';
 import { renderGroupPanel } from './components/group-panel/group-panel';
 import { renderRoomPanel } from './components/room-panel/room-panel';
-import { acompanharChamadaNoAndroid } from './lib/android';
+import { acompanharChamadaNoAndroid, emAppAndroid } from './lib/android';
 import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-panel';
 import { memberListContent } from './components/member-list/member-list';
 import { renderPinnedList } from './components/pinned/pinned-list';
@@ -63,6 +63,7 @@ import {
   openCreateGroupDialog,
   openDeleteGroupDialog,
   openInviteDialog,
+  openJoinGroupDialog,
   openLeaveGroupDialog,
   openRenameGroupDialog,
 } from './components/modal/dialogs';
@@ -73,7 +74,8 @@ import { hideToast, showToast } from './components/toast/toast';
 import {
   createChannel,
   createGroup,
-  createInvite,
+  groupInviteCode,
+  newGroupInviteCode,
   deleteChannel,
   deleteDmMessage,
   deleteGroupCascade,
@@ -300,7 +302,18 @@ export function mountApp(
       // grupo novo — antes ele era criado e a tela continuava no Privado.
       store.setView('group');
       store.focusGroup(created.groupId, created.generalChannelId);
+      // O código do grupo já nasce com ele (16/11/2026). Falhou? A janela
+      // "Convidar pessoas" cria na hora.
+      void groupInviteCode(created.groupId, name.trim(), user.uid).catch(() => {});
     });
+  };
+
+  /** O "+" ao lado dos grupos: criar um ou entrar num com o código. */
+  const handleAddGroup = (anchor: HTMLElement): void => {
+    openGroupMenu(anchor, [
+      { label: 'Criar grupo', onSelect: handleCreateGroup },
+      { label: 'Entrar num grupo', onSelect: () => openJoinGroupDialog(handleJoinByCode) },
+    ]);
   };
 
   const handleCreateChannel = (): void => {
@@ -317,16 +330,20 @@ export function mountApp(
     if (group === undefined) return;
     // O nome vai junto: as regras só deixam MEMBROS lerem o doc do grupo, e quem
     // abre o convite ainda não é membro.
-    openInviteDialog(async () => inviteUrl(await createInvite(group.id, group.name, user.uid)));
+    openInviteDialog({
+      codigo: () => groupInviteCode(group.id, group.name, user.uid),
+      trocar: () => newGroupInviteCode(group.id, group.name, user.uid),
+      link: inviteUrl,
+    });
   };
 
-  /** Gera um convite novo e joga direto na área de transferência. */
+  /** Copia o código do grupo (o mesmo de "Convidar pessoas"). */
   const handleCopyInvite = (groupId: string): void => {
     const group = groupById(groupId);
     if (group === undefined) return;
-    void createInvite(group.id, group.name, user.uid)
-      .then((code) => navigator.clipboard.writeText(inviteUrl(code)))
-      .then(() => showToast('Link de convite copiado.'))
+    void groupInviteCode(group.id, group.name, user.uid)
+      .then((code) => navigator.clipboard.writeText(code))
+      .then(() => showToast('Código do grupo copiado.'))
       .catch((error: unknown) => {
         console.error('Não foi possível copiar o convite.', error);
         showToast('Não foi possível gerar o convite.');
@@ -806,7 +823,7 @@ export function mountApp(
         store.setView('group');
         store.focusGroup(groupId);
       },
-      onCreateGroup: handleCreateGroup,
+      onCreateGroup: handleAddGroup,
       me,
       onSignOut,
       onOpenSettings: () => handleOpenSettings(),
@@ -1077,6 +1094,7 @@ export function mountApp(
       onToggleLayout: alternarJeitoDaSala,
       onTogglePanel: alternarPainel,
       onOpenVoiceSettings: () => handleOpenSettings('voz'),
+      onAviso: (texto) => showToast(texto),
       participants,
       muted: state.voiceMuted,
       micDenied: state.voiceMicDenied,
@@ -1095,6 +1113,9 @@ export function mountApp(
         audioMissing: state.screenAudioMissing,
         maximized: state.screenMaximized,
         supported: screenShareSupported(),
+        ...(emAppAndroid()
+          ? { unsupportedReason: 'Transmitir a tela do celular ainda não chegou: vem numa próxima versão do app.' }
+          : {}),
         ready: state.voiceReady,
       },
       onToggleMute: () => store.toggleMute(),

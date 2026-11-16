@@ -209,3 +209,64 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* --- código do grupo (16/11/2026) ---------------------------------------- */
+
+.modal__codigo-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.modal__codigo {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background-color: var(--accent-soft);
+  color: var(--text-primary);
+  font: 800 28px / 1 var(--font-sans);
+  letter-spacing: 0.22em;
+  text-align: center;
+  user-select: all;
+}
+
+.modal__codigo-linha .modal__copy {
+  height: 46px;
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  font-weight: 700;
+}
+
+.modal__codigo-linha .modal__copy:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  color: var(--accent-on);
+}
+
+.modal__trocar {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+}
+
+.modal__trocar:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.modal__trocar[data-confirmar='1'] {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* O campo de "Entrar num grupo": o código em letras grandes, como ele é. */
+.modal__input--codigo {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}

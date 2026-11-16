@@ -62,13 +62,13 @@ const emulatorHosts = import.meta.env['VITE_USE_EMULATOR'] as string | undefined
 export const USING_EMULATOR = emulatorHosts !== undefined && emulatorHosts !== '';
 
 /** `authHost|firestoreHost`, como o `playwright.config.ts` monta. */
-const [authHost = '127.0.0.1:9099', firestoreHost = '127.0.0.1:8080'] = (
+const [authHost = '127.0.0.1:9099', firestoreHost = '127.0.0.1:8088'] = (
   emulatorHosts ?? ''
 ).split('|');
 
 if (USING_EMULATOR) {
   connectAuthEmulator(auth, `http://${authHost}`, { disableWarnings: true });
-  const [host = '127.0.0.1', port = '8080'] = firestoreHost.split(':');
+  const [host = '127.0.0.1', port = '8088'] = firestoreHost.split(':');
   connectFirestoreEmulator(db, host, Number(port));
 }
 

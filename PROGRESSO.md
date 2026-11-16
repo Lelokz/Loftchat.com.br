@@ -147,6 +147,26 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Código do grupo, botões travados e barra de cima (16/11/2026, ~19h45)
+
+- **Código do grupo** (pedido do Leo: a página do convite não existe no ar):
+  cada grupo tem UM código de 6 letras/números (sem 0/O/1/I), fixo, que só o
+  dono vê em Opções do grupo → Convidar pessoas (código grande + link).
+  "Trocar código" (confirma no lugar) apaga os convites do grupo e cria
+  outro: o antigo para de valer. O "+" da barra virou menu Criar grupo /
+  Entrar num grupo; digitar aceita minúsculas, espaço e hífen. Códigos
+  antigos de 8 continuam valendo (programa e página do site também).
+- **Botão travado diz o motivo:** na sala, tocar num botão sem uso (ex.:
+  transmitir a tela no app Android, que é a 10c) mostra o motivo num aviso,
+  em vez de não fazer nada.
+- **Barra de cima do celular:** o app pede para esconder; o plugin "Tela"
+  (`PluginDaTela.java`) confere se o celular escondeu mesmo. Escondeu = o
+  Loftchat ocupa a tela toda (classe `barra-escondida`); não escondeu = os
+  botões ficam abaixo da barra, como antes.
+- Firebase de teste na porta **8088** (a 8080 é da ponte do WhatsApp).
+- Testes: `codigo-grupo.spec.ts` novo; loft.spec atualizado; sala, celular e
+  tela passaram. APK mandado ao Leo pelo WhatsApp (falta o teste dele).
+
 ## Regras do banco publicadas (16/11/2026, ~18h50)
 
 As regras do Firestore mudaram 7 vezes na proposta A (perfil, grupos,

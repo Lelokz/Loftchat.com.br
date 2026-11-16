@@ -340,7 +340,7 @@ test("convite: B abre o link deslogado, autentica e entra no grupo de A", async 
   await expect(linkInput).toBeVisible({ timeout: 30_000 });
   const inviteUrl = await linkInput.inputValue();
   expect(inviteUrl).toMatch(
-    /\/convite\/[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/,
+    /\/convite\/[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$/,
   );
 
   const invitePath = new URL(inviteUrl).pathname;
@@ -1049,7 +1049,7 @@ test("membro comum não vê itens de dono no menu de contexto", async ({
     menu.getByRole("menuitem", { name: "Sair do grupo" }),
   ).toBeEnabled();
   for (const hidden of [
-    "Copiar link de convite",
+    "Copiar código do grupo",
     "Renomear grupo",
     "Apagar grupo",
   ]) {
@@ -1086,7 +1086,7 @@ test("membro comum não vê itens de dono no menu de contexto", async ({
     .first()
     .click({ button: "right" });
   await expect(
-    ownerMenu.getByRole("menuitem", { name: "Copiar link de convite" }),
+    ownerMenu.getByRole("menuitem", { name: "Copiar código do grupo" }),
   ).toBeVisible();
   await expect(
     ownerMenu.getByRole("menuitem", { name: "Apagar grupo" }),
@@ -1160,10 +1160,12 @@ test("a chamada sobrevive à troca de GRUPO, e a faixa diz de onde ela é", asyn
   await expect(page.locator(".room")).toBeVisible();
 
   // Criar o segundo grupo troca o grupo ativo.
+  // O "+" abre o menu Criar grupo / Entrar num grupo (16/11/2026).
   await page
-    .getByRole("button", { name: "Criar grupo", exact: true })
+    .getByRole("button", { name: "Criar ou entrar num grupo", exact: true })
     .first()
     .click();
+  await page.getByRole("menuitem", { name: "Criar grupo", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nome do grupo").fill("Grupo Dois");
   await dialog.getByRole("button", { name: "Criar grupo" }).click();

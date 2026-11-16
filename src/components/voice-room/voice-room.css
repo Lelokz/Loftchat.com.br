@@ -435,6 +435,17 @@
   border-color: var(--border-strong);
 }
 
+/* Travado (a tela no celular, alguém já transmitindo): apagado, mas tocável — o toque diz o motivo. */
+.room__btn[aria-disabled='true'],
+.room__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.room__btn[aria-disabled='true']:hover {
+  background-color: transparent;
+}
+
 .room__btn--danger {
   background-color: var(--danger);
   border-color: var(--danger);
