@@ -127,6 +127,10 @@ export const shieldIcon = (size?: number): string =>
 export const arrowLeftIcon = (size?: number): string =>
   svg('<path d="M19 12H5M11 18l-6-6 6-6"/>', size);
 
+/** Janela com a coluna da direita — mostrar/esconder o painel da direita (etapa 5d). */
+export const panelRightIcon = (size?: number): string =>
+  svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/>', size);
+
 /** Paleta de pintor — Configurações → Aparência. */
 export const paletteIcon = (size?: number): string =>
   svg(

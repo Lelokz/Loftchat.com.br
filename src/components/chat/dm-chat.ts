@@ -2,6 +2,7 @@ import './dm-chat.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { menuIcon, peopleIcon } from '../../lib/icons';
+import { panelToggleButton } from './chat';
 
 /** Quem é o outro lado do PV — o cabeçalho não sabe de `UserProfile`, só disto. */
 export interface DmFriendView {
@@ -24,6 +25,8 @@ export interface DmChatProps {
    * `onOpenMembers` de `chat.ts`, com o painel diferente do lado de lá.
    */
   onOpenPanel: () => void;
+  /** Etapa 5d: no computador, mostra/esconde o painel da direita. */
+  onTogglePanel: () => void;
 }
 
 /**
@@ -97,6 +100,7 @@ export function renderDmChat(props: DmChatProps): DmChatParts {
         ? false
         : el('span', { class: 'dm-chat__handle' }, [`@${friend.username}`]),
     ]),
+    panelToggleButton(props.onTogglePanel),
     panelButton,
   ]);
 

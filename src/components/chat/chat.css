@@ -90,6 +90,15 @@
   flex: none;
 }
 
+/* Mostrar/esconder o painel da direita (etapa 5d): aceso quando o painel está à mostra. */
+.chat__panel-button {
+  flex: none;
+}
+
+.chat__panel-button[aria-pressed='true'] {
+  color: var(--accent-text);
+}
+
 .chat__mobile-button--right {
   margin-left: auto;
 }

@@ -27,8 +27,8 @@ import { openGroupSettings } from './components/group-settings/group-settings';
 import { renderGroupCard } from './components/group-settings/group-card';
 import { watchGroupBanner } from './lib/group-profile';
 import { markWelcomeSeen } from './lib/welcome';
-import { saveTabPrefs, sortGroups, watchPrivatePrefs } from './lib/private-prefs';
-import { setAccountAppearance } from './lib/appearance';
+import { saveAppearance, saveTabPrefs, sortGroups, watchPrivatePrefs } from './lib/private-prefs';
+import { accountAppearance, setAccountAppearance } from './lib/appearance';
 import { CHAVE_GERAL, paintChatBackground, watchChatBackground } from './lib/chat-background';
 import type { ChatBackground } from './lib/chat-background';
 import type { GroupFolder, TabMode } from './lib/private-prefs';
@@ -173,7 +173,10 @@ export function mountApp(
   /** O painel flutuante de fixadas do grupo, enquanto aberto — `null` quando fechado. */
   let pinsPanel: PinnedPanel | null = null;
   /** Aba do painel da direita do grupo (Agora, Membros, Fixadas). */
-  let abaDoPainel: AbaDoPainel = 'membros';
+  let abaDoPainel: AbaDoPainel = accountAppearance().panelFirst;
+  /* Etapa 5d: as abas que eu quero no painel, e a que abre primeiro. */
+  let abasDoPainel: AbaDoPainel[] = accountAppearance().panelTabs;
+  let primeiraAba: AbaDoPainel = abaDoPainel;
 
   let previous: AppState | null = null;
 
@@ -1064,6 +1067,7 @@ export function mountApp(
     const group = activeGroup(state) ?? null;
     return renderGroupPanel({
       aba: abaDoPainel,
+      abas: abasDoPainel,
       onAba: (aba) => {
         abaDoPainel = aba;
         memberListEl = swap(memberListEl, buildMemberList(store.getState()));
@@ -1519,6 +1523,7 @@ export function mountApp(
     ordemDosGrupos = prefs.groupOrder;
     pastas = prefs.groupFolders;
     setAccountAppearance(prefs.appearance);
+    acompanharPainel(prefs.appearance.panelTabs, prefs.appearance.panelFirst);
     if (barraMudou && groupBarEl !== null) groupBarEl = swap(groupBarEl, buildGroupBar(store.getState()));
     render(store.getState());
   });
@@ -1624,6 +1629,35 @@ export function mountApp(
       fundoDoCanal = f;
       pintarFundo();
     });
+  }
+
+  /** As abas do painel mudaram (aqui ou em outro aparelho): o painel do grupo acompanha. */
+  function acompanharPainel(abas: AbaDoPainel[], primeira: AbaDoPainel): void {
+    const antes = `${abasDoPainel.join()}|${abaDoPainel}`;
+    abasDoPainel = abas;
+    // Escolheu outra "abre primeiro": já abre nela.
+    if (primeira !== primeiraAba) abaDoPainel = primeira;
+    primeiraAba = primeira;
+    if (!abas.includes(abaDoPainel)) abaDoPainel = primeira;
+    const state = store.getState();
+    if (`${abasDoPainel.join()}|${abaDoPainel}` !== antes && state.view === 'group' && activeGroup(state) !== undefined && memberListEl !== null) {
+      memberListEl = swap(memberListEl, buildMemberList(state));
+    }
+    atualizarBotaoDoPainel();
+  }
+
+  function atualizarBotaoDoPainel(): void {
+    const visivel = document.documentElement.dataset['painel'] !== 'escondido';
+    for (const b of document.querySelectorAll('.chat__panel-button')) b.setAttribute('aria-pressed', String(visivel));
+  }
+
+  /** O botão do cabeçalho (computador): mostra/esconde o painel na hora e guarda na conta. */
+  function alternarPainel(): void {
+    const a = accountAppearance();
+    a.panelHidden = !a.panelHidden;
+    setAccountAppearance(a);
+    atualizarBotaoDoPainel();
+    saveAppearance(user.uid, a).catch(() => showToast('Não deu para guardar. Confira a internet.'));
   }
 
   function handleChannelBackground(channelId: string): void {
@@ -1794,6 +1828,7 @@ export function mountApp(
             friend: friendView(state, friendUid),
             onOpenChannels: () => setDrawer('left'),
             onOpenPanel: () => setDrawer('right'),
+            onTogglePanel: alternarPainel,
           });
           centerEl = swapCenter(centerEl, parts.element);
           dmChat = parts;
@@ -1959,6 +1994,7 @@ export function mountApp(
           onSend: handleSend,
           onOpenChannels: () => setDrawer('left'),
           onOpenMembers: () => setDrawer('right'),
+          onTogglePanel: alternarPainel,
           pinnedCount: state.pinnedMessages.length,
           onOpenPins: handleOpenPins,
         });

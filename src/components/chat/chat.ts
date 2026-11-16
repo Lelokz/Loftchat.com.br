@@ -1,7 +1,7 @@
 import './chat.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { menuIcon, peopleIcon, pinIcon, speakerIcon } from '../../lib/icons';
+import { menuIcon, panelRightIcon, peopleIcon, pinIcon, speakerIcon } from '../../lib/icons';
 import { renderNoChannel } from '../empty-state/empty-state';
 import { renderComposer } from './composer/composer';
 import type { Channel } from '../../types/models';
@@ -13,6 +13,8 @@ export interface ChatProps {
   /** Gavetas do mobile. Os botões existem sempre; o CSS os esconde no desktop. */
   onOpenChannels: () => void;
   onOpenMembers: () => void;
+  /** Etapa 5d: no computador, mostra/esconde o painel da direita (guardado na conta). */
+  onTogglePanel: () => void;
   /** Fixadas DESTE canal. O ícone existe sempre; o número só aparece quando há alguma. */
   pinnedCount: number;
   onOpenPins: () => void;
@@ -90,6 +92,7 @@ export function renderChat(props: ChatProps): ChatParts {
       : iconEl(speakerIcon(16), 'icon chat__hash'),
     titulo,
     pin.element,
+    panelToggleButton(props.onTogglePanel),
     drawerButton('Abrir membros', peopleIcon(18), props.onOpenMembers, 'right'),
   ]);
 
@@ -149,6 +152,28 @@ function pinButton(
       countEl.textContent = String(count);
     },
   };
+}
+
+/**
+ * MOSTRAR/ESCONDER O PAINEL DA DIREITA (etapa 5d) — só no computador (no
+ * celular o painel é gaveta e quem abre é o botão de pessoas). Apertado =
+ * painel à mostra; quem mantém o `aria-pressed` em dia é o app.
+ */
+export function panelToggleButton(onClick: () => void): HTMLElement {
+  const visivel = document.documentElement.dataset['painel'] !== 'escondido';
+  const button = el(
+    'button',
+    {
+      class: 'icon-button chat__panel-button',
+      type: 'button',
+      title: 'Mostrar ou esconder o painel da direita',
+      'aria-label': 'Painel da direita',
+      'aria-pressed': String(visivel),
+    },
+    [iconEl(panelRightIcon(18))],
+  );
+  button.addEventListener('click', onClick);
+  return button;
 }
 
 /**

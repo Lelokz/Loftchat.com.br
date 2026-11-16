@@ -29,6 +29,8 @@ export interface SalaAgora {
 
 export interface GroupPanelProps {
   aba: AbaDoPainel;
+  /** Etapa 5d: as abas que a PESSOA quer ver (pelo menos uma), na ordem de sempre. */
+  abas: AbaDoPainel[];
   onAba: (aba: AbaDoPainel) => void;
   /** Só as salas de voz com alguém dentro. */
   salas: SalaAgora[];
@@ -53,7 +55,7 @@ export function renderGroupPanel(props: GroupPanelProps): HTMLElement {
   const abas = el(
     'div',
     { class: 'group-panel__tabs', role: 'tablist', 'aria-label': 'Painel do grupo' },
-    (Object.keys(NOMES) as AbaDoPainel[]).map((aba) => {
+    (Object.keys(NOMES) as AbaDoPainel[]).filter((aba) => props.abas.includes(aba)).map((aba) => {
       const botao = el(
         'button',
         {

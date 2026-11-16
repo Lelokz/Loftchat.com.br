@@ -1216,3 +1216,32 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Abas do painel (etapa 5d): caixinha de marcar dentro do botão. */
+.aparencia-aba {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.aparencia-aba__caixa {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.aparencia-aba[aria-checked='true'] .aparencia-aba__caixa {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.aparencia-aba[aria-disabled='true'] {
+  cursor: default;
+}

@@ -43,6 +43,26 @@
  * comentário em app.ts sobre `showAside`), então isto é rede de segurança
  * — barato mesmo se nunca disparar.
  */
+/*
+ * PAINEL DA DIREITA ESCONDIDO (Aparência, etapa 5d) — só no computador: a
+ * coluna 4 some e o chat ocupa o espaço. No celular o painel já é gaveta.
+ */
+@media (min-width: 721px) {
+  :root[data-painel='escondido'] .app {
+    grid-template-columns: var(--channels-w) minmax(0, 1fr) 0;
+  }
+
+  :root[data-painel='escondido'] .app > .members {
+    display: none;
+  }
+
+  :root[data-painel='escondido'] .app.no-member-column .chat__header,
+  :root[data-painel='escondido'] .app.no-member-column .friends__header,
+  :root[data-painel='escondido'] .app.no-member-column .friends__tabs {
+    width: 100%;
+  }
+}
+
 @media (min-width: 721px) {
   .app > .group-bar {
   grid-column: 1 / -1;
@@ -248,6 +268,11 @@
   .room .chat__mobile-button,
   .friends .chat__mobile-button {
     display: inline-flex;
+  }
+
+  /* Mostrar/esconder o painel é coisa do computador (etapa 5d). */
+  .chat__panel-button {
+    display: none;
   }
 
   .chat > .chat__header--mobile-only {

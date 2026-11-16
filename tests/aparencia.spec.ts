@@ -275,3 +275,68 @@ test('fundo do chat: geral, só de um canal (ganha do geral), escurecer, remover
   await expect.poll(() => pc.evaluate(() => 'fundoChat' in document.documentElement.dataset)).toBe(false);
   await pc.context().close();
 });
+
+test('painel da direita: esconder pelo botão, quais abas e qual abre primeiro; no celular continua gaveta', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const eu = newAccount('Painel');
+  accounts.push(eu);
+  const pc = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await pc.goto('/');
+  await signUpThroughUi(pc, eu);
+  await resolveTokens(eu);
+  await createGroupThroughUi(pc, 'Painel');
+
+  const painel = pc.locator('.app > .members');
+  const abas = () => pc.locator('.group-panel__tab').allTextContents();
+  await expect(painel).toBeVisible();
+  expect(await abas()).toEqual(['Agora', 'Membros', 'Fixadas']);
+  await expect(pc.locator('.group-panel__tab.is-active')).toHaveText('Membros');
+
+  // Botão do cabeçalho: esconde na hora, o chat ocupa o espaço, e fica guardado.
+  const botao = pc.getByRole('button', { name: 'Painel da direita' });
+  await expect(botao).toHaveAttribute('aria-pressed', 'true');
+  const larguraAntes = (await pc.locator('main.chat').boundingBox())!.width;
+  await botao.click();
+  await expect(painel).toBeHidden();
+  await expect(botao).toHaveAttribute('aria-pressed', 'false');
+  expect((await pc.locator('main.chat').boundingBox())!.width).toBeGreaterThan(larguraAntes + 200);
+  await expect
+    .poll(async () => (await readDocViaRest(eu, `userPrivate/${eu.uid}`)).fields?.['appearance']?.mapValue?.fields?.['panelHidden']?.booleanValue)
+    .toBe(true);
+  await botao.click();
+  await expect(painel).toBeVisible();
+
+  // Configurações: tira "Agora", abre em "Fixadas"; a última aba não desmarca.
+  await pc.getByRole('button', { name: 'Configurações', exact: true }).click();
+  const tela = pc.getByRole('dialog', { name: 'Configurações' });
+  await tela.getByRole('button', { name: 'Aparência' }).click();
+  const grupoDeAbas = tela.getByRole('group', { name: 'Abas do painel do grupo' });
+  await grupoDeAbas.getByRole('checkbox', { name: 'Agora' }).click();
+  await tela.getByRole('radiogroup', { name: 'Aba que abre primeiro' }).getByRole('radio', { name: 'Fixadas' }).click();
+  await grupoDeAbas.getByRole('checkbox', { name: 'Membros' }).click();
+  // A última que sobrou fica travada (marcada e desabilitada).
+  await expect(grupoDeAbas.getByRole('checkbox', { name: 'Fixadas' })).toHaveAttribute('aria-checked', 'true');
+  await expect(grupoDeAbas.getByRole('checkbox', { name: 'Fixadas' })).toHaveAttribute('aria-disabled', 'true');
+  await grupoDeAbas.getByRole('checkbox', { name: 'Membros' }).click(); // volta
+  await tela.getByRole('region', { name: 'Alterações não salvas' }).getByRole('button', { name: 'Salvar' }).click();
+  await expect(tela.getByRole('region', { name: 'Alterações não salvas' })).toBeHidden();
+  await pc.keyboard.press('Escape');
+  await expect.poll(abas).toEqual(['Membros', 'Fixadas']);
+  await expect(pc.locator('.group-panel__tab.is-active')).toHaveText('Fixadas');
+
+  // Recarregar: abre direto em Fixadas, sem Agora.
+  await pc.reload();
+  await expect(painel).toBeVisible({ timeout: 30_000 });
+  await expect.poll(abas).toEqual(['Membros', 'Fixadas']);
+  await expect(pc.locator('.group-panel__tab.is-active')).toHaveText('Fixadas');
+
+  // Celular: sem o botão de esconder; o painel abre pela gaveta, com as mesmas abas.
+  const cel = await (await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true })).newPage();
+  await cel.goto('/');
+  await signInThroughUi(cel, eu);
+  await expect(cel.getByRole('button', { name: 'Painel da direita' })).toBeHidden();
+  await cel.getByRole('button', { name: 'Abrir membros' }).click();
+  await expect.poll(() => cel.locator('.group-panel__tab').allTextContents()).toEqual(['Membros', 'Fixadas']);
+  await pc.context().close();
+  await cel.context().close();
+});

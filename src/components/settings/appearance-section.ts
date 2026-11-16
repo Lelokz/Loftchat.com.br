@@ -7,11 +7,12 @@ import {
   DENSITIES,
   MESSAGE_STYLES,
   MY_SIDES,
+  PANEL_TABS,
   TEXT_SIZES,
   THEME_IDS,
   THEME_LABELS,
 } from '../../lib/appearance';
-import type { Appearance, Density, MessageStyle, MySide } from '../../lib/appearance';
+import type { Appearance, Density, MessageStyle, MySide, PanelTab } from '../../lib/appearance';
 import { CHAVE_GERAL, DIM_MAX, DIM_PADRAO, paintChatBackground } from '../../lib/chat-background';
 import type { ChatBackground } from '../../lib/chat-background';
 import type { ImageKind } from '../../lib/images';
@@ -62,6 +63,7 @@ export function renderAppearanceSection(atual: Appearance, aoMudar: () => void, 
     blocoDaFonte(atual, onChange),
     blocoDoTamanho(atual, onChange),
     blocoDasMensagens(atual, onChange),
+    blocoDoPainel(atual, onChange),
     ...comFundo(fundo),
   ];
 }
@@ -330,6 +332,82 @@ function blocoDasMensagens(atual: Appearance, onChange: () => void): HTMLElement
       }),
     ]),
   ]);
+}
+
+/* --- painel da direita (etapa 5d) ---------------------------------------- */
+
+const NOMES_DAS_ABAS: Record<PanelTab, string> = { agora: 'Agora', membros: 'Membros', fixadas: 'Fixadas' };
+
+function blocoDoPainel(atual: Appearance, onChange: () => void): HTMLElement {
+  const bloco = el('div', { class: 'aparencia-mensagens' });
+
+  function desenhar(): void {
+    const mostrar = opcoes(
+      'Painel da direita no computador',
+      ['mostrar', 'esconder'] as const,
+      { mostrar: 'Mostrar', esconder: 'Esconder' },
+      () => (atual.panelHidden ? 'esconder' : 'mostrar'),
+      (id) => {
+        atual.panelHidden = id === 'esconder';
+        onChange();
+      },
+    );
+
+    // Quais abas: pelo menos uma (a última marcada não desmarca).
+    const abas = el('div', { class: 'settings__fonts', role: 'group', 'aria-label': 'Abas do painel do grupo' });
+    for (const aba of PANEL_TABS) {
+      const marcada = atual.panelTabs.includes(aba);
+      const unica = marcada && atual.panelTabs.length === 1;
+      const b = el(
+        'button',
+        {
+          class: 'settings__font aparencia-aba',
+          type: 'button',
+          role: 'checkbox',
+          'aria-checked': String(marcada),
+          'aria-disabled': String(unica),
+          title: unica ? 'Pelo menos uma aba fica.' : '',
+        },
+        [el('span', { class: 'aparencia-aba__caixa', 'aria-hidden': 'true' }, [marcada ? '✓' : '']), NOMES_DAS_ABAS[aba]],
+      );
+      b.addEventListener('click', () => {
+        if (unica) return;
+        // Lista NOVA (nunca mexer na de dentro: ela é dividida com a aparência salva).
+        atual.panelTabs = PANEL_TABS.filter((t) => (t === aba ? !marcada : atual.panelTabs.includes(t)));
+        if (!atual.panelTabs.includes(atual.panelFirst)) atual.panelFirst = atual.panelTabs.includes('membros') ? 'membros' : atual.panelTabs[0]!;
+        onChange();
+        desenhar();
+        bloco.querySelector<HTMLElement>(`[role="checkbox"]:nth-child(${PANEL_TABS.indexOf(aba) + 1})`)?.focus();
+      });
+      abas.append(b);
+    }
+
+    const primeira = opcoes(
+      'Aba que abre primeiro',
+      atual.panelTabs,
+      NOMES_DAS_ABAS,
+      () => atual.panelFirst,
+      (id) => {
+        atual.panelFirst = id;
+        onChange();
+      },
+    );
+
+    bloco.replaceChildren(
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Painel da direita']),
+        mostrar,
+        el('p', { class: 'settings__help' }, [
+          'No computador também dá para mostrar e esconder pelo botão ao lado do título do chat. No celular ele continua abrindo pelo botão de pessoas.',
+        ]),
+      ]),
+      el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Abas do painel do grupo']), abas]),
+      el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Abre primeiro em']), primeira]),
+    );
+  }
+
+  desenhar();
+  return bloco;
 }
 
 /* --- fundo do chat (etapa 5c) -------------------------------------------- */

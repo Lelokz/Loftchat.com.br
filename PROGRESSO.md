@@ -94,6 +94,26 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 5d — o painel da direita do meu jeito (16/11/2026) — fim da etapa 5
+
+Configurações → Aparência → **Painel da direita** (mesmo `appearance`,
+campos `panelHidden`, `panelTabs`, `panelFirst`).
+
+- **Mostrar ou esconder** no computador. Também tem um botão no cabeçalho
+  do chat (grupo e Privado), ao lado do alfinete: esconde/mostra na hora e
+  guarda na conta. Escondido, a coluna 4 some e o chat ocupa o espaço
+  (`data-painel` no `<html>`, regra no layout.css). No celular nada muda: o
+  painel continua sendo a gaveta do botão de pessoas, e o botão de esconder
+  nem aparece.
+- **Quais abas** do painel do grupo aparecem (Agora, Membros, Fixadas) —
+  pelo menos uma; a última fica travada. Vale no celular também.
+- **Qual abre primeiro** (antes era sempre Membros). Trocar essa escolha já
+  abre nela; tirar a aba que estava aberta pula para a primeira.
+- O botão do alfinete no topo do chat continua abrindo as fixadas mesmo com
+  a aba "Fixadas" escondida (é um painel próprio).
+- Testes: `tests/aparencia.spec.ts` (4º teste: botão, salvo na conta,
+  abas, abre primeiro, recarregar, celular).
+
 ## Proposta A, etapa 5c — fundo do chat com imagem (16/11/2026)
 
 Configurações → Aparência → **Fundo do chat**, só na MINHA tela.

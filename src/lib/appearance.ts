@@ -69,6 +69,10 @@ export type MySide = (typeof MY_SIDES)[number];
 export const DENSITIES = ['confortavel', 'compacto'] as const;
 export type Density = (typeof DENSITIES)[number];
 
+/** As abas do painel da direita do grupo (o mesmo `AbaDoPainel` do group-panel). */
+export const PANEL_TABS = ['agora', 'membros', 'fixadas'] as const;
+export type PanelTab = (typeof PANEL_TABS)[number];
+
 export interface Appearance {
   theme: ThemeId;
   /** '' = a cor do tema; senão `#rrggbb`. */
@@ -79,6 +83,10 @@ export interface Appearance {
   messageStyle: MessageStyle;
   mySide: MySide;
   density: Density;
+  /** Etapa 5d: painel da direita escondido no computador; quais abas; qual abre primeiro. */
+  panelHidden: boolean;
+  panelTabs: PanelTab[];
+  panelFirst: PanelTab;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -89,6 +97,9 @@ export const DEFAULT_APPEARANCE: Appearance = {
   messageStyle: 'baloes',
   mySide: 'direita',
   density: 'confortavel',
+  panelHidden: false,
+  panelTabs: [...PANEL_TABS],
+  panelFirst: 'membros',
 };
 
 const HEX_RE = /^#[0-9a-f]{6}$/;
@@ -107,6 +118,20 @@ export function parseAppearance(raw: unknown): Appearance {
     messageStyle: MESSAGE_STYLES.includes(r['messageStyle'] as MessageStyle) ? (r['messageStyle'] as MessageStyle) : 'baloes',
     mySide: MY_SIDES.includes(r['mySide'] as MySide) ? (r['mySide'] as MySide) : 'direita',
     density: DENSITIES.includes(r['density'] as Density) ? (r['density'] as Density) : 'confortavel',
+    ...painel(r),
+  };
+}
+
+/** As abas na ordem de sempre, sem repetir; nenhuma válida = todas. A primeira tem de estar entre elas. */
+function painel(r: Record<string, unknown>): Pick<Appearance, 'panelHidden' | 'panelTabs' | 'panelFirst'> {
+  const lidas = Array.isArray(r['panelTabs']) ? r['panelTabs'] : null;
+  const panelTabs = lidas === null ? [...PANEL_TABS] : PANEL_TABS.filter((t) => lidas.includes(t));
+  const abas = panelTabs.length === 0 ? [...PANEL_TABS] : panelTabs;
+  const primeira = r['panelFirst'] as PanelTab;
+  return {
+    panelHidden: r['panelHidden'] === true,
+    panelTabs: abas,
+    panelFirst: abas.includes(primeira) ? primeira : abas.includes('membros') ? 'membros' : abas[0]!,
   };
 }
 
@@ -118,7 +143,10 @@ export function sameAppearance(a: Appearance, b: Appearance): boolean {
     a.textSize === b.textSize &&
     a.messageStyle === b.messageStyle &&
     a.mySide === b.mySide &&
-    a.density === b.density
+    a.density === b.density &&
+    a.panelHidden === b.panelHidden &&
+    a.panelTabs.join() === b.panelTabs.join() &&
+    a.panelFirst === b.panelFirst
   );
 }
 
@@ -222,6 +250,7 @@ export function applyAppearance(a: Appearance): void {
   // O lado só vale nos balões (na lista, todas ficam à esquerda de qualquer jeito).
   marcar('meuLado', a.messageStyle === 'lista' ? 'direita' : a.mySide, 'direita');
   marcar('densidade', a.density, 'confortavel');
+  marcar('painel', a.panelHidden ? 'escondido' : 'visivel', 'visivel');
 }
 
 /** Guarda no aparelho para o próximo carregamento já abrir certo. */
