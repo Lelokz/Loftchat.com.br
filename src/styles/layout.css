@@ -140,6 +140,15 @@
 @media (max-width: 720px) {
   :root {
     --layout: mobile;
+    /*
+     * AS BORDAS DA TELA. Em cima: no app Android a barra do sistema fica
+     * escondida (MainActivity) e a página vai até a borda, por trás do
+     * furinho da câmera — o sistema diz a altura dele; no iPhone pelo
+     * navegador, a da barra de cima. Embaixo: a barra de gestos. Em
+     * variáveis para todo mundo usar a mesma (e o teste poder simular).
+     */
+    --inset-top: env(safe-area-inset-top, 0px);
+    --inset-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* A barra de cima fica; só a coluna do meio ocupa o resto; as outras viram gaveta. */
@@ -148,6 +157,10 @@
     grid-template-columns: minmax(0, 1fr);
     /* --app-height vem da visualViewport: é a altura REAL com o teclado aberto. */
     height: var(--app-height, 100dvh);
+    /* Os botões começam ABAIXO da câmera/barra do sistema (o fundo vai até a
+       borda): sem isto as abas e o perfil ficavam embaixo da hora e da
+       bateria, sem dar para tocar (16/11). */
+    padding-top: var(--inset-top);
   }
 
   /*
@@ -184,8 +197,9 @@
   .app > .home-column,
   .app > .members {
     position: fixed;
-    top: var(--topbar-h);
+    top: calc(var(--topbar-h) + var(--inset-top));
     bottom: 0;
+    padding-bottom: var(--inset-bottom);
     z-index: 20;
     display: none;
     /* transição 1 (etapa 20): a gaveta esmaece ao abrir e ao fechar, 200 ms */
@@ -248,7 +262,7 @@
   .app::before {
     content: '';
     position: fixed;
-    inset: var(--topbar-h) 0 0;
+    inset: calc(var(--topbar-h) + var(--inset-top)) 0 0;
     z-index: 19;
     background-color: var(--backdrop);
     opacity: 0;
@@ -279,16 +293,21 @@
     display: flex;
   }
 
+  /* A barra do sistema em cima já é resolvida no .app (os cabeçalhos ficam abaixo da barra de abas). */
   .chat__header,
   .room__header {
-    padding-top: calc(var(--space-2) + env(safe-area-inset-top));
     padding-left: max(var(--space-2), env(safe-area-inset-left));
     padding-right: max(var(--space-2), env(safe-area-inset-right));
   }
 
+  /* Os botões da sala longe da barra de gestos do sistema, embaixo. */
+  .room__controls {
+    padding-bottom: var(--inset-bottom);
+  }
+
   .composer,
   .callbar--mobile {
-    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--space-2) + var(--inset-bottom));
     padding-left: max(var(--space-3), env(safe-area-inset-left));
     padding-right: max(var(--space-3), env(safe-area-inset-right));
   }
