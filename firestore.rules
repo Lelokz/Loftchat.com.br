@@ -216,6 +216,22 @@ service cloud.firestore {
 
     match /userPrivate/{userId} {
       allow read, write: if signedIn() && userId == uid();
+
+      /*
+       * FUNDO DO CHAT (proposta A, etapa 5c): um documento por fundo
+       * (`geral` ou o id de um canal). Só o dono, só estes campos, imagem no
+       * mesmo formato das outras e véu de 0 a 90%.
+       */
+      match /fundos/{chave} {
+        allow read, delete: if signedIn() && userId == uid();
+        allow create, update: if signedIn() && userId == uid()
+          && request.resource.data.keys().hasOnly(['image', 'dim', 'label'])
+          && imageOk(request.resource.data.image, 400000)
+          && request.resource.data.dim is int
+          && request.resource.data.dim >= 0 && request.resource.data.dim <= 90
+          && (!('label' in request.resource.data)
+                || (request.resource.data.label is string && request.resource.data.label.size() <= 80));
+      }
     }
 
     /* ----------------------------- usernames ---------------------------- */

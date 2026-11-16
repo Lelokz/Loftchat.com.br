@@ -82,6 +82,23 @@
   background-color: var(--surface-chat);
 }
 
+/*
+ * FUNDO DO CHAT (Aparência, etapa 5c): a imagem cobre a coluna e o VÉU — a
+ * cor do chat do próprio tema, na força escolhida — fica por cima, para o
+ * texto ler bem em qualquer imagem. As variáveis vêm de lib/chat-background.ts.
+ */
+:root[data-fundo-chat] .chat,
+.aparencia-previa[data-fundo-chat] {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--surface-chat) var(--chat-veu), transparent),
+      color-mix(in srgb, var(--surface-chat) var(--chat-veu), transparent)
+    ),
+    var(--chat-fundo);
+  background-size: cover;
+  background-position: center;
+}
+
 /* ========================================================================== *
  * MOBILE
  *

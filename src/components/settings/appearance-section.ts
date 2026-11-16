@@ -12,6 +12,25 @@ import {
   THEME_LABELS,
 } from '../../lib/appearance';
 import type { Appearance, Density, MessageStyle, MySide } from '../../lib/appearance';
+import { CHAVE_GERAL, DIM_MAX, DIM_PADRAO, paintChatBackground } from '../../lib/chat-background';
+import type { ChatBackground } from '../../lib/chat-background';
+import type { ImageKind } from '../../lib/images';
+import { renderImageField } from './image-field';
+
+/** O rascunho dos fundos do chat (etapa 5c) — as Configurações guardam e salvam. */
+export interface FundoDoChat {
+  /** Já leu os fundos salvos? */
+  carregado: boolean;
+  /** Rascunho: chave (`geral` ou id do canal) → fundo. Ausente = sem fundo. */
+  fundos: Map<string, ChatBackground>;
+  /** Para onde dá para escolher agora: sempre "todos"; o canal, se veio dele. */
+  alvos: { chave: string; rotulo: string; nome: string }[];
+  /** Qual alvo está escolhido (muda aqui). */
+  alvo: string;
+  originais: Map<ImageKind, File>;
+  /** Algo no rascunho mudou (as Configurações atualizam a barra de salvar). */
+  onChange: () => void;
+}
 
 /**
  * CONFIGURAÇÕES → APARÊNCIA (proposta A, etapa 5).
@@ -21,7 +40,7 @@ import type { Appearance, Density, MessageStyle, MySide } from '../../lib/appear
  * salvar. Nada aqui é redesenhado ao clicar — só os `aria-checked` mudam —,
  * então o foco do teclado não se perde.
  */
-export function renderAppearanceSection(atual: Appearance, aoMudar: () => void): HTMLElement[] {
+export function renderAppearanceSection(atual: Appearance, aoMudar: () => void, fundo: FundoDoChat): HTMLElement[] {
   // A bolinha "cor do tema" mostra a cor DO TEMA escolhido — não a livre que
   // está ligada no <html> — então acompanha a troca de tema.
   let doTema: HTMLElement | null = null;
@@ -43,7 +62,7 @@ export function renderAppearanceSection(atual: Appearance, aoMudar: () => void):
     blocoDaFonte(atual, onChange),
     blocoDoTamanho(atual, onChange),
     blocoDasMensagens(atual, onChange),
-    previaDoChat(),
+    ...comFundo(fundo),
   ];
 }
 
@@ -311,6 +330,114 @@ function blocoDasMensagens(atual: Appearance, onChange: () => void): HTMLElement
       }),
     ]),
   ]);
+}
+
+/* --- fundo do chat (etapa 5c) -------------------------------------------- */
+
+/** O bloco do fundo e a prévia (que mostra o fundo do alvo escolhido). */
+function comFundo(fundo: FundoDoChat): HTMLElement[] {
+  const previa = previaDoChat();
+  const caixa = previa.querySelector<HTMLElement>('.aparencia-previa')!;
+  const bloco = el('div', { class: 'settings__field aparencia-fundo' });
+
+  function desenhar(): void {
+    const atual = fundo.fundos.get(fundo.alvo) ?? null;
+    paintChatBackground(caixa, atual);
+    if (!fundo.carregado) {
+      bloco.replaceChildren(el('span', { class: 'settings__label' }, ['Fundo do chat']), el('p', { class: 'settings__help' }, ['Carregando…']));
+      return;
+    }
+    const partes: (HTMLElement | false)[] = [el('span', { class: 'settings__label' }, ['Fundo do chat'])];
+
+    if (fundo.alvos.length > 1) {
+      const grupo = el('div', { class: 'settings__fonts', role: 'radiogroup', 'aria-label': 'Onde vale o fundo' });
+      for (const a of fundo.alvos) {
+        const b = el('button', { class: 'settings__font', type: 'button', role: 'radio', 'aria-checked': String(fundo.alvo === a.chave) }, [a.rotulo]);
+        b.addEventListener('click', () => {
+          fundo.alvo = a.chave;
+          desenhar();
+        });
+        grupo.append(b);
+      }
+      partes.push(grupo);
+    }
+
+    const nomeDoAlvo = fundo.alvos.find((a) => a.chave === fundo.alvo)?.nome ?? '';
+    partes.push(
+      renderImageField({
+        kind: 'chat',
+        value: atual?.image ?? '',
+        initials: '',
+        originals: fundo.originais,
+        onChange: (imagem) => {
+          if (imagem === '') fundo.fundos.delete(fundo.alvo);
+          else
+            fundo.fundos.set(fundo.alvo, {
+              image: imagem,
+              dim: atual?.dim ?? DIM_PADRAO,
+              label: nomeDoAlvo,
+            });
+          desenhar();
+          fundo.onChange();
+        },
+      }),
+    );
+
+    if (atual !== null) {
+      const valor = el('output', { class: 'aparencia-tamanho__valor', for: 'aparencia-veu' }, [`${atual.dim}%`]);
+      const regua = el('input', {
+        class: 'aparencia-tamanho__regua',
+        id: 'aparencia-veu',
+        type: 'range',
+        min: 0,
+        max: DIM_MAX,
+        step: 5,
+        value: atual.dim,
+        'aria-label': 'Escurecer o fundo',
+      });
+      regua.addEventListener('input', () => {
+        atual.dim = Number(regua.value);
+        valor.textContent = `${atual.dim}%`;
+        paintChatBackground(caixa, atual);
+        fundo.onChange();
+      });
+      partes.push(
+        el('label', { class: 'settings__label aparencia-fundo__sub', for: 'aparencia-veu' }, ['Escurecer']),
+        el('div', { class: 'aparencia-tamanho' }, [regua, valor]),
+      );
+    }
+
+    // Os outros canais que já têm fundo próprio: dá para tirar daqui.
+    const outros = [...fundo.fundos].filter(([chave]) => chave !== CHAVE_GERAL && chave !== fundo.alvo);
+    if (outros.length > 0) {
+      const lista = el(
+        'ul',
+        { class: 'aparencia-fundo__lista', 'aria-label': 'Canais com fundo próprio' },
+        outros.map(([chave, f]) => {
+          const tirar = el('button', { class: 'settings__link', type: 'button', 'aria-label': `Tirar o fundo de ${f.label || 'canal'}` }, ['Tirar']);
+          tirar.addEventListener('click', () => {
+            fundo.fundos.delete(chave);
+            desenhar();
+            fundo.onChange();
+          });
+          const mini = el('span', { class: 'aparencia-fundo__mini' });
+          mini.style.backgroundImage = `url("${f.image}")`;
+          return el('li', { class: 'aparencia-fundo__item' }, [mini, el('span', { class: 'aparencia-fundo__nome' }, [f.label || 'Canal']), tirar]);
+        }),
+      );
+      partes.push(el('span', { class: 'settings__label aparencia-fundo__sub' }, ['Canais com fundo próprio']), lista);
+    }
+
+    partes.push(
+      el('p', { class: 'settings__help' }, [
+        'Só na sua tela. O fundo de um canal ganha do geral. Para pôr num canal só: botão direito no canal (no celular, segure o dedo) → "Fundo deste canal".',
+      ]),
+    );
+    bloco.replaceChildren(...partes.filter((p): p is HTMLElement => p !== false));
+  }
+
+  desenhar();
+  return [bloco, previa];
 }
 
 /* --- prévia -------------------------------------------------------------- */

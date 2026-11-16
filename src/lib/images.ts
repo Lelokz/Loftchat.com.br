@@ -14,7 +14,7 @@
  * A regra do banco cobra o MESMO formato e os mesmos tetos (firestore.rules).
  */
 
-export type ImageKind = 'foto' | 'banner' | 'fundo' | 'grupo';
+export type ImageKind = 'foto' | 'banner' | 'fundo' | 'grupo' | 'chat';
 
 interface ImageSpec {
   label: string;
@@ -33,6 +33,8 @@ export const IMAGE_SPECS: Record<ImageKind, ImageSpec> = {
   fundo: { label: 'Fundo do cartão', width: 540, height: 720, maxChars: 300_000, round: false },
   // Etapa 3a: a foto do GRUPO é quadrada de cantos redondos (a aba e o cartão do grupo).
   grupo: { label: 'Foto do grupo', width: 256, height: 256, maxChars: 90_000, round: false },
+  // Etapa 5c: o fundo do chat (só na minha tela), em 16:9, cobrindo a coluna do chat.
+  chat: { label: 'Fundo do chat', width: 1600, height: 900, maxChars: 400_000, round: false },
 };
 
 /** Só WebP ou JPEG em base64 — nada que vire outra coisa num `url(...)`. */

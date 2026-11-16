@@ -1171,3 +1171,48 @@
 .aparencia-mensagens {
   display: contents;
 }
+
+/* Fundo do chat (etapa 5c) */
+.aparencia-fundo .settings__image {
+  max-width: 380px;
+}
+
+.settings__image-sample--chat {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.aparencia-fundo__sub {
+  margin-top: var(--space-2);
+}
+
+.aparencia-fundo__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aparencia-fundo__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.aparencia-fundo__mini {
+  flex: none;
+  width: 48px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken) center / cover no-repeat;
+}
+
+.aparencia-fundo__nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

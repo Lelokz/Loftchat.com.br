@@ -35,6 +35,8 @@ export interface ContextMenuActions {
   renameGroup(groupId: string): void;
   groupSettings(groupId: string): void;
   groupNickname(groupId: string): void;
+  /** Etapa 5c: abre Configurações → Aparência apontando para o fundo deste canal. */
+  channelBackground(channelId: string): void;
   leaveGroup(groupId: string): void;
   deleteGroup(groupId: string): void;
   deleteChannel(channelId: string): void;
@@ -349,6 +351,10 @@ function channelItems(
   const items: MenuItem[] = [
     { label: 'Copiar nome', onSelect: () => copy(channel.name, 'Nome copiado.') },
   ];
+  // Fundo só na MINHA tela — qualquer membro pode, em canal de texto.
+  if (channel.kind === 'text') {
+    items.push({ label: 'Fundo deste canal', onSelect: () => actions.channelBackground(channelId) });
+  }
 
   if (owner) {
     // Um grupo sem canal de texto não tem onde conversar, e não há tela para

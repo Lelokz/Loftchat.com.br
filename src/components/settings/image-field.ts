@@ -24,6 +24,7 @@ const FORMATO: Record<ImageKind, string> = {
   grupo: 'quadrado',
   banner: 'faixa',
   fundo: 'cartão inteiro',
+  chat: 'tela do chat',
 };
 
 /**

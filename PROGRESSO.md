@@ -94,6 +94,31 @@ Fases, nesta ordem:
 5. **Página do site** no estilo da NOVA.
 6. **App Android** com compartilhamento de tela de verdade.
 
+## Proposta A, etapa 5c — fundo do chat com imagem (16/11/2026)
+
+Configurações → Aparência → **Fundo do chat**, só na MINHA tela.
+
+- Imagem escolhida pelo mesmo ajustador das outras, em 16:9 (1600×900, até
+  ~290 KB) e na tela cobrindo a coluna do chat. **Escurecer** de 0 a 90%
+  (padrão 60%): a cor do chat do próprio tema por cima, então o texto lê bem
+  em qualquer imagem e em qualquer tema (no Claro o véu é claro).
+- **Geral ou por canal**: "Todos os chats" vale em tudo (inclusive no
+  Privado); o fundo de um canal ganha do geral. Para um canal: botão direito
+  no canal (no celular, segurar) → **Fundo deste canal**, que abre a
+  Aparência já apontando para ele. Os canais com fundo próprio aparecem numa
+  lista com "Tirar".
+- Mora em `userPrivate/{uid}/fundos/{geral | id do canal}` — um documento
+  por fundo, porque a imagem é grande e o `userPrivate` é escutado o tempo
+  todo. A regra: só o dono, só `image`/`dim`/`label`, imagem no mesmo
+  formato das outras (WebP/JPEG em base64, até 400 mil caracteres) e véu
+  inteiro de 0 a 90.
+- O app escuta o geral sempre e o do canal aberto enquanto ele estiver
+  aberto (`lib/chat-background.ts`), e põe as variáveis no `<html>`; o CSS
+  fica em layout.css. A prévia das Configurações usa o mesmo CSS.
+- Testes: `tests/aparencia.spec.ts` (3º teste: geral, escurecer, canal pelo
+  menu ganhando do geral, Privado com o geral, regra recusando imagem falsa e
+  véu 95, remover).
+
 ## Proposta A, etapa 5b — jeito das mensagens: balões ou lista, lado das minhas, compacto (16/11/2026)
 
 Em Configurações → Aparência, bloco **Mensagens** (mesmo `appearance` da 5a,

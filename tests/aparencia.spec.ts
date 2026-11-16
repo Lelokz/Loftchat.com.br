@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { createGroupThroughUi, limparTudo, newAccount, readDocViaRest, resolveTokens, sendMessageThroughUi, signInThroughUi, signUpThroughUi } from './helpers';
+import { createGroupThroughUi, limparTudo, newAccount, patchDocRawViaRest, readDocViaRest, resolveTokens, sendMessageThroughUi, signInThroughUi, signUpThroughUi } from './helpers';
 import type { TestAccount } from './helpers';
 
 /**
@@ -132,7 +132,8 @@ test('mensagens: lista, minhas à esquerda e compacto (prévia e chat de verdade
 
   const minha = pc.locator('.chat .message--mine').first();
   const balao = minha.locator('.message__bubble');
-  const chat = pc.locator('.chat .messages');
+  // A coluna do chat (a lista de dentro é trocada quando uma mensagem é confirmada).
+  const chat = pc.locator('main.chat');
   // A lista pode estar sendo redesenhada (mensagem recém-confirmada): mede de novo até achar.
   const xDoBalao = () => balao.boundingBox().then((b) => b?.x ?? -1);
   // Padrão: balão na cor de destaque, à direita, sem o meu avatar.
@@ -180,5 +181,97 @@ test('mensagens: lista, minhas à esquerda e compacto (prévia e chat de verdade
   await pc.reload();
   await expect(pc.locator('.chat .message--mine').first()).toBeVisible({ timeout: 30_000 });
   expect(await pc.evaluate(() => [document.documentElement.dataset['mensagens'], document.documentElement.dataset['densidade']])).toEqual(['lista', 'compacto']);
+  await pc.context().close();
+});
+
+async function imagemDeTeste(page: Page, cor: string): Promise<Buffer> {
+  const base64 = await page.evaluate((c) => {
+    const tela = document.createElement('canvas');
+    tela.width = 1600;
+    tela.height = 1000;
+    const ctx = tela.getContext('2d')!;
+    ctx.fillStyle = c;
+    ctx.fillRect(0, 0, 1600, 1000);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(700, 400, 200, 200);
+    return tela.toDataURL('image/png').split(',')[1]!;
+  }, cor);
+  return Buffer.from(base64, 'base64');
+}
+
+test('fundo do chat: geral, só de um canal (ganha do geral), escurecer, remover e a regra', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const eu = newAccount('Fundo');
+  accounts.push(eu);
+  const pc = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await pc.goto('/');
+  await signUpThroughUi(pc, eu);
+  await resolveTokens(eu);
+  await createGroupThroughUi(pc, 'Fundos');
+  await sendMessageThroughUi(pc, 'olha o fundo');
+
+  const tela = pc.getByRole('dialog', { name: 'Configurações' });
+  const barra = tela.getByRole('region', { name: 'Alterações não salvas' });
+  const fundoNaTela = () => pc.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--chat-fundo'));
+  async function escolher(cor: string): Promise<void> {
+    const escolha = pc.waitForEvent('filechooser');
+    await tela.getByRole('button', { name: /^(Escolher|Trocar) fundo do chat$/ }).click();
+    await (await escolha).setFiles({ name: 'fundo.png', mimeType: 'image/png', buffer: await imagemDeTeste(pc, cor) });
+    const ajustador = pc.getByRole('dialog', { name: 'Ajustar fundo do chat' });
+    await ajustador.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(ajustador).toBeHidden();
+  }
+
+  // --- geral ---
+  await pc.getByRole('button', { name: 'Configurações', exact: true }).click();
+  await tela.getByRole('button', { name: 'Aparência' }).click();
+  await escolher('#1e3a8a');
+  await expect(tela.locator('.aparencia-previa[data-fundo-chat]')).toHaveCount(1);
+  const veu = tela.getByRole('slider', { name: 'Escurecer o fundo' });
+  await veu.focus();
+  await pc.keyboard.press('ArrowRight'); // 60 → 65
+  await expect(tela.locator('output[for="aparencia-veu"]')).toHaveText('65%');
+  await barra.getByRole('button', { name: 'Salvar' }).click();
+  await expect(barra).toBeHidden();
+  await expect
+    .poll(async () => (await readDocViaRest(eu, `userPrivate/${eu.uid}/fundos/geral`)).fields?.['dim']?.integerValue)
+    .toBe('65');
+  await pc.keyboard.press('Escape');
+  await expect.poll(fundoNaTela).toContain('data:image/');
+  const geral = await fundoNaTela();
+  expect(await pc.locator('.chat').evaluate((n) => getComputedStyle(n).backgroundImage)).toContain('url(');
+
+  // --- só o #anúncios, pelo menu do canal ---
+  await pc.locator('[data-channel-id]', { hasText: 'anúncios' }).click({ button: 'right' });
+  await pc.locator('.context-menu').getByRole('menuitem', { name: 'Fundo deste canal' }).click();
+  await expect(tela.getByRole('radiogroup', { name: 'Onde vale o fundo' }).getByRole('radio', { name: /Só #anúncios/ })).toHaveAttribute('aria-checked', 'true');
+  await escolher('#b91c1c');
+  await barra.getByRole('button', { name: 'Salvar' }).click();
+  await expect(barra).toBeHidden();
+  await pc.keyboard.press('Escape');
+
+  await pc.locator('[data-channel-id]', { hasText: 'anúncios' }).click();
+  await expect.poll(fundoNaTela).not.toBe(geral);
+  await expect.poll(fundoNaTela).toContain('data:image/');
+  await pc.locator('[data-channel-id]', { hasText: 'geral' }).click();
+  await expect.poll(fundoNaTela).toBe(geral);
+  // No Privado vale o geral.
+  await pc.getByRole('button', { name: 'Privado' }).click();
+  await expect.poll(fundoNaTela).toBe(geral);
+
+  // --- a regra: imagem que não é imagem e véu acima de 90 são recusados ---
+  expect(await patchDocRawViaRest(eu, `userPrivate/${eu.uid}/fundos/geral`, { image: { stringValue: 'javascript:alert(1)' }, dim: { integerValue: '50' } })).toBe(403);
+  const img = (await readDocViaRest(eu, `userPrivate/${eu.uid}/fundos/geral`)).fields?.['image']?.stringValue ?? '';
+  expect(await patchDocRawViaRest(eu, `userPrivate/${eu.uid}/fundos/geral`, { image: { stringValue: img }, dim: { integerValue: '95' } })).toBe(403);
+
+  // --- remover o geral: some da tela (no Privado não sobra fundo) ---
+  await pc.getByRole('button', { name: 'Configurações', exact: true }).click();
+  await tela.getByRole('button', { name: 'Aparência' }).click();
+  await expect(tela.getByRole('list', { name: 'Canais com fundo próprio' })).toContainText('#anúncios');
+  await tela.getByRole('button', { name: 'Remover fundo do chat' }).click();
+  await barra.getByRole('button', { name: 'Salvar' }).click();
+  await expect(barra).toBeHidden();
+  await pc.keyboard.press('Escape');
+  await expect.poll(() => pc.evaluate(() => 'fundoChat' in document.documentElement.dataset)).toBe(false);
   await pc.context().close();
 });

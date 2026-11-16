@@ -29,6 +29,8 @@ import { watchGroupBanner } from './lib/group-profile';
 import { markWelcomeSeen } from './lib/welcome';
 import { saveTabPrefs, sortGroups, watchPrivatePrefs } from './lib/private-prefs';
 import { setAccountAppearance } from './lib/appearance';
+import { CHAVE_GERAL, paintChatBackground, watchChatBackground } from './lib/chat-background';
+import type { ChatBackground } from './lib/chat-background';
 import type { GroupFolder, TabMode } from './lib/private-prefs';
 import { renderWelcomeCard } from './components/welcome-card/welcome-card';
 import { closePersonPopover, openPersonPopover } from './components/person-card/person-popover';
@@ -683,10 +685,11 @@ export function mountApp(
   }
 
   /** Configurações em tela inteira. Salvar o perfil atualiza o meu cartão na hora. */
-  function handleOpenSettings(section?: SettingsSection): void {
+  function handleOpenSettings(section?: SettingsSection, fundoCanal?: { id: string; label: string }): void {
     setDrawer(null);
     const state = store.getState();
     openSettings({
+      ...(fundoCanal === undefined ? {} : { fundoCanal }),
       user,
       onSignOut,
       groups: sortGroups(state.groups, ordemDosGrupos),
@@ -1593,7 +1596,47 @@ export function mountApp(
     );
   }
 
+  /*
+   * FUNDO DO CHAT (etapa 5c): o geral é escutado sempre; o do canal aberto,
+   * enquanto ele estiver aberto (no Privado vale só o geral). O do canal
+   * ganha do geral.
+   */
+  let fundoGeral: ChatBackground | null = null;
+  let fundoDoCanal: ChatBackground | null = null;
+  let chaveDoFundo: string | null = null;
+  let pararFundoDoCanal: (() => void) | null = null;
+  const pintarFundo = (): void => paintChatBackground(document.documentElement, fundoDoCanal ?? fundoGeral);
+  const pararFundoGeral = watchChatBackground(user.uid, CHAVE_GERAL, (f) => {
+    fundoGeral = f;
+    pintarFundo();
+  });
+  function acompanharFundo(state: AppState): void {
+    const chave = state.view === 'home' ? null : state.activeChannelId;
+    if (chave === chaveDoFundo) return;
+    chaveDoFundo = chave;
+    pararFundoDoCanal?.();
+    pararFundoDoCanal = null;
+    fundoDoCanal = null;
+    pintarFundo();
+    if (chave === null) return;
+    pararFundoDoCanal = watchChatBackground(user.uid, chave, (f) => {
+      if (chaveDoFundo !== chave) return;
+      fundoDoCanal = f;
+      pintarFundo();
+    });
+  }
+
+  function handleChannelBackground(channelId: string): void {
+    const state = store.getState();
+    const canal = state.channels.find((c) => c.id === channelId);
+    const grupo = state.groups.find((g) => g.id === state.activeGroupId);
+    if (canal === undefined) return;
+    const label = `#${canal.name}${grupo === undefined ? '' : ` · ${grupo.name}`}`.slice(0, 80);
+    handleOpenSettings('aparencia', { id: channelId, label });
+  }
+
   function render(state: AppState): void {
+    acompanharFundo(state);
     // Ainda carregando os grupos: não pinta nada; o splash de fora segue valendo.
     if (!state.groupsLoaded && groupBarEl === null) {
       previous = state;
@@ -2116,6 +2159,7 @@ export function mountApp(
     renameGroup: handleRenameGroup,
     groupSettings: handleGroupSettings,
     groupNickname: () => handleOpenSettings('grupos'),
+    channelBackground: handleChannelBackground,
     leaveGroup: handleLeaveGroup,
     deleteGroup: handleDeleteGroup,
     deleteChannel: handleDeleteChannel,
@@ -2232,6 +2276,9 @@ export function mountApp(
       unsubscribe();
       bannerAtual?.parar();
       pararPrefs();
+      pararFundoGeral();
+      pararFundoDoCanal?.();
+      paintChatBackground(document.documentElement, null);
       store.dispose();
     },
   };

@@ -9,6 +9,9 @@ import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, paletteIcon, 
 import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveAppearance, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
 import { accountAppearance, previewAppearance, sameAppearance, setAccountAppearance } from '../../lib/appearance';
 import { renderAppearanceSection } from './appearance-section';
+import type { FundoDoChat } from './appearance-section';
+import { CHAVE_GERAL, loadChatBackgrounds, saveChatBackground, sameBackground } from '../../lib/chat-background';
+import type { ChatBackground } from '../../lib/chat-background';
 import type { GroupFolder, TabMode } from '../../lib/private-prefs';
 import { enableDragSort } from '../../lib/drag-sort';
 import { grupoAvatar } from '../group-bar/group-bar';
@@ -73,6 +76,8 @@ export interface SettingsOptions {
   folders: GroupFolder[];
   /** Abrir direto numa seção (o menu do grupo abre em "Grupos"). */
   section?: Secao;
+  /** Etapa 5c: veio de "Fundo deste canal" — a Aparência já abre apontando para ele. */
+  fundoCanal?: { id: string; label: string };
 }
 
 export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia';
@@ -205,6 +210,27 @@ export function openSettings(options: SettingsOptions): void {
   let aparenciaSalva = accountAppearance();
   let aparenciaAtual = { ...aparenciaSalva };
   const aparenciaMudou = (): boolean => !sameAppearance(aparenciaAtual, aparenciaSalva);
+  /* Fundos do chat (etapa 5c): lidos ao abrir; rascunho até salvar. */
+  const copiaFundos = (m: Map<string, ChatBackground>): Map<string, ChatBackground> =>
+    new Map([...m].map(([k, f]) => [k, { ...f }]));
+  let fundosSalvos = new Map<string, ChatBackground>();
+  const fundo: FundoDoChat = {
+    carregado: false,
+    fundos: new Map(),
+    alvos: [
+      { chave: CHAVE_GERAL, rotulo: 'Todos os chats', nome: '' },
+      ...(options.fundoCanal === undefined
+        ? []
+        : [{ chave: options.fundoCanal.id, rotulo: `Só ${options.fundoCanal.label}`, nome: options.fundoCanal.label }]),
+    ],
+    alvo: options.fundoCanal?.id ?? CHAVE_GERAL,
+    originais: new Map(),
+    onChange: () => atualizarBarra(),
+  };
+  const fundosMudados = (): string[] =>
+    [...new Set([...fundosSalvos.keys(), ...fundo.fundos.keys()])].filter(
+      (k) => !sameBackground(fundosSalvos.get(k), fundo.fundos.get(k)),
+    );
 
   const dialog = el('dialog', { class: 'settings', 'aria-label': 'Configurações' });
   aberta = dialog;
@@ -287,6 +313,7 @@ export function openSettings(options: SettingsOptions): void {
     pastasAtual = copiaPastas(pastasSalvas);
     aparenciaAtual = { ...aparenciaSalva };
     previewAppearance(null);
+    fundo.fundos = copiaFundos(fundosSalvos);
     mostrar(secaoAtual);
   });
   salvar.addEventListener('click', () => void salvarPerfil());
@@ -307,7 +334,7 @@ export function openSettings(options: SettingsOptions): void {
 
   function atualizarBarra(): void {
     const sujo =
-      (carregado && !iguais(atual, salvo)) || rotulosMudaram() || abasMudaram() || pastasMudaram() || aparenciaMudou();
+      (carregado && !iguais(atual, salvo)) || rotulosMudaram() || abasMudaram() || pastasMudaram() || aparenciaMudou() || fundosMudados().length > 0;
     barra.hidden = !sujo;
     salvar.disabled = salvando || erroDoArroba !== null;
     desfazer.disabled = salvando;
@@ -761,6 +788,11 @@ export function openSettings(options: SettingsOptions): void {
         setAccountAppearance(aparenciaSalva);
         previewAppearance(null);
       }
+      const mudados = fundosMudados();
+      if (mudados.length > 0) {
+        await Promise.all(mudados.map((k) => saveChatBackground(user.uid, k, fundo.fundos.get(k) ?? null)));
+        fundosSalvos = copiaFundos(fundo.fundos);
+      }
       if (!perfilMudou) {
         showToast('Salvo.');
         salvando = false;
@@ -890,11 +922,15 @@ export function openSettings(options: SettingsOptions): void {
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });
       erroGeral.hidden = true;
       conteudo.replaceChildren(
-        ...renderAppearanceSection(aparenciaAtual, () => {
-          // Igual à salva: desliga a prévia (o app volta a seguir a conta).
-          previewAppearance(aparenciaMudou() ? { ...aparenciaAtual } : null);
-          atualizarBarra();
-        }),
+        ...renderAppearanceSection(
+          aparenciaAtual,
+          () => {
+            // Igual à salva: desliga a prévia (o app volta a seguir a conta).
+            previewAppearance(aparenciaMudou() ? { ...aparenciaAtual } : null);
+            atualizarBarra();
+          },
+          fundo,
+        ),
         erroGeral,
       );
     } else {
@@ -1186,6 +1222,20 @@ export function openSettings(options: SettingsOptions): void {
   if (options.section === undefined && window.matchMedia('(max-width: 768px)').matches) {
     dialog.classList.remove('settings--secao-aberta');
   }
+
+  void loadChatBackgrounds(user.uid)
+    .catch(() => new Map<string, ChatBackground>())
+    .then((salvos) => {
+      if (aberta !== dialog) return;
+      fundosSalvos = salvos;
+      fundo.fundos = copiaFundos(salvos);
+      fundo.carregado = true;
+      if (secaoAtual === 'aparencia') {
+        const naLista = !dialog.classList.contains('settings--secao-aberta');
+        mostrar('aparencia');
+        if (naLista) dialog.classList.remove('settings--secao-aberta');
+      }
+    });
 
   void Promise.all([
     publicProfile(user.uid).catch(() => null),
