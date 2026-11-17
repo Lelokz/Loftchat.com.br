@@ -1,5 +1,5 @@
 /**
- * Laboratório de identidade visual do Loft — entrada da página lab.html.
+ * Laboratório de identidade visual do Loft — entrada da página lab/index.html.
  *
  * Isolado do app: não importa nada de src/ e nada de src/ importa daqui.
  */
