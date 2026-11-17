@@ -269,7 +269,13 @@ function ligarCompartilhamentoDeTela() {
     if (id === null || !doLoft(pedido.frame?.url)) return responder({});
     const fonte = (await listarFontes({ width: 0, height: 0 })).find((f) => f.id === id);
     if (fonte === undefined) return responder({});
-    responder({ video: fonte });
+    /*
+     * WINDOWS: o som do PC vem pelo "loopback" (tudo que o PC toca). Faltava
+     * isto, e a tela do Windows ia muda (16/11/2026). O som do próprio Loft
+     * (a voz da turma) sai pelo `restrictOwnAudio` que a página pede no
+     * getDisplayMedia. No Linux o som vem pelo venmic (ligarAudioDoPc).
+     */
+    responder(process.platform === 'win32' ? { video: fonte, audio: 'loopback' } : { video: fonte });
   });
 }
 

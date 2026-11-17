@@ -1209,8 +1209,10 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
         try {
           stream = await navigator.mediaDevices.getDisplayMedia({
             video: SCREEN_QUALITY,
-            // Pede o som do sistema junto, para o áudio do jogo ir com a imagem.
-            audio: true,
+            // Pede o som do sistema junto, para o áudio do jogo ir com a imagem
+            // — SEM o som desta página (a voz da turma), senão cada um se
+            // ouviria de volta (`restrictOwnAudio`, Chrome 140+, Windows e Mac).
+            audio: { restrictOwnAudio: true } as MediaTrackConstraints,
           });
         } catch (error) {
           // Fechar o seletor é desistência, não falha: nada de erro na tela.
