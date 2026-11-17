@@ -50,7 +50,7 @@ import {
 } from './lib/friends';
 import { renderGroupPanel } from './components/group-panel/group-panel';
 import { renderRoomPanel } from './components/room-panel/room-panel';
-import { acompanharChamadaNoAndroid, emAppAndroid } from './lib/android';
+import { acompanharChamadaNoAndroid, emAppAndroid, telaCheiaNoAndroid } from './lib/android';
 import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-panel';
 import { memberListContent } from './components/member-list/member-list';
 import { renderPinnedList } from './components/pinned/pinned-list';
@@ -1117,7 +1117,7 @@ export function mountApp(
           ? {
               unsupportedReason:
                 'Este celular não deixa transmitir a tela: atualize o "Android System WebView" na Play Store.',
-              audioMissingText: 'Do celular vai só a imagem: o som do celular não vai junto.',
+              audioMissingText: 'Vai só a imagem: este celular não deixou mandar o som (precisa do Android 10 ou mais novo).',
             }
           : {}),
         ready: state.voiceReady,
@@ -2410,6 +2410,12 @@ export function mountApp(
     if (maximized) {
       document.addEventListener('pointermove', onPointerMove);
       onPointerMove();
+      // No app Android a tela cheia da página quebra (sumia tudo, botões
+      // mortos): o Android esconde as barras e deita a tela.
+      if (emAppAndroid()) {
+        telaCheiaNoAndroid(true);
+        return;
+      }
       /*
        * Fullscreen no elemento RAIZ, que nunca é reconstruído. Pedir no vídeo
        * ou na sala cairia toda vez que alguém entrasse ou apertasse mudo — o
@@ -2436,6 +2442,7 @@ export function mountApp(
     document.removeEventListener('pointermove', onPointerMove);
     window.clearTimeout(idleTimer);
     centerEl?.querySelector('.room')?.classList.remove('is-idle');
+    if (emAppAndroid()) telaCheiaNoAndroid(false);
     const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
     orientation.unlock?.();
     if (document.fullscreenElement !== null) void document.exitFullscreen().catch(() => {});

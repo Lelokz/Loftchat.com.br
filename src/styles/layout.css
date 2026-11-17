@@ -47,7 +47,7 @@
  * PAINEL DA DIREITA ESCONDIDO (Aparência, etapa 5d) — só no computador: a
  * coluna 4 some e o chat ocupa o espaço. No celular o painel já é gaveta.
  */
-@media (min-width: 721px) {
+@media (min-width: 721px) and (min-height: 501px), (min-width: 721px) and (pointer: fine) {
   :root[data-painel='escondido'] .app {
     grid-template-columns: var(--channels-w) minmax(0, 1fr) 0;
   }
@@ -63,7 +63,7 @@
   }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 721px) and (min-height: 501px), (min-width: 721px) and (pointer: fine) {
   .app > .group-bar {
   grid-column: 1 / -1;
 }
@@ -137,7 +137,12 @@
   --layout: desktop;
 }
 
-@media (max-width: 720px) {
+/*
+ * CELULAR: estreito, OU deitado (baixo e de toque). Deitado o celular tem mais
+ * de 720px de largura e caía no layout do PC, com três colunas espremidas e
+ * sem espaço para a tela transmitida (16/11).
+ */
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
   :root {
     --layout: mobile;
     /*
@@ -183,6 +188,20 @@
   .app > .group-bar .session-footer__identity,
   .app > .group-bar .session-footer__signout {
     display: none;
+  }
+
+  /* O "+" fica sempre à vista no fim das abas (antes ficava cortado pela
+     metade quando as abas não cabiam); as abas rolam por baixo dele. */
+  .app > .group-bar .group-bar__tabs > li:has(> .group-bar__add) {
+    position: sticky;
+    right: 0;
+    padding-left: var(--space-1);
+    background-color: var(--surface-rail);
+    box-shadow: -10px 0 10px -4px var(--surface-rail);
+  }
+
+  .app > .group-bar .group-bar__tab {
+    max-width: 150px;
   }
 
   .chat,
@@ -343,9 +362,11 @@
     gap: var(--space-3);
   }
 
-  /* Sem teto de largura: os blocos ocupam a tela. */
+  /* Sem teto de largura: os blocos ocupam a tela (a folga de 2px não corta
+     a borda de quem está falando). */
   .room__people {
     max-width: none;
+    padding: 2px;
   }
 
   .room__people:has(> :only-child) {
@@ -355,6 +376,94 @@
   .room__btn {
     width: 48px;
     height: 48px;
+  }
+
+  /* Cabeçalho: título numa linha, "2 pessoas · 0:05" embaixo (antes quebrava
+     palavra por palavra em colunas). */
+  .app .room__heading {
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .app .room__title {
+    max-width: 100%;
+    font-size: var(--font-size-md);
+  }
+
+  .app .room__meta {
+    font-size: var(--font-size-xs);
+  }
+
+  .app .room__heading + .room__header-spacer {
+    display: none;
+  }
+
+  /* Palco do tamanho da tela transmitida (16:9), sem faixa preta enorme em
+     cima e embaixo; os controles ficam grudados no pé da tela. */
+  .app .room--palco .room__stage {
+    flex: none;
+    aspect-ratio: 16 / 9;
+  }
+
+  .app .room--palco .room__stage:has(.room__screen--mine) {
+    aspect-ratio: auto;
+  }
+
+  .app .room__controls {
+    margin-top: auto;
+  }
+
+  /* Eu transmitindo: o aviso e a miniatura um embaixo do outro. */
+  .app .room__screen--mine {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: calc(var(--space-6) + var(--space-3)) var(--space-3) var(--space-3);
+  }
+
+  .app .room__screen--mine .room__preview {
+    position: static;
+    width: min(260px, 100%);
+  }
+
+  /* Fila: uma linha que rola de lado, blocos menores. */
+  .app .room__people--fila {
+    padding: 2px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .app .room__people--fila > .room__person {
+    flex: none;
+    width: 112px;
+  }
+
+  /* Blocos 4:3 no celular: o nome não passa mais por cima das iniciais. */
+  .app .room__person {
+    aspect-ratio: 4 / 3;
+  }
+
+  .app .room__people--grade .room__person-avatar {
+    width: 52px;
+    height: 52px;
+    margin-bottom: var(--space-4);
+    font-size: var(--font-size-lg);
+  }
+
+  .app .room__people--fila .room__person-avatar {
+    width: 32px;
+    height: 32px;
+    margin-bottom: var(--space-4);
+  }
+
+  /* Tela cheia: o vídeo ocupa tudo (sem a proporção do palco). */
+  .app .room.is-maximized .room__stage {
+    flex: 1 1 auto;
+    aspect-ratio: auto;
   }
 
   /* Com o dedo não existe "mouse parado", então os controles não somem. */
@@ -405,4 +514,27 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   pointer-events: none;
+}
+
+/*
+ * Celular DEITADO: pouca altura. O palco divide a altura com os controles (em
+ * vez de ter a proporção 16:9 da largura toda, que passaria da tela) e a fila
+ * de pessoas some — quem está na sala continua no cabeçalho e na gaveta.
+ */
+@media (max-height: 500px) and (pointer: coarse) {
+  .app .room--palco .room__stage {
+    flex: 1 1 auto;
+    aspect-ratio: auto;
+    min-height: 0;
+  }
+
+  .app .room--palco .room__people--fila {
+    display: none;
+  }
+
+  .app .room {
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
 }

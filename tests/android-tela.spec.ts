@@ -35,6 +35,7 @@ for (const caminho of ["MediaStreamTrackGenerator", "canvas"] as const) {
       let respostas = 0;
       let parouPeloChat = 0;
       let porta: MessagePort | null = null;
+      let portaDoSom: MessagePort | null = null;
 
       // Um quadro JPEG de um tamanho, com uma cor (como o Android comprime).
       const quadro = async (
@@ -61,7 +62,10 @@ for (const caminho of ["MediaStreamTrackGenerator", "canvas"] as const) {
           porta.onmessage = (e) => {
             if (e.data === "ok") respostas++;
           };
-          window.postMessage("loft-tela", "*", [canal.port2]);
+          // O som chega por um segundo canal (Android 10+).
+          const canalDoSom = new MessageChannel();
+          portaDoSom = canalDoSom.port1;
+          window.postMessage("loft-tela", "*", [canal.port2, canalDoSom.port2]);
           return { ok: true };
         }
         async parar() {
@@ -108,6 +112,33 @@ for (const caminho of ["MediaStreamTrackGenerator", "canvas"] as const) {
       );
       const respondeu = await esperar(() => respostas > antes);
 
+      // O SOM: 20 ms de um tom de 440 Hz por vez, como o Android manda
+      // (PCM 16 bits, estéreo, 48 kHz). A faixa de som tem que mexer.
+      const faixaDoSom = fonte.stream.getAudioTracks()[0] as MediaStreamTrack | undefined;
+      const temSom = faixaDoSom !== undefined;
+      let nivelDoSom = 0;
+      if (faixaDoSom !== undefined) {
+        const ouvido = new AudioContext();
+        await ouvido.resume();
+        const analisador = ouvido.createAnalyser();
+        ouvido.createMediaStreamSource(new MediaStream([faixaDoSom])).connect(analisador);
+        const amostras = new Float32Array(analisador.fftSize);
+        let t = 0;
+        for (let pedaco = 0; pedaco < 40; pedaco++) {
+          const pcm = new Int16Array(960 * 2);
+          for (let i = 0; i < 960; i++, t++) {
+            const v = Math.round(Math.sin((2 * Math.PI * 440 * t) / 48000) * 16000);
+            pcm[i * 2] = v;
+            pcm[i * 2 + 1] = v;
+          }
+          portaDoSom!.postMessage(pcm.buffer, [pcm.buffer]);
+          await new Promise((r) => setTimeout(r, 20));
+          analisador.getFloatTimeDomainData(amostras);
+          nivelDoSom = Math.max(nivelDoSom, ...amostras.map(Math.abs));
+        }
+        void ouvido.close();
+      }
+
       // Parou pelo Android (botão da notificação): a faixa avisa "ended",
       // que é o que o motor da chamada escuta.
       let terminou = false;
@@ -127,6 +158,8 @@ for (const caminho of ["MediaStreamTrackGenerator", "canvas"] as const) {
         terminou,
         parouPeloChat,
         superficie: fonte.surface,
+        temSom,
+        nivelDoSom,
         gerador: "MediaStreamTrackGenerator" in window,
         estado: faixa.readyState,
       };
@@ -140,6 +173,8 @@ for (const caminho of ["MediaStreamTrackGenerator", "canvas"] as const) {
     expect(resultado.terminou, "parar pelo Android avisou o motor").toBe(true);
     expect(resultado.parouPeloChat).toBe(1);
     expect(resultado.superficie).toBe("celular");
+    expect(resultado.temSom, "a fonte traz uma faixa de som").toBe(true);
+    expect(resultado.nivelDoSom, "o som do Android chegou na faixa").toBeGreaterThan(0.05);
     expect(resultado.estado).toBe("ended");
     expect(resultado.gerador).toBe(caminho === "MediaStreamTrackGenerator");
   });

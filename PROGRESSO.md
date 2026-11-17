@@ -147,6 +147,39 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Sala no celular (desenho a-sala), tela cheia no app e som da tela do celular (16/11/2026, ~23h55)
+
+Teste do Leo (celular com celular): a transmissão funcionou, mas a sala no
+celular estava no jeito antigo; tela cheia na amiga apagou tudo e travou os
+botões; e a tela do celular ia sem som ("tem que vir com som").
+
+- **Desenho a-sala** no palco: "Fulano está transmitindo" + "● AO VIVO" em
+  cima, botão de tela cheia com setinhas (sai com as setinhas para dentro),
+  microfone aberto em roxo cheio.
+- **Celular**: título numa linha e "2 pessoas · 0:05" embaixo (antes quebrava
+  em colunas); palco 16:9 do tamanho do vídeo (sem faixa preta enorme);
+  fila de pessoas que rola de lado; blocos 4:3 (o nome não passa mais por
+  cima das iniciais); controles no pé da tela; o "+" das abas sempre à
+  vista. As regras do celular ganharam `.app` na frente (perdiam para as do
+  PC pela ordem dos arquivos).
+- **Celular deitado** passa a usar o layout do celular (antes caía no do PC,
+  três colunas espremidas): `(max-height: 500px) and (pointer: coarse)`;
+  deitado, o palco divide a altura com os controles e a fila some.
+- **Tela cheia no app Android**: a da página não funciona dentro do app (o
+  Capacitor recusa o `onShowCustomView` → página vazia, botões mortos). Agora
+  o plugin "Tela" (`telaCheia`) esconde as barras do sistema e deita a
+  tela; VOLTAR sai da tela cheia.
+- **Som da tela do celular** (Android 10+): `AudioPlaybackCapture` com o som
+  de mídia/jogo dos outros apps, o Loftchat de fora (`excludeUid`), PCM
+  48 kHz estéreo em pedaços de 20 ms por um segundo canal → AudioWorklet →
+  faixa de som junto da tela. Android 9 ou sem permissão: só imagem, com
+  aviso.
+- Testes: `android-tela.spec.ts` ganhou o som (tom de 440 Hz chega na
+  faixa); `capturas-sala-celular.spec.ts` (fotos: assistindo, tela cheia,
+  deitado, transmitindo). Regressão: sala, celular, chat da sala, painel,
+  tela do celular, compartilhar tela (16 passaram; 1 do vídeo que às vezes
+  não chega passou na 2ª tentativa).
+
 ## Etapa 10c — transmitir a tela do celular (16/11/2026, ~20h50)
 
 Decisão do Leo: **B** — a chamada continua na página do app (como hoje) +

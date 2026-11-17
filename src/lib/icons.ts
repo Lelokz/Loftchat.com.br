@@ -46,6 +46,13 @@ export const cameraIcon = (size?: number): string =>
 export const monitorIcon = (size?: number): string =>
   svg('<rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8.5 21h7M12 17v4"/>', size);
 
+/** Tela cheia: as quatro setinhas para fora (e para dentro, ao sair). */
+export const expandIcon = (size?: number): string =>
+  svg('<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>', size);
+
+export const shrinkIcon = (size?: number): string =>
+  svg('<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>', size);
+
 /** Chevron do cabeçalho do grupo. */
 export const chevronDownIcon = (size?: number): string => svg('<path d="m6 9 6 6 6-6"/>', size);
 

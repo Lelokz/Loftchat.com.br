@@ -8,6 +8,7 @@ import { conferirTransmissaoDoAndroid } from './android-tela';
  * no programa não liga nada.
  *
  * O botão VOLTAR do Android segue a ordem que a pessoa espera:
+ *   0. vendo uma transmissão em tela cheia → sai da tela cheia;
  *   1. uma janela aberta (Configurações, confirmação…) → fecha ela, pelo
  *      mesmo caminho do Esc (o evento `cancel` do <dialog>);
  *   2. senão, volta no histórico — é assim que as gavetas fecham (elas
@@ -36,6 +37,12 @@ export function ligarAndroid(): void {
   });
 
   void App.addListener('backButton', ({ canGoBack }) => {
+    // Vendo uma transmissão em tela cheia: VOLTAR sai da tela cheia.
+    const sairDaTelaCheia = document.querySelector<HTMLButtonElement>('.room.is-maximized .room__maximize');
+    if (sairDaTelaCheia !== null) {
+      sairDaTelaCheia.click();
+      return;
+    }
     const janelas = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
     const deCima = janelas[janelas.length - 1];
     if (deCima !== undefined) {
@@ -54,6 +61,7 @@ export function ligarAndroid(): void {
 /** A barra de cima do sistema sumiu de verdade? (`PluginDaTela.java`) */
 interface Tela {
   estado(): Promise<{ escondida: boolean }>;
+  telaCheia(opcoes: { ligar: boolean }): Promise<void>;
   addListener(evento: 'escondida', ouvinte: () => void): Promise<{ remove: () => Promise<void> }>;
 }
 
@@ -98,4 +106,13 @@ export function acompanharChamadaNoAndroid(
       atual = null;
     },
   };
+}
+
+/**
+ * Tela cheia da transmissão no app Android: quem faz é o Android (esconde as
+ * barras e deita a tela). A tela cheia da página não funciona dentro do app.
+ */
+export function telaCheiaNoAndroid(ligar: boolean): void {
+  if (!Capacitor.isNativePlatform()) return;
+  void tela.telaCheia({ ligar }).catch((erro: unknown) => console.warn('[tela cheia]', erro));
 }

@@ -12,6 +12,10 @@ import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
+import android.media.AudioPlaybackCaptureConfiguration;
+import android.media.AudioRecord;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.projection.MediaProjection;
@@ -57,6 +61,12 @@ public class ServicoDaTransmissao extends Service {
 
     /** O canal da página, entregue pelo plugin logo antes de ligar o serviço. */
     static WebMessagePortCompat portaPendente;
+    /** O canal do SOM (null: Android 9 ou menos, ou sem permissão do microfone). */
+    static WebMessagePortCompat portaDoSomPendente;
+
+    /** Som: 48 kHz, estéreo, 16 bits, em pedaços de 20 ms. */
+    private static final int TAXA = 48000;
+    private static final int QUADROS_POR_PEDACO = TAXA / 50;
 
     private static final int LADO_MAIOR = 1280;
     private static final long INTERVALO_MS = 66;
@@ -69,6 +79,9 @@ public class ServicoDaTransmissao extends Service {
     private VirtualDisplay telaVirtual;
     private ImageReader leitor;
     private WebMessagePortCompat porta;
+    private WebMessagePortCompat portaDoSom;
+    private AudioRecord gravador;
+    private Thread fioDoSom;
     private volatile boolean parado;
     private boolean sabeBytes;
 
@@ -119,6 +132,8 @@ public class ServicoDaTransmissao extends Service {
         projecao = dados == null ? null : gerente.getMediaProjection(intent.getIntExtra(EXTRA_CODIGO, 0), dados);
         porta = portaPendente;
         portaPendente = null;
+        portaDoSom = portaDoSomPendente;
+        portaDoSomPendente = null;
         if (projecao == null || porta == null) {
             pararTudo();
             return START_NOT_STICKY;
@@ -155,7 +170,59 @@ public class ServicoDaTransmissao extends Service {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             leitor.getSurface(), null, noFio);
         noFio.postDelayed(pulso, 1000);
+        ligarSom();
         return START_NOT_STICKY;
+    }
+
+    /**
+     * O SOM do celular (Android 10+): tudo que os outros apps tocam — jogo,
+     * vídeo, música. O Loftchat fica DE FORA (a turma não se ouve de volta).
+     * Apps que proíbem a captura (Netflix, ligações) não entram, por regra do
+     * Android. Sem som possível, a transmissão segue só com a imagem.
+     */
+    private void ligarSom() {
+        if (portaDoSom == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return;
+        try {
+            AudioPlaybackCaptureConfiguration config = new AudioPlaybackCaptureConfiguration.Builder(projecao)
+                .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                .excludeUid(android.os.Process.myUid())
+                .build();
+            AudioFormat formato = new AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(TAXA)
+                .setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
+                .build();
+            int minimo = AudioRecord.getMinBufferSize(TAXA, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT);
+            gravador = new AudioRecord.Builder()
+                .setAudioFormat(formato)
+                .setBufferSizeInBytes(Math.max(minimo, QUADROS_POR_PEDACO * 4 * 4))
+                .setAudioPlaybackCaptureConfig(config)
+                .build();
+            gravador.startRecording();
+        } catch (SecurityException | IllegalArgumentException | UnsupportedOperationException | IllegalStateException erro) {
+            gravador = null;
+            return;
+        }
+        final AudioRecord g = gravador;
+        final WebMessagePortCompat destino = portaDoSom;
+        final boolean bytes = sabeBytes;
+        fioDoSom = new Thread(() -> {
+            byte[] pedaco = new byte[QUADROS_POR_PEDACO * 4];
+            while (!parado) {
+                int lidos = g.read(pedaco, 0, pedaco.length);
+                if (lidos <= 0) continue;
+                byte[] copia = java.util.Arrays.copyOf(pedaco, lidos);
+                WebMessageCompat mensagem = bytes
+                    ? new WebMessageCompat(copia)
+                    : new WebMessageCompat(Base64.encodeToString(copia, Base64.NO_WRAP));
+                noPrincipal.post(() -> {
+                    if (!parado) destino.postMessage(mensagem);
+                });
+            }
+        }, "loftchat-som");
+        fioDoSom.start();
     }
 
     /** O tamanho da tela agora (muda ao girar o celular), limitado a 1280 px. */
@@ -266,9 +333,28 @@ public class ServicoDaTransmissao extends Service {
                 fio.quitSafely();
             });
         }
+        if (gravador != null) {
+            // O fio do som sai do laço pelo `parado`; o gravador para depois dele.
+            final AudioRecord g = gravador;
+            final Thread f = fioDoSom;
+            new Thread(() -> {
+                try {
+                    if (f != null) f.join(500);
+                } catch (InterruptedException ignorado) {
+                    Thread.currentThread().interrupt();
+                }
+                try {
+                    g.stop();
+                } catch (IllegalStateException ignorado) {
+                    // já parado
+                }
+                g.release();
+            }, "loftchat-som-fim").start();
+        }
         noPrincipal.post(() -> {
             if (projecao != null) projecao.stop();
             if (porta != null) porta.close();
+            if (portaDoSom != null) portaDoSom.close();
         });
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
         stopSelf();

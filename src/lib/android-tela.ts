@@ -51,12 +51,20 @@ export function transmissaoDoAndroidDisponivel(): boolean {
 }
 
 /** Espera o canal das imagens, que o Android entrega logo depois da autorização. */
-function esperarCanal(): { canal: Promise<MessagePort | null>; correrRelogio: () => void } {
+interface Canais {
+  imagens: MessagePort;
+  /** O som dos outros apps; não vem no Android 9 ou menos, ou sem permissão do microfone. */
+  som: MessagePort | null;
+}
+
+function esperarCanal(): { canal: Promise<Canais | null>; correrRelogio: () => void } {
   let relogio = 0;
-  let terminar: (p: MessagePort | null) => void = () => {};
-  const canal = new Promise<MessagePort | null>((resolver) => {
+  let terminar: (p: Canais | null) => void = () => {};
+  const canal = new Promise<Canais | null>((resolver) => {
     const ouvinte = (e: MessageEvent): void => {
-      if (e.data === 'loft-tela' && e.ports[0] !== undefined) terminar(e.ports[0]);
+      if (e.data === 'loft-tela' && e.ports[0] !== undefined) {
+        terminar({ imagens: e.ports[0], som: e.ports[1] ?? null });
+      }
     };
     terminar = (porta) => {
       window.removeEventListener('message', ouvinte);
@@ -80,21 +88,33 @@ function esperarCanal(): { canal: Promise<MessagePort | null>; correrRelogio: ()
  * ou null se a pessoa recusou na janela do Android (desistência, não erro).
  */
 export async function capturarTelaDoAndroid(): Promise<FonteDeTela | null> {
+  // Criado AGORA, ainda dentro do toque no botão: depois da janela do Android
+  // o navegador poderia deixar o som pausado.
+  const contextoDoSom = new AudioContext({ sampleRate: 48_000 });
+  void contextoDoSom.resume().catch(() => {});
   const espera = esperarCanal();
   let ok = false;
   try {
     ({ ok } = await transmissao.iniciar());
   } catch (erro) {
     espera.correrRelogio();
+    void contextoDoSom.close().catch(() => {});
     throw erro;
   }
   espera.correrRelogio();
-  if (!ok) return null;
-  const porta = await espera.canal;
-  if (porta === null) {
+  if (!ok) {
+    void contextoDoSom.close().catch(() => {});
+    return null;
+  }
+  const canais = await espera.canal;
+  if (canais === null) {
     void transmissao.parar().catch(() => {});
+    contextoDoSom.close().catch(() => {});
     throw new Error('O Android não entregou as imagens da tela.');
   }
+  const porta = canais.imagens;
+  const som = canais.som === null ? null : await ligarSom(contextoDoSom, canais.som);
+  if (som === null) void contextoDoSom.close().catch(() => {});
 
   const Gerador = (window as unknown as { MediaStreamTrackGenerator?: ConstrutorDoGerador }).MediaStreamTrackGenerator;
   let faixa: MediaStreamTrack;
@@ -153,7 +173,7 @@ export async function capturarTelaDoAndroid(): Promise<FonteDeTela | null> {
   });
 
   return {
-    stream: new MediaStream([faixa]),
+    stream: new MediaStream(som === null ? [faixa] : [faixa, som.faixa]),
     surface: 'celular',
     label: '',
     parar: () => {
@@ -163,7 +183,82 @@ export async function capturarTelaDoAndroid(): Promise<FonteDeTela | null> {
       porta.close();
       fecharSaida();
       faixa.stop();
+      som?.parar();
       void transmissao.parar().catch(() => {});
     },
   };
+}
+
+/*
+ * O SOM: pedaços de 20 ms (PCM 16 bits, estéreo, 48 kHz) chegam pelo segundo
+ * canal e tocam num AudioWorklet que vira uma faixa de áudio — nunca no
+ * alto-falante, só para a sala. Fila curta: se acumular mais de 0,3 s
+ * (celular engasgou), descarta o excesso para o som não ficar atrasado.
+ */
+const TOCADOR = `
+class Tocador extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.tamanho = 48000;
+    this.esq = new Float32Array(this.tamanho);
+    this.dir = new Float32Array(this.tamanho);
+    this.ler = 0;
+    this.escrever = 0;
+    this.port.onmessage = (e) => {
+      const pcm = new Int16Array(e.data);
+      for (let i = 0; i + 1 < pcm.length; i += 2) {
+        this.esq[this.escrever] = pcm[i] / 32768;
+        this.dir[this.escrever] = pcm[i + 1] / 32768;
+        this.escrever = (this.escrever + 1) % this.tamanho;
+      }
+      const guardado = (this.escrever - this.ler + this.tamanho) % this.tamanho;
+      if (guardado > 14400) this.ler = (this.escrever - 4800 + this.tamanho) % this.tamanho;
+    };
+  }
+  process(_entradas, saidas) {
+    const [e, d] = saidas[0];
+    for (let i = 0; i < e.length; i++) {
+      if (this.ler === this.escrever) { e[i] = 0; if (d) d[i] = 0; continue; }
+      e[i] = this.esq[this.ler];
+      if (d) d[i] = this.dir[this.ler];
+      this.ler = (this.ler + 1) % this.tamanho;
+    }
+    return true;
+  }
+}
+registerProcessor('loft-tocador', Tocador);
+`;
+
+async function ligarSom(
+  contexto: AudioContext,
+  porta: MessagePort,
+): Promise<{ faixa: MediaStreamTrack; parar: () => void } | null> {
+  try {
+    const endereco = URL.createObjectURL(new Blob([TOCADOR], { type: 'text/javascript' }));
+    await contexto.audioWorklet.addModule(endereco);
+    URL.revokeObjectURL(endereco);
+    const tocador = new AudioWorkletNode(contexto, 'loft-tocador', { numberOfOutputs: 1, outputChannelCount: [2] });
+    const destino = contexto.createMediaStreamDestination();
+    tocador.connect(destino);
+    porta.onmessage = (e: MessageEvent<ArrayBuffer | string>): void => {
+      const dados =
+        typeof e.data === 'string' ? Uint8Array.from(atob(e.data), (c) => c.charCodeAt(0)).buffer : e.data;
+      tocador.port.postMessage(dados, [dados]);
+    };
+    const faixa = destino.stream.getAudioTracks()[0];
+    if (faixa === undefined) return null;
+    return {
+      faixa,
+      parar: () => {
+        porta.close();
+        faixa.stop();
+        tocador.disconnect();
+        void contexto.close().catch(() => {});
+      },
+    };
+  } catch (erro) {
+    console.warn('[som do celular]', erro);
+    porta.close();
+    return null;
+  }
 }

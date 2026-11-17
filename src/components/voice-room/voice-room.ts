@@ -6,10 +6,12 @@ import {
   gearIcon,
   hangupIcon,
   menuIcon,
+  expandIcon,
   micIcon,
   monitorIcon,
   peopleIcon,
   screenShareIcon,
+  shrinkIcon,
   speakerIcon,
 } from '../../lib/icons';
 import type { Member } from '../../types/models';
@@ -136,11 +138,17 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
   const header = el('header', { class: 'room__header' }, [
     drawerButton('Abrir canais', menuIcon(18), props.onOpenChannels, 'left'),
     iconEl(speakerIcon(16), 'icon room__header-icon'),
-    el('h1', { class: 'room__title' }, [channelName]),
-    el('span', { class: 'room__count' }, [
-      participants.length === 1 ? 'só você' : `${participants.length} pessoas`,
+    // Título e "3 pessoas · 12:04" juntos: no celular viram duas linhas, sem
+    // quebrar palavra por palavra.
+    el('div', { class: 'room__heading' }, [
+      el('h1', { class: 'room__title' }, [channelName]),
+      el('span', { class: 'room__meta' }, [
+        el('span', { class: 'room__count' }, [
+          participants.length === 1 ? 'só você' : `${participants.length} pessoas`,
+        ]),
+        relogio(props.joinedAt),
+      ]),
     ]),
-    relogio(props.joinedAt),
     el('span', { class: 'room__header-spacer' }),
     trocarJeito,
     (() => {
@@ -166,7 +174,11 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
     stageSlot = el('div', { class: 'room__video-slot' });
     stageInner = el('div', { class: 'room__screen room__screen--live' }, [
       stageSlot,
-      el('p', { class: 'room__screen-caption' }, [`${screen.sharerName} está transmitindo`]),
+      // Como no desenho da sala (a-sala): quem transmite e o AO VIVO em cima.
+      el('div', { class: 'room__live' }, [
+        el('p', { class: 'room__screen-caption' }, [`${screen.sharerName} está transmitindo`]),
+        el('span', { class: 'room__live-badge' }, ['AO VIVO']),
+      ]),
       maximizeButton(props),
     ]);
   } else if (screen.isMine) {
@@ -181,6 +193,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
     stop.addEventListener('click', props.onToggleScreenShare);
 
     stageInner = el('div', { class: 'room__screen room__screen--mine' }, [
+      el('div', { class: 'room__live' }, [el('span', { class: 'room__live-badge' }, ['AO VIVO'])]),
       el('div', { class: 'room__screen-empty' }, [
         iconEl(monitorIcon(30), 'icon room__screen-icon'),
         el('p', { class: 'room__screen-text' }, ['Você está transmitindo a sua tela']),
@@ -327,13 +340,17 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
    * distinguir "não implementado" de "quebrado". Travado com o motivo no title,
    * a ausência fica explícita.
    */
+  const microfone = controlButton(
+    micIcon(19),
+    props.muted ? 'Ativar microfone' : 'Desativar microfone',
+    props.muted,
+    props.onToggleMute,
+  );
+  // Microfone aberto = botão roxo cheio (desenho a-sala); mudo = apagado.
+  if (!props.muted) microfone.classList.add('room__btn--on');
+
   const controls = el('div', { class: 'room__controls' }, [
-    controlButton(
-      micIcon(19),
-      props.muted ? 'Ativar microfone' : 'Desativar microfone',
-      props.muted,
-      props.onToggleMute,
-    ),
+    microfone,
     screenButton(props),
     controlButton(hangupIcon(19), 'Sair da chamada', false, props.onLeave, true),
   ]);
@@ -434,7 +451,7 @@ function maximizeButton(props: VoiceRoomProps): HTMLElement {
   const button = el(
     'button',
     { class: 'room__maximize', type: 'button', title: label },
-    [iconEl(monitorIcon(16)), el('span', { class: 'sr-only' }, [label])],
+    [iconEl(props.screen.maximized ? shrinkIcon(16) : expandIcon(16)), el('span', { class: 'sr-only' }, [label])],
   );
   button.addEventListener('click', props.onToggleMaximize);
   return button;

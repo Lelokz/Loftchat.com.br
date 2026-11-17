@@ -1,6 +1,9 @@
 package br.com.loftchat;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.content.Intent;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
@@ -80,11 +83,18 @@ public class PluginDaTransmissao extends Plugin {
             WebView pagina = getBridge().getWebView();
             WebMessagePortCompat[] portas = WebViewCompat.createWebMessageChannel(pagina);
             ServicoDaTransmissao.portaPendente = portas[0];
-            WebViewCompat.postWebMessage(
-                pagina,
-                new WebMessageCompat("loft-tela", new WebMessagePortCompat[] { portas[1] }),
-                Uri.parse("*")
-            );
+            // O SOM dos outros apps (Android 10+, com a permissão do microfone,
+            // que a sala de voz já pediu): um segundo canal só para ele.
+            boolean som = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                && getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+            WebMessagePortCompat[] paraAPagina = new WebMessagePortCompat[] { portas[1] };
+            ServicoDaTransmissao.portaDoSomPendente = null;
+            if (som) {
+                WebMessagePortCompat[] doSom = WebViewCompat.createWebMessageChannel(pagina);
+                ServicoDaTransmissao.portaDoSomPendente = doSom[0];
+                paraAPagina = new WebMessagePortCompat[] { portas[1], doSom[1] };
+            }
+            WebViewCompat.postWebMessage(pagina, new WebMessageCompat("loft-tela", paraAPagina), Uri.parse("*"));
             Intent intent = new Intent(getContext(), ServicoDaTransmissao.class)
                 .putExtra(ServicoDaTransmissao.EXTRA_CODIGO, resultado.getResultCode())
                 .putExtra(ServicoDaTransmissao.EXTRA_DADOS, resultado.getData());
