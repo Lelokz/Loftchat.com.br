@@ -36,6 +36,17 @@ jobs:
             echo "A etiqueta é $GITHUB_REF_NAME, mas o desktop/package.json diz $versao."; exit 1
           fi
           node scripts/notas-da-versao.mjs "$versao" > /dev/null
+      - name: Página da versão, como RASCUNHO (uma só)
+        # Criada aqui, antes de tudo: o Windows e o Linux só mandam os arquivos
+        # para ela. Antes cada um a criava, e o envio paralelo do Windows criou
+        # DUAS páginas v0.2.0 (17/11/2026). Ela só fica pública no fim
+        # (publicar), com tudo dentro.
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/notas-da-versao.mjs "$GITHUB_REF_NAME" > notas.md
+          gh release create "$GITHUB_REF_NAME" --draft --title "Loftchat ${GITHUB_REF_NAME#v}" --notes-file notas.md
 
   windows:
     needs: conferir
@@ -146,8 +157,8 @@ jobs:
           path: Loftchat-Android.apk
 
   publicar:
-    # O APK do Android e o texto das novidades entram na versão que o
-    # Windows e o Linux já publicaram.
+    # O APK do Android entra no rascunho em que o Windows e o Linux já
+    # puseram os deles, e a versão fica pública.
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [linux, android]
     runs-on: ubuntu-latest
@@ -160,6 +171,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/notas-da-versao.mjs "$GITHUB_REF_NAME" > notas.md
           gh release upload "$GITHUB_REF_NAME" Loftchat-Android.apk --clobber
-          gh release edit "$GITHUB_REF_NAME" --title "Loftchat ${GITHUB_REF_NAME#v}" --notes-file notas.md
+          # Tudo dentro: agora sim fica pública (e vira a "última versão" que
+          # os programas e o app procuram).
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
