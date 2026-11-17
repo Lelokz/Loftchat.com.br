@@ -119,21 +119,39 @@ const QUATRO_HORAS = 4 * 60 * 60 * 1000;
 let atualizacaoPronta = null; // a versão baixada, ou null
 
 function ligarAtualizacao() {
-  if (!app.isPackaged) return;
+  // Fora do programa instalado não há o que atualizar — mas o chat pergunta
+  // mesmo assim (Configurações → Sobre): responde "nada".
+  if (!app.isPackaged) {
+    ipcMain.handle('loft:atualizacao-estado', () => null);
+    ipcMain.handle('loft:procurar-atualizacao', () => null);
+    return;
+  }
   const { autoUpdater } = require('electron-updater');
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  const avisar = (canal, valor) => janela?.webContents.send(canal, valor);
+  // Achou uma versão nova: o chat já mostra "baixando" enquanto ela desce.
+  autoUpdater.on('update-available', (info) => avisar('loft:atualizacao-disponivel', String(info.version)));
+  autoUpdater.on('download-progress', (p) => avisar('loft:atualizacao-progresso', Math.round(p.percent)));
   autoUpdater.on('update-downloaded', (info) => {
     atualizacaoPronta = String(info.version);
-    janela?.webContents.send('loft:atualizacao-pronta', atualizacaoPronta);
+    avisar('loft:atualizacao-pronta', atualizacaoPronta);
   });
   // Sem internet, GitHub fora do ar etc.: tenta de novo na próxima rodada.
   autoUpdater.on('error', (erro) => console.warn('[atualização]', erro?.message ?? erro));
-  const procurar = () => void autoUpdater.checkForUpdates().catch(() => {});
-  procurar();
-  setInterval(procurar, QUATRO_HORAS);
+  const procurar = () => autoUpdater.checkForUpdates().catch(() => null);
+  void procurar();
+  setInterval(() => void procurar(), QUATRO_HORAS);
 
   ipcMain.handle('loft:atualizacao-estado', () => atualizacaoPronta);
+  // Botão "Procurar atualizações" (Configurações → Sobre): a versão achada,
+  // se for mais nova que esta; null se já está na última.
+  ipcMain.handle('loft:procurar-atualizacao', async (evento) => {
+    if (!doLoft(evento.senderFrame?.url)) return null;
+    const achado = await procurar();
+    const versao = achado?.updateInfo?.version;
+    return achado?.isUpdateAvailable && versao ? String(versao) : null;
+  });
   ipcMain.handle('loft:atualizar-agora', (evento) => {
     if (!doLoft(evento.senderFrame?.url) || atualizacaoPronta === null) return;
     // Fecha a janela e reabre na versão nova.

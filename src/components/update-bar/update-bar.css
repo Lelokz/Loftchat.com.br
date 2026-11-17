@@ -1,4 +1,4 @@
-/* Faixa de atualização do programa (etapa 9d): embaixo, no meio, sem tampar o chat. */
+/* Faixa de atualização (programa e app Android): embaixo, no meio, sem tampar o chat. */
 
 .update-bar {
   position: fixed;
@@ -17,7 +17,18 @@
   color: var(--text-primary);
   font-size: var(--font-size-sm);
   transform: translateX(-50%);
+}
+
+/* Só ao aparecer (a faixa é redesenhada a cada % do download). */
+.update-bar--entra {
   animation: update-bar-entra 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.update-bar__erro {
+  flex-basis: 100%;
+  order: 9;
+  color: var(--danger);
+  font-size: var(--font-size-xs);
 }
 
 .update-bar__ponto {
@@ -66,7 +77,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .update-bar {
+  .update-bar--entra {
     animation: none;
+  }
+}
+
+/* Celular: em cima, logo abaixo da barra de abas (embaixo fica a caixa de
+   mensagem), na largura da tela. */
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
+  .update-bar {
+    top: calc(var(--topbar-h) + var(--inset-top, 0px) + var(--space-2));
+    bottom: auto;
+    flex-wrap: wrap;
+    width: calc(100vw - var(--space-4));
+    max-width: none;
   }
 }

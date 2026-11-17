@@ -1,5 +1,22 @@
 apply plugin: 'com.android.application'
 
+/*
+ * A VERSÃO vem de desktop/package.json (a mesma do programa e do chat).
+ * versionCode: 0.2.0 → 200, 1.4.15 → 10415 (cresce a cada versão, que é o que
+ * o Android exige para instalar por cima).
+ */
+def versaoDoLoft = new groovy.json.JsonSlurper().parse(file('../../desktop/package.json')).version
+def partesDaVersao = versaoDoLoft.tokenize('.').collect { it.toInteger() }
+def codigoDaVersao = partesDaVersao[0] * 10000 + partesDaVersao[1] * 100 + partesDaVersao[2]
+
+/*
+ * ASSINATURA de verdade (a que permite atualizar por cima), só quando o
+ * GitHub monta a versão publicada: o arquivo e a senha vêm dos segredos do
+ * repositório (LOFT_CHAVE, LOFT_CHAVE_SENHA). Sem eles (no PC), o release
+ * sai sem assinatura e o de teste usa a chave de teste.
+ */
+def chaveDoLoft = System.getenv('LOFT_CHAVE')
+
 android {
     namespace = "br.com.loftchat"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +24,8 @@ android {
         applicationId "br.com.loftchat"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode codigoDaVersao
+        versionName versaoDoLoft
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +33,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (chaveDoLoft) {
+            loftchat {
+                storeFile file(chaveDoLoft)
+                storePassword System.getenv('LOFT_CHAVE_SENHA')
+                keyAlias 'loftchat'
+                keyPassword System.getenv('LOFT_CHAVE_SENHA')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (chaveDoLoft) signingConfig signingConfigs.loftchat
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

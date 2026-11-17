@@ -1,45 +1,63 @@
 import './update-bar.css';
 
 import { el } from '../../lib/dom';
-import type { LoftDesktop } from '../../lib/desktop';
+import { aoMudarAtualizacao, estadoDaAtualizacao, instalarAtualizacao } from '../../lib/atualizacao';
+import type { EstadoDaAtualizacao } from '../../lib/atualizacao';
 
 /**
- * FAIXA DE ATUALIZAÇÃO (etapa 9d) — só no programa. Aparece quando a versão
- * nova já foi baixada por trás: "Reiniciar" fecha e reabre nela; "Depois"
- * só esconde (ela entra sozinha quando o programa fechar). Não é pop-up: não
- * rouba o foco nem tampa o que se está fazendo.
+ * FAIXA DE ATUALIZAÇÃO — no programa (Windows e Linux) e no app Android.
+ *
+ * "Atualização disponível · versão X" com Depois e Atualizar. Atualizar: o
+ * programa reinicia na versão nova; o Android baixa (a faixa mostra quanto) e
+ * abre a tela de instalar. Depois: a faixa some até sair outra versão, o
+ * Loftchat segue igual, e a atualização fica em Configurações → Sobre o
+ * Loftchat. Não é pop-up: não rouba o foco nem tampa o que se está fazendo.
  */
-export function ligarFaixaDeAtualizacao(desktop: LoftDesktop): void {
+export function ligarFaixaDeAtualizacao(): void {
   let faixa: HTMLElement | null = null;
+  /** A versão que a pessoa mandou para "Depois". */
+  let dispensada: string | null = null;
 
-  const mostrar = (versao: string): void => {
-    faixa?.remove();
-    const reiniciar = el('button', { class: 'update-bar__reiniciar', type: 'button' }, ['Reiniciar']);
-    const depois = el('button', { class: 'update-bar__depois', type: 'button' }, ['Depois']);
-    reiniciar.addEventListener('click', () => {
-      reiniciar.textContent = 'Reiniciando…';
-      reiniciar.setAttribute('disabled', '');
-      void desktop.atualizarAgora?.();
-    });
-    depois.addEventListener('click', () => {
+  const desenhar = (e: EstadoDaAtualizacao): void => {
+    const mostrar = e.nova !== null && (e.pronta || e.progresso !== null) && e.nova !== dispensada;
+    if (!mostrar) {
       faixa?.remove();
       faixa = null;
-    });
-    faixa = el('div', { class: 'update-bar', role: 'status', 'aria-label': 'Atualização do Loftchat' }, [
-      el('span', { class: 'update-bar__ponto', 'aria-hidden': 'true' }),
-      el('span', { class: 'update-bar__texto' }, [
-        el('b', {}, ['Atualização pronta']),
-        ` · versão ${versao}`,
-      ]),
-      depois,
-      reiniciar,
+      return;
+    }
+
+    const baixando = e.progresso !== null && !(e.onde === 'pc' && e.pronta);
+    const texto = el('span', { class: 'update-bar__texto' }, [
+      el('b', {}, [baixando ? 'Baixando a atualização' : 'Atualização disponível']),
+      baixando ? ` · versão ${e.nova} · ${e.progresso}%` : ` · versão ${e.nova}`,
     ]);
-    document.body.append(faixa);
+
+    const depois = el('button', { class: 'update-bar__depois', type: 'button' }, ['Depois']);
+    depois.addEventListener('click', () => {
+      dispensada = e.nova;
+      desenhar(estadoDaAtualizacao());
+    });
+
+    const atualizar = el('button', { class: 'update-bar__reiniciar', type: 'button' }, [
+      e.onde === 'pc' && e.progresso === 100 ? 'Reiniciando…' : 'Atualizar',
+    ]);
+    if (!e.pronta || e.progresso !== null) atualizar.setAttribute('disabled', '');
+    atualizar.addEventListener('click', () => void instalarAtualizacao());
+
+    const novo = el('div', { class: 'update-bar', role: 'status', 'aria-label': 'Atualização do Loftchat' }, [
+      el('span', { class: 'update-bar__ponto', 'aria-hidden': 'true' }),
+      texto,
+      e.erro !== null && el('span', { class: 'update-bar__erro' }, [e.erro]),
+      depois,
+      atualizar,
+    ]);
+    if (faixa === null) {
+      novo.classList.add('update-bar--entra');
+      document.body.append(novo);
+    } else faixa.replaceWith(novo);
+    faixa = novo;
   };
 
-  desktop.aoAtualizacaoPronta?.(mostrar);
-  // Já baixada antes de a página carregar (ex.: recarregou).
-  void desktop.atualizacaoPronta?.().then((versao) => {
-    if (versao) mostrar(versao);
-  });
+  aoMudarAtualizacao(desenhar);
+  desenhar(estadoDaAtualizacao());
 }

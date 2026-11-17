@@ -21,6 +21,14 @@ contextBridge.exposeInMainWorld('loftDesktop', {
     ipcRenderer.on('loft:atualizacao-pronta', (_evento, versao) => ouvinte(String(versao)));
   },
   atualizarAgora: () => ipcRenderer.invoke('loft:atualizar-agora'),
+  // Achou versão nova (baixando), quanto já baixou, e "procurar agora".
+  aoAtualizacaoDisponivel: (ouvinte) => {
+    ipcRenderer.on('loft:atualizacao-disponivel', (_evento, versao) => ouvinte(String(versao)));
+  },
+  aoProgressoDaAtualizacao: (ouvinte) => {
+    ipcRenderer.on('loft:atualizacao-progresso', (_evento, pct) => ouvinte(Number(pct)));
+  },
+  procurarAtualizacao: () => ipcRenderer.invoke('loft:procurar-atualizacao'),
   // Link de convite com o programa já aberto (etapa 9b): só o código chega.
   aoAbrirConvite: (ouvinte) => {
     ipcRenderer.on('loft:convite', (_evento, codigo) => ouvinte(String(codigo)));

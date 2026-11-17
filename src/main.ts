@@ -28,6 +28,7 @@ import { loftDesktop } from './lib/desktop';
 import { emSite } from './lib/router';
 import { ligarAndroid } from './lib/android';
 import { ligarFaixaDeAtualizacao } from './components/update-bar/update-bar';
+import { ligarAtualizacao } from './lib/atualizacao';
 import { authErrorMessage } from './lib/auth-errors';
 import { auth } from './lib/firebase';
 import { getInvite, isMemberOf, joinGroup, upsertUserProfile } from './lib/firestore';
@@ -517,11 +518,10 @@ loftDesktop()?.aoAbrirConvite?.((codigo) => navigate(`/convite/${codigo}`));
 // App Android (etapa 10a): o botão voltar do sistema.
 ligarAndroid();
 
-// Programa (etapa 9d): a faixa "Atualização pronta / Reiniciar".
-{
-  const desktop = loftDesktop();
-  if (desktop !== null) ligarFaixaDeAtualizacao(desktop);
-}
+// Programa e app Android: procurar atualização e a faixa "Atualização
+// disponível / Atualizar" (lib/atualizacao.ts). No site não há o que atualizar.
+ligarAtualizacao();
+ligarFaixaDeAtualizacao();
 
 onAuthStateChanged(auth, (user) => {
   if (signingUp) return;

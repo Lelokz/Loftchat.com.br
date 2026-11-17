@@ -1,0 +1,24 @@
+[
+  {
+    "versao": "0.2.0",
+    "data": "2026-11-17",
+    "itens": [
+      "O Loftchat agora se atualiza sozinho: quando sai uma versão nova, aparece um aviso com o botão Atualizar (no computador e no Android).",
+      "Configurações → Sobre o Loftchat: a sua versão, as novidades de cada versão e o botão de instalar a atualização.",
+      "Transmitir a tela do celular, agora com o som dos outros apps (Android 10 ou mais novo).",
+      "A tela transmitida do Windows agora vai com som.",
+      "Sala de voz nova no celular: AO VIVO em cima da tela, tela cheia de verdade, tudo arrumado em pé e deitado.",
+      "Convite por código: cada grupo tem um código de 6 letras. Quem recebe entra pelo + → Entrar num grupo.",
+      "Botões que ainda não funcionam dizem o porquê quando você toca neles."
+    ]
+  },
+  {
+    "versao": "0.1.0",
+    "data": "2026-11-16",
+    "itens": [
+      "Primeira versão do programa para Windows e Linux e do app para Android.",
+      "Grupos com canais, salas de voz, chat da sala e transmissão de tela com som.",
+      "Configurações completas: perfil, aparência, grupos e voz e áudio."
+    ]
+  }
+]

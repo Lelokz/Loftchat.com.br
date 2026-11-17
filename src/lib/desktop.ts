@@ -33,6 +33,12 @@ export interface LoftDesktop {
   aoAtualizacaoPronta?(ouvinte: (versao: string) => void): void;
   /** Fecha e reabre na versão nova. */
   atualizarAgora?(): Promise<void>;
+  /** Achou uma versão nova; ela começa a baixar sozinha. */
+  aoAtualizacaoDisponivel?(ouvinte: (versao: string) => void): void;
+  /** Quanto da versão nova já baixou (0–100). */
+  aoProgressoDaAtualizacao?(ouvinte: (pct: number) => void): void;
+  /** Procura agora: a versão nova achada, ou null se esta é a última. */
+  procurarAtualizacao?(): Promise<string | null>;
   /** Etapa 9b: um link `loftchat://convite/…` chegou com o programa aberto. */
   aoAbrirConvite?(ouvinte: (codigo: string) => void): void;
 }

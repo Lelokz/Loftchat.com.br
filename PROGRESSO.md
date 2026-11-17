@@ -147,6 +147,39 @@ do GitHub: o Firebase grátis só deixa baixar 360 MB/dia.
 PC no Windows, vídeo que às vezes não chega) → publicar (o site ganha os
 botões Windows, Linux e Android).
 
+## Atualização sozinha nos três + Sobre o Loftchat (17/11/2026) — versão 0.2.0
+
+Pedido do Leo: nada de APK pelo WhatsApp; o próprio Loft sabe que tem versão
+nova, avisa e atualiza (Windows, Linux e Android). "Depois" = segue
+funcionando igual, sem as novidades; a atualização fica nas Configurações.
+
+- **Versão num lugar só**: `desktop/package.json` → programa, app Android
+  (`versionName`/`versionCode` no build.gradle: 0.2.0 → 200) e chat
+  (`__VERSAO__` no vite.config.ts).
+- **Novidades** em `novidades.json` (português de quem usa): aparecem em
+  Sobre e viram o texto da versão no GitHub (`scripts/notas-da-versao.mjs`).
+  **Toda versão nova precisa da sua entrada lá antes da etiqueta.**
+- `src/lib/atualizacao.ts`: um estado só. PC = electron-updater (achou →
+  baixando % → pronta → Atualizar reinicia); Android = pergunta às Releases
+  (`/releases/latest`), Atualizar baixa o APK (`PluginDoAtualizador.java`) e
+  abre a tela de instalar do Android (o toque em Instalar é da pessoa; na 1ª
+  vez pede "permitir desta fonte"). Site: sempre a mais nova.
+- Faixa "Atualização disponível · versão X" (Depois / Atualizar), em cima no
+  celular; Configurações → **Sobre o Loftchat** (versão, Procurar
+  atualizações / Instalar atualização, novidades de cada versão).
+- **Assinatura do Android**: chave própria em
+  `Arquivo/Android-Ferramentas/chave-loftchat/` (fora do repositório); no
+  GitHub pelos segredos `LOFT_CHAVE_BASE64` e `LOFT_CHAVE_SENHA`. Quem tem o
+  APK de teste (chave de teste) desinstala uma vez.
+- **Publicar uma versão**: subir `desktop/package.json` + entrada no
+  `novidades.json`, commit, etiqueta `vX.Y.Z` → o GitHub monta Windows,
+  Linux e Android e publica nas Releases com as novidades.
+- **Cuidado com versões velhas**: quem não atualiza continua usando. Regra
+  do Firestore nova não pode quebrar o básico (mensagem, chamada) de quem
+  ficou numa versão anterior.
+- Testes: `atualizacao.spec.ts` (site; programa de mentira: baixando %,
+  pronta, Depois, Sobre, Instalar). Regressão: 24 passaram.
+
 ## Sala no celular (desenho a-sala), tela cheia no app e som da tela do celular (16/11/2026, ~23h55)
 
 Teste do Leo (celular com celular): a transmissão funcionou, mas a sala no

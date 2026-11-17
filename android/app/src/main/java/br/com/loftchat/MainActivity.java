@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PluginDaChamada.class);
         registerPlugin(PluginDaTela.class);
         registerPlugin(PluginDaTransmissao.class);
+        registerPlugin(PluginDoAtualizador.class);
         super.onCreate(savedInstanceState);
 
         // A página continua com prioridade alta com o app atrás: a voz e a

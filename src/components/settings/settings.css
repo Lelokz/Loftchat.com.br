@@ -1299,3 +1299,102 @@
   color: var(--text-muted);
   font-size: var(--font-size-xs);
 }
+
+/* --- Sobre o Loftchat (17/11/2026) --------------------------------------- */
+
+.sobre__cartao {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-raised);
+}
+
+.sobre__marca {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background-image: var(--accent-gradient);
+  color: var(--accent-on);
+}
+
+.sobre__nome {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.sobre__nome b {
+  color: var(--accent-text);
+}
+
+.sobre__numero {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.sobre__estado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.sobre__estado-texto {
+  color: var(--text-primary);
+}
+
+.sobre__instalar {
+  background-image: var(--accent-gradient);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  font-weight: 700;
+}
+
+.sobre__instalar:disabled,
+.sobre__procurar:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sobre__novidades {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sobre__versao {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sobre__versao-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.sobre__versao-data {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.sobre__itens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-4);
+  list-style: disc;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}

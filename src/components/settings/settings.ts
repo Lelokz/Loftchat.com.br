@@ -7,7 +7,8 @@ import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
 import { renderVoiceSection } from './voice-section';
-import { loftDesktop } from '../../lib/desktop';
+import { renderSobreSection } from './sobre-section';
+import type { SobreSection } from './sobre-section';
 import type { VoiceSection } from './voice-section';
 import { MAX_FOLDER_NAME, MAX_FOLDERS, MAX_GROUP_LABEL, saveAppearance, saveFolders, saveGroupLabels, saveTabPrefs } from '../../lib/private-prefs';
 import { accountAppearance, previewAppearance, sameAppearance, setAccountAppearance } from '../../lib/appearance';
@@ -83,7 +84,7 @@ export interface SettingsOptions {
   fundoCanal?: { id: string; label: string };
 }
 
-export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz';
+export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -266,13 +267,8 @@ export function openSettings(options: SettingsOptions): void {
     onSignOut();
   });
 
-  // No programa (etapa 9d): qual versão está rodando.
-  const versao = el('span', { class: 'settings__versao' });
-  versao.hidden = true;
-  void loftDesktop()?.versao?.().then((v) => {
-    versao.textContent = `Loftchat ${v} (beta)`;
-    versao.hidden = false;
-  });
+  // Qual versão está rodando (os detalhes ficam em Sobre o Loftchat).
+  const versao = el('span', { class: 'settings__versao' }, [`Loftchat ${__VERSAO__} (beta)`]);
 
   const menu = el('nav', { class: 'settings__nav', 'aria-label': 'Seções das configurações' }, [
     el('span', { class: 'settings__brand' }, [
@@ -285,6 +281,8 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
     itemDoMenu('voz', 'Voz e áudio', micIcon(18)),
+    el('span', { class: 'settings__nav-label' }, ['Loftchat']),
+    itemDoMenu('sobre', 'Sobre o Loftchat', logoIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
     versao,
     sair,
@@ -914,9 +912,14 @@ export function openSettings(options: SettingsOptions): void {
   /** A seção Voz e áudio aberta (o teste do microfone para ao sair dela). */
   let secaoDeVoz: VoiceSection | null = null;
 
+  /** A seção Sobre aberta (para de acompanhar a atualização ao sair dela). */
+  let secaoSobre: SobreSection | null = null;
+
   function mostrar(secao: Secao): void {
     secaoDeVoz?.parar();
     secaoDeVoz = null;
+    secaoSobre?.parar();
+    secaoSobre = null;
     secaoAtual = secao;
     for (const [qual, botao] of botoesDoMenu) {
       botao.classList.toggle('is-active', qual === secao);
@@ -939,6 +942,9 @@ export function openSettings(options: SettingsOptions): void {
     } else if (secao === 'voz') {
       secaoDeVoz = renderVoiceSection();
       conteudo.replaceChildren(...secaoDeVoz.elementos);
+    } else if (secao === 'sobre') {
+      secaoSobre = renderSobreSection();
+      conteudo.replaceChildren(...secaoSobre.elementos);
     } else if (secao === 'aparencia') {
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });
       erroGeral.hidden = true;
@@ -1232,6 +1238,8 @@ export function openSettings(options: SettingsOptions): void {
     // O teste do microfone não pode ficar ligado com a tela fechada.
     secaoDeVoz?.parar();
     secaoDeVoz = null;
+    secaoSobre?.parar();
+    secaoSobre = null;
     // Saiu sem salvar (sair da conta fecha à força): a prévia não fica.
     previewAppearance(null);
     dialog.remove();
