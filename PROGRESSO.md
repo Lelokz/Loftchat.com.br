@@ -2,6 +2,39 @@
 
 Estado em 15/11/2026.
 
+## Mídia, figurinhas, emojis e YouTube (23/11/2026) — versão 0.5.0
+
+Fotos aprovadas ("mete bala"; painel com Recentes em cima e Favoritas
+embaixo, "+ Criar figurinha" SEMPRE o 1º das Favoritas; emojis Noto, não
+Twemoji). R2 ligado por último, com ele no PC.
+
+- **Arquivos no R2 pelo carteiro** (`carteiro/src/arquivos.ts`, binding
+  `ARQUIVOS`, balde `loftchat-arquivos`): `POST /arquivo?tipo=` com login
+  (imagem/GIF até 20 MB, vídeo 50 MB, capa e figurinha 1 MB, 120 envios por
+  hora por pessoa), `GET /arquivo/<chave>` público com Range (vídeo avança).
+  Limpeza diária (cron 06:17 UTC): some o que tem mais de 60 dias; passando
+  de 8 GB, 30 dias; com 9,5 GB o envio para (507). Figurinha nunca some.
+- **App** (`src/lib/midia.ts`, `src/lib/envios.ts`): imagem encolhida (2048 px,
+  WebP 0,85); GIF e vídeo como estão; vídeo ganha capa (WebP 720 px). Mensagem
+  `kind` image/gif/video/sticker com `attachment` (url do carteiro — url de
+  fora vira texto, `arquivoDoLoft`). Fila "Enviando… %" no campo. Imagem em
+  tela cheia (`<dialog>`), GIF com etiqueta, vídeo só carrega no play,
+  arquivo vencido vira aviso (o `onerror`). Quem já viu continua vendo pelo
+  cache do aparelho. Notificação de mídia sem legenda: "📷 Foto" etc.
+- **Emojis** (`src/lib/emojis.ts`, `src/components/painel-midia/`): Noto Color
+  Emoji embutida (arquivo ÚNICO de 5,8 MB — os pedaços por faixa não desenham
+  no Chromium; testado), na pilha de todas as fontes; dados emojibase-data
+  pt; categorias na coluna, busca sem acento, tom de pele, 24 recentes.
+- **Figurinhas** (`src/lib/figurinhas.ts`, `src/components/figurinhas/`):
+  `figurinhas/{uid}` (favoritas ≤ 300, recentes 10; regra nova). Criador com
+  formas e o mesmo jeito do ajustador; sai até 512 px com borda branca
+  (menos no original). Favoritar pelo botão direito da mensagem.
+- **YouTube** (`src/lib/youtube.ts`): cartão com thumb (i.ytimg.com) e título
+  pelo oEmbed (o YouTube libera direto). Android já abria link fora pelo
+  Capacitor (ACTION_VIEW → app do YouTube ou navegador).
+- **Testes**: emojis, youtube, arquivos (carteiro + R2 local; a regra dos
+  8 GB numa lista falsa), midia, figurinhas.
+
 ## Não lidas (23/11/2026) — versão 0.4.5
 
 Foto e plano aprovados ("mete bala"). Bolinha vermelha com número

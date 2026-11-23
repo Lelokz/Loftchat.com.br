@@ -1,5 +1,18 @@
 [
   {
+    "versao": "0.5.0",
+    "data": "2026-11-23",
+    "itens": [
+      "Mande imagem, GIF e vídeo! Pelo + do campo de mensagem, colando (Ctrl+V) ou arrastando o arquivo para a conversa. O texto do campo vai junto como legenda.",
+      "Imagem abre em tela cheia ao tocar. GIF anima sozinho. Vídeo de até 50 MB, com capa, duração e tamanho; só carrega quando você dá play.",
+      "Figurinhas: crie as suas pelo próprio Loftchat, no formato quadrado, retângulo, círculo ou o original da imagem, ajustando como a foto de perfil. Elas aparecem pequenas no chat, sem balão.",
+      "Painel novo no botão de figurinha: Emojis, Figurinhas e GIFs (em breve). Nas figurinhas: as Recentes em cima e as Favoritas embaixo. Para favoritar a figurinha de um amigo, clique nela com o botão direito.",
+      "Todos os emojis, os bonitinhos do Google, iguais em qualquer celular e PC: por categoria, com busca em português, tom de pele e recentes.",
+      "Link de vídeo do YouTube mostra a capa, o título e o canal. Tocar abre no navegador (PC) ou no app do YouTube (celular).",
+      "Os arquivos ficam guardados por 60 dias. Depois disso, aparece \"Este arquivo expirou\". As figurinhas ficam para sempre."
+    ]
+  },
+  {
     "versao": "0.4.5",
     "data": "2026-11-23",
     "itens": [
