@@ -589,3 +589,125 @@
 .youtube__canal:empty {
   display: none;
 }
+
+/* --- Imagem, GIF, vídeo e figurinha (0.5.0) ------------------------------- */
+
+.midia {
+  position: relative;
+  /* Largura FIXA (não %): o balão encolhe até o conteúdo, e um GIF pequeno sumiria. */
+  width: 340px;
+  max-width: 100%;
+  max-height: 420px;
+  margin: var(--space-1) 0 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background-color: var(--surface-sunken);
+}
+
+.midia img,
+.midia video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.midia video {
+  object-fit: contain;
+  background: #000;
+}
+
+.midia--abre {
+  cursor: zoom-in;
+}
+
+.midia__gif {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.midia--video {
+  min-height: 160px;
+  background-color: #000;
+}
+
+.midia__capa {
+  position: absolute;
+  inset: 0;
+}
+
+.midia__play {
+  position: absolute;
+  inset: 0;
+  width: 56px;
+  height: 56px;
+  margin: auto;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+}
+
+.midia__play::after {
+  content: '';
+  display: block;
+  margin-left: 21px;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  border-left: 18px solid #fff;
+}
+
+.midia__play:hover {
+  background: rgb(0 0 0 / 75%);
+}
+
+.midia__rotulo {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 65%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.midia__rotulo:empty {
+  display: none;
+}
+
+.midia-expirou {
+  margin-top: var(--space-1);
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Figurinha: pequena e sem balão. */
+.figurinha {
+  display: block;
+  width: auto;
+  max-width: 160px;
+  height: auto;
+  max-height: 160px;
+}
+
+.message--figurinha .message__bubble {
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+
+.message--figurinha .message__meta {
+  padding: 0 var(--space-2);
+}

@@ -43,6 +43,7 @@ import type { DocumentData, Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { avisarCarteiro } from './avisos';
+import { arquivoDoLoft } from './midia';
 import { isPermissionDenied } from './firestore-errors';
 import { pairId } from './friends';
 import { initials } from './format';
@@ -169,6 +170,31 @@ function toChannel(id: string, data: DocumentData): Channel {
  * Os campos comuns a `Message` (grupo) e `DmMessage` (PV) — o que os dois
  * convertores abaixo compartilham. Ver `MessageBase` em `types/models.ts`.
  */
+/** Um arquivo mandado (0.5.0): o tipo da mensagem e o anexo (src/lib/midia.ts). */
+export interface Midia {
+  kind: MessageKind;
+  attachment: Attachment;
+}
+
+/** Como uma mensagem só com arquivo aparece numa prévia ou citação. */
+export function rotuloDaMidia(kind: MessageKind | undefined): string {
+  switch (kind) {
+    case 'image':
+      return '📷 Foto';
+    case 'gif':
+      return 'GIF';
+    case 'video':
+      return '🎬 Vídeo';
+    case 'sticker':
+      return 'Figurinha';
+    default:
+      return '';
+  }
+}
+
+/** Tipos de mensagem com arquivo (0.5.0). Arquivo de fora do Loftchat vira texto. */
+const TIPOS_COM_ANEXO = new Set<unknown>(['image', 'gif', 'video', 'sticker']);
+
 function toMessageBase(id: string, data: DocumentData): MessageBase {
   const kind = data['kind'];
   const attachment = data['attachment'];
@@ -176,8 +202,7 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
   const message: MessageBase = {
     id,
     authorId: typeof data['authorId'] === 'string' ? data['authorId'] : '',
-    kind:
-      kind === 'image' || kind === 'file' || kind === 'audio' ? (kind as MessageKind) : 'text',
+    kind: TIPOS_COM_ANEXO.has(kind) && arquivoDoLoft((attachment as { url?: unknown } | null)?.url) ? (kind as MessageKind) : 'text',
     body: typeof data['body'] === 'string' ? data['body'] : '',
     sentAt: typeof data['sentAt'] === 'string' ? data['sentAt'] : '',
   };
@@ -643,9 +668,10 @@ export async function sendMessage(
   authorId: MemberId,
   rawBody: string,
   replyTo?: ReplyTo,
+  midia?: Midia,
 ): Promise<void> {
   const body = rawBody.trim();
-  if (body === '') return;
+  if (body === '' && midia === undefined) return;
 
   const sentAt = nowIso();
   const nova = await withTimeout(
@@ -653,9 +679,10 @@ export async function sendMessage(
       groupId,
       channelId,
       authorId,
-      kind: 'text',
+      kind: midia?.kind ?? 'text',
       body,
       sentAt,
+      ...(midia === undefined ? {} : { attachment: midia.attachment }),
       // Só entra quando existe: documento com `replyTo: undefined` é recusado.
       ...(replyTo === undefined ? {} : { replyTo }),
     }),
@@ -683,7 +710,7 @@ export function buildReplyTo(message: MessageBase, authorName: string): ReplyTo 
     messageId: message.id,
     authorId: message.authorId,
     authorName,
-    excerpt: excerptOf(message.body),
+    excerpt: excerptOf(message.body !== '' ? message.body : rotuloDaMidia(message.kind)),
     sentAt: message.sentAt,
   };
 }
@@ -1186,9 +1213,10 @@ export async function sendDmMessage(
   other: MemberId,
   rawBody: string,
   replyTo?: ReplyTo,
+  midia?: Midia,
 ): Promise<void> {
   const body = rawBody.trim();
-  if (body === '') return;
+  if (body === '' && midia === undefined) return;
 
   const threadId = pairId(me, other);
   const sentAt = nowIso();
@@ -1198,9 +1226,10 @@ export async function sendDmMessage(
   batch.set(nova, {
     threadId,
     authorId: me,
-    kind: 'text',
+    kind: midia?.kind ?? 'text',
     body,
     sentAt,
+    ...(midia === undefined ? {} : { attachment: midia.attachment }),
     ...(replyTo === undefined ? {} : { replyTo }),
   });
   batch.set(
@@ -1219,7 +1248,7 @@ export async function sendDmMessage(
        * venha de quem vier, e `diff()` não vê `members` como alterado.
        */
       members: me < other ? [me, other] : [other, me],
-      lastMessage: { body, authorId: me, sentAt },
+      lastMessage: { body: body !== '' ? body : rotuloDaMidia(midia?.kind), authorId: me, sentAt },
       lastMessageAt: sentAt,
     },
     { merge: true },
@@ -1331,7 +1360,7 @@ async function createPin(
     authorId: message.authorId,
     authorName,
     kind: message.kind,
-    excerpt: excerptOf(message.body),
+    excerpt: excerptOf(message.body !== '' ? message.body : rotuloDaMidia(message.kind)),
     sentAt: message.sentAt,
     pinnedAt: nowIso(),
     pinnedBy,

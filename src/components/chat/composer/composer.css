@@ -100,3 +100,64 @@
   background-color: var(--accent-soft);
   color: var(--accent-text);
 }
+
+/* Arquivos subindo (0.5.0): miniatura e porcentagem, à direita, como a mensagem que vai chegar. */
+.composer__envios {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.composer__envios:empty {
+  display: none;
+}
+
+.composer__envio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(300px, 100%);
+  padding: 8px;
+  border-radius: var(--radius-lg);
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.composer__envio-previa {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background-color: rgb(0 0 0 / 25%);
+}
+
+.composer__envio-texto {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.composer__envio-barra {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 30%);
+}
+
+.composer__envio-barra b {
+  display: block;
+  height: 100%;
+  background: #fff;
+  transition: width 0.2s;
+}
+
+/* Arrastando um arquivo para cima da conversa. */
+.recebendo-arquivo {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+}

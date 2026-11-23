@@ -1,0 +1,35 @@
+/* Imagem em tela cheia (0.5.0). */
+.visualizador {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgb(0 0 0 / 88%);
+}
+
+.visualizador[open] {
+  display: grid;
+  place-items: center;
+}
+
+.visualizador::backdrop {
+  background: transparent;
+}
+
+.visualizador__img {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.visualizador__fechar {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  background: rgb(0 0 0 / 50%);
+  color: #fff;
+}

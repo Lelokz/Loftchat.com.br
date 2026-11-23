@@ -14,6 +14,9 @@ export interface RoomPanelProps {
   aba: AbaDaSala;
   onAba: (aba: AbaDaSala) => void;
   onSend: (body: string) => Promise<void>;
+  /** 0.5.0: imagem, GIF e vídeo no chat da sala. */
+  aoArquivos?: (arquivos: File[], legenda: string) => void;
+  destino?: string;
 }
 
 export interface RoomPanelParts {
@@ -45,7 +48,15 @@ export function renderRoomPanel(props: RoomPanelProps): RoomPanelParts {
   const chat = el('div', { class: 'room-panel__chat', role: 'tabpanel', 'aria-label': NOMES.chat }, [
     messagesSlot,
     replySlot,
-    renderComposer({ channelName: props.canal, hashPrefix: false, placeholder: 'Mensagem na sala', onSend: props.onSend, painel: {} }),
+    renderComposer({
+      channelName: props.canal,
+      hashPrefix: false,
+      placeholder: 'Mensagem na sala',
+      onSend: props.onSend,
+      painel: {},
+      ...(props.destino === undefined ? {} : { destino: props.destino }),
+      ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
+    }),
   ]);
   const outroSlot = el('div', { class: 'members__body column-scroll scroll-area', role: 'tabpanel' });
 

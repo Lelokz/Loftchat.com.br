@@ -32,7 +32,8 @@ export type PresenceStatus = 'online' | 'offline';
  */
 export type MemberRole = 'owner' | 'member';
 
-export type MessageKind = 'text' | 'image' | 'file' | 'audio';
+/** 0.5.0: `gif`, `video` e `sticker` (figurinha) entram junto da `image`. */
+export type MessageKind = 'text' | 'image' | 'gif' | 'video' | 'sticker' | 'file' | 'audio';
 
 /**
  * coleção: users — a VITRINE PÚBLICA da pessoa, id = uid.
@@ -276,6 +277,11 @@ export interface Attachment {
   sizeBytes: number;
   /** Só para áudio (e vídeo, depois). */
   durationMs?: number;
+  /** 0.5.0: onde mora no R2 (pelo carteiro), o tamanho em pixels e a capa do vídeo. */
+  chave?: string;
+  largura?: number;
+  altura?: number;
+  capaUrl?: string;
 }
 
 /**

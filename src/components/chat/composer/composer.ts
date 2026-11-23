@@ -2,7 +2,8 @@ import './composer.css';
 
 import { el, iconEl } from '../../../lib/dom';
 import { firestoreErrorMessage } from '../../../lib/firestore-errors';
-import { sendIcon, stickerIcon } from '../../../lib/icons';
+import { attachIcon, sendIcon, stickerIcon } from '../../../lib/icons';
+import { enviosDe, ouvirEnvios } from '../../../lib/envios';
 import { renderPainel } from '../../painel-midia/painel-midia';
 import type { PainelProps } from '../../painel-midia/painel-midia';
 
@@ -20,6 +21,13 @@ export interface ComposerProps {
   onSend: (body: string) => Promise<void>;
   /** 0.5.0: o painel Emojis | Figurinhas (sem isto, o botão do adesivo não aparece). */
   painel?: Omit<PainelProps, 'aoEmoji'>;
+  /**
+   * 0.5.0: mandar imagem, GIF e vídeo (o +, colar e arrastar). Recebe os
+   * arquivos e o texto do campo, que vira a legenda. `destino` separa a fila
+   * de envio de cada conversa.
+   */
+  aoArquivos?: (arquivos: File[], legenda: string) => void;
+  destino?: string;
 }
 
 /** Teto de crescimento do campo antes de virar rolagem interna. */
@@ -37,6 +45,8 @@ export function renderComposer({
   placeholder,
   onSend,
   painel: opcoesDoPainel,
+  aoArquivos,
+  destino = '',
 }: ComposerProps): HTMLElement {
   const input = el('textarea', {
     class: 'composer__input',
@@ -140,11 +150,92 @@ export function renderComposer({
           el('span', { class: 'sr-only' }, ['Emojis e figurinhas']),
         ]);
 
+  /* --- arquivos (0.5.0) ----------------------------------------------------- */
+
+  const escolher = el('input', { type: 'file', accept: 'image/*,video/*', multiple: '', hidden: '' });
+  const botaoAnexo =
+    aoArquivos === undefined
+      ? null
+      : el('button', { class: 'composer__tool', type: 'button', title: 'Mandar imagem, GIF ou vídeo' }, [
+          iconEl(attachIcon(20)),
+          el('span', { class: 'sr-only' }, ['Mandar imagem, GIF ou vídeo']),
+        ]);
+  const fila = el('div', { class: 'composer__envios', 'aria-live': 'polite' });
+
+  function mandarArquivos(lista: FileList | File[] | null): void {
+    const arquivos = [...(lista ?? [])].filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'));
+    if (arquivos.length === 0 || aoArquivos === undefined) return;
+    const legenda = input.value.trim();
+    input.value = '';
+    autoGrow();
+    aoArquivos(arquivos, legenda);
+  }
+
+  if (botaoAnexo !== null) {
+    botaoAnexo.addEventListener('click', () => escolher.click());
+    escolher.addEventListener('change', () => {
+      mandarArquivos(escolher.files);
+      escolher.value = '';
+    });
+    // Colar imagem (Ctrl+V) no campo.
+    input.addEventListener('paste', (evento) => {
+      const arquivos = [...(evento.clipboardData?.files ?? [])];
+      if (arquivos.length === 0) return;
+      evento.preventDefault();
+      mandarArquivos(arquivos);
+    });
+  }
+
+  function desenharFila(): void {
+    fila.replaceChildren(
+      ...enviosDe(destino).map((envio) =>
+        el('div', { class: 'composer__envio' }, [
+          envio.previa === '' ? el('span', { class: 'composer__envio-previa' }) : el('img', { class: 'composer__envio-previa', src: envio.previa, alt: '' }),
+          el('span', { class: 'composer__envio-texto' }, [
+            `Enviando… ${Math.round(envio.progresso * 100)}%`,
+            el('i', { class: 'composer__envio-barra' }, [el('b', { style: `width:${Math.round(envio.progresso * 100)}%` })]),
+          ]),
+        ]),
+      ),
+    );
+  }
+
   const element = el('div', { class: 'composer' }, [
     errorBox,
-    el('div', { class: 'composer__row' }, [input, botaoPainel ?? false, sendButton]),
+    fila,
+    el('div', { class: 'composer__row' }, [botaoAnexo ?? false, input, botaoPainel ?? false, sendButton]),
+    escolher,
     painel?.element ?? false,
   ]);
+
+  if (aoArquivos !== undefined) {
+    desenharFila();
+    const parar = ouvirEnvios(() => {
+      if (!element.isConnected) {
+        parar();
+        return;
+      }
+      desenharFila();
+    });
+    // Arrastar arquivo para cima da conversa (PC).
+    requestAnimationFrame(() => {
+      const area = element.closest<HTMLElement>('.chat, .dm-chat, .room-panel__chat') ?? element;
+      area.addEventListener('dragover', (evento) => {
+        if (evento.dataTransfer?.types.includes('Files') !== true) return;
+        evento.preventDefault();
+        area.classList.add('recebendo-arquivo');
+      });
+      area.addEventListener('dragleave', (evento) => {
+        if (evento.target === area) area.classList.remove('recebendo-arquivo');
+      });
+      area.addEventListener('drop', (evento) => {
+        area.classList.remove('recebendo-arquivo');
+        if (evento.dataTransfer?.files.length === 0) return;
+        evento.preventDefault();
+        mandarArquivos(evento.dataTransfer?.files ?? null);
+      });
+    });
+  }
 
   if (painel !== null && botaoPainel !== null) {
     const fechar = (): void => {

@@ -10,6 +10,8 @@ export interface ChatProps {
   /** Canal de TEXTO ativo; `null` quando o grupo não tem canais. */
   channel: Channel | null;
   onSend: (body: string) => Promise<void>;
+  /** 0.5.0: imagem, GIF e vídeo (ver ComposerProps). */
+  aoArquivos?: (arquivos: File[], legenda: string) => void;
   /** Gavetas do mobile. Os botões existem sempre; o CSS os esconde no desktop. */
   onOpenChannels: () => void;
   onOpenMembers: () => void;
@@ -119,7 +121,13 @@ export function renderChat(props: ChatProps): ChatParts {
       messagesSlot,
       callBarSlot,
       replySlot,
-      renderComposer({ channelName: channel.name, onSend, painel: {} }),
+      renderComposer({
+        channelName: channel.name,
+        onSend,
+        painel: {},
+        destino: `canal:${channel.id}`,
+        ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
+      }),
     ]),
     messagesSlot,
     callBarSlot,

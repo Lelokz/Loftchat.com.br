@@ -11,6 +11,7 @@ import {
   localDayKey,
 } from "../../../lib/format";
 import { dadosDoYouTube, idDoYouTube, linkDoYouTube, thumbDoYouTube } from "../../../lib/youtube";
+import { abrirVisualizador } from "../../visualizador/visualizador";
 import type {
   Attachment,
   Member,
@@ -292,6 +293,8 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
       isMine ? "message--mine" : "",
       continued ? "" : "message--start",
       isBlockEnd ? "message--end" : "",
+      // Figurinha: pequena e sem balão (0.5.0).
+      message.kind === "sticker" ? "message--figurinha" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -563,8 +566,11 @@ function renderContent(message: MessageBase): HTMLElement {
     }
 
     case "image":
+    case "gif":
+    case "video":
+    case "sticker":
       return el("div", { class: "message__content" }, [
-        message.attachment && renderImage(message.attachment),
+        message.attachment && renderMidia(message.kind, message.attachment),
         message.body !== "" &&
           el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
@@ -585,15 +591,59 @@ function renderContent(message: MessageBase): HTMLElement {
   }
 }
 
-function renderImage(attachment: Attachment): HTMLElement {
-  return el("figure", { class: "message__image" }, [
-    el("img", {
-      src: attachment.url,
-      alt: attachment.fileName,
-      loading: "lazy",
-      decoding: "async",
-    }),
-  ]);
+/**
+ * IMAGEM, GIF, VÍDEO E FIGURINHA (0.5.0). O arquivo mora no R2 pelo carteiro
+ * e some depois de 60 dias (figurinha não): quando ele não vem mais, o lugar
+ * dele vira "Este arquivo expirou".
+ */
+function renderMidia(kind: "image" | "gif" | "video" | "sticker", anexo: Attachment): HTMLElement {
+  const proporcao =
+    anexo.largura !== undefined && anexo.altura !== undefined && anexo.altura > 0
+      ? `${anexo.largura} / ${anexo.altura}`
+      : undefined;
+  const expirou = (no: HTMLElement): void => {
+    const nomes = { image: "Esta imagem", gif: "Este GIF", video: "Este vídeo", sticker: "Esta figurinha" };
+    no.replaceWith(el("div", { class: "midia-expirou" }, [`⏳ ${nomes[kind]} expirou (os arquivos ficam 60 dias).`]));
+  };
+
+  if (kind === "sticker") {
+    const img = el("img", { class: "figurinha", src: anexo.url, alt: "Figurinha", loading: "lazy", decoding: "async" });
+    if (proporcao !== undefined) img.style.aspectRatio = proporcao;
+    img.addEventListener("error", () => expirou(img));
+    return img;
+  }
+
+  const caixa = el("figure", { class: `midia midia--${kind}` });
+  if (proporcao !== undefined) caixa.style.aspectRatio = proporcao;
+
+  if (kind === "video") {
+    const capa = anexo.capaUrl === undefined ? false : el("img", { class: "midia__capa", src: anexo.capaUrl, alt: "", loading: "lazy" });
+    const rotulo = [anexo.durationMs === undefined ? "" : formatDuration(anexo.durationMs), formatBytes(anexo.sizeBytes)]
+      .filter((x) => x !== "")
+      .join(" · ");
+    const play = el("button", { class: "midia__play", type: "button", title: "Assistir" }, [
+      el("span", { class: "sr-only" }, ["Assistir o vídeo"]),
+    ]);
+    caixa.append(...[capa, play, el("span", { class: "midia__rotulo" }, [rotulo])].filter((x): x is HTMLElement => x !== false));
+    // Só carrega o vídeo quando a pessoa toca.
+    play.addEventListener("click", () => {
+      const video = el("video", { class: "midia__video", src: anexo.url, controls: "", autoplay: "", playsinline: "" });
+      video.addEventListener("error", () => expirou(caixa));
+      caixa.replaceChildren(video);
+    });
+    if (capa !== false) capa.addEventListener("error", () => capa.remove());
+    return caixa;
+  }
+
+  const img = el("img", { src: anexo.url, alt: anexo.fileName, loading: "lazy", decoding: "async" });
+  img.addEventListener("error", () => expirou(caixa));
+  caixa.append(img);
+  if (kind === "gif") caixa.append(el("span", { class: "midia__gif" }, ["GIF"]));
+  else {
+    caixa.classList.add("midia--abre");
+    caixa.addEventListener("click", () => abrirVisualizador(anexo.url, anexo.fileName));
+  }
+  return caixa;
 }
 
 function renderFile(attachment: Attachment): HTMLElement {

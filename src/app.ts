@@ -109,6 +109,7 @@ import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
 import { ligarAvisos } from './lib/avisos';
 import { criarNaoLidas } from './lib/nao-lidas';
+import { mandarArquivos } from './lib/envios';
 
 export interface AppHandle {
   element: HTMLElement;
@@ -749,6 +750,31 @@ export function mountApp(
     await sendMessage(groupId, channelId, user.uid, body, citando);
   };
 
+  /*
+   * IMAGEM, GIF E VÍDEO (0.5.0): mandados pelo +, colando ou arrastando. Cada
+   * arquivo vira uma mensagem; a legenda vai com o primeiro.
+   */
+  const avisarErroDoArquivo = (texto: string): void => showToast(texto);
+  const handleArquivos = (arquivos: File[], legenda: string): void => {
+    const state = store.getState();
+    if (state.activeDmUid !== null) {
+      const amigo = state.activeDmUid;
+      void mandarArquivos(`pv:${amigo}`, arquivos, legenda, (midia, texto) => sendDmMessage(user.uid, amigo, texto, undefined, midia), avisarErroDoArquivo);
+      return;
+    }
+    if (state.activeGroupId === null || state.activeChannelId === null) return;
+    const grupo = state.activeGroupId;
+    const canal = state.activeChannelId;
+    void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
+  };
+  const handleArquivosSala = (arquivos: File[], legenda: string): void => {
+    const state = store.getState();
+    const grupo = state.voice?.groupId ?? null;
+    const canal = state.roomChatChannelId;
+    if (grupo === null || canal === null) return;
+    void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
+  };
+
   /** Envia no chat da sala (etapa 8b): o canal de voz em que estou, no grupo da chamada. */
   const handleSendSala = async (body: string): Promise<void> => {
     const state = store.getState();
@@ -1252,6 +1278,8 @@ export function mountApp(
           if (painelDaSala !== null) preencherOutraAbaDaSala(store.getState(), painelDaSala);
         },
         onSend: handleSendSala,
+        aoArquivos: handleArquivosSala,
+        ...(state.roomChatChannelId === null ? {} : { destino: `canal:${state.roomChatChannelId}` }),
       });
       painelDaSalaNovo = true;
       renderReplySala();
@@ -2185,6 +2213,8 @@ export function mountApp(
                   hashPrefix: false,
                   onSend: handleSend,
                   painel: {},
+                  aoArquivos: handleArquivos,
+                  destino: `pv:${friendUid}`,
                 }),
           );
         }
@@ -2300,6 +2330,7 @@ export function mountApp(
         parts = renderChat({
           channel,
           onSend: handleSend,
+          aoArquivos: handleArquivos,
           onOpenChannels: () => setDrawer('left'),
           onOpenMembers: () => setDrawer('right'),
           onTogglePanel: alternarPainel,
