@@ -4,6 +4,8 @@ import { el, iconEl } from '../../../lib/dom';
 import { firestoreErrorMessage } from '../../../lib/firestore-errors';
 import { attachIcon, sendIcon, stickerIcon } from '../../../lib/icons';
 import { enviosDe, ouvirEnvios } from '../../../lib/envios';
+import type { Figurinha } from '../../../lib/figurinhas';
+import { montarAbaFigurinhas } from '../../figurinhas/aba';
 import { renderPainel } from '../../painel-midia/painel-midia';
 import type { PainelProps } from '../../painel-midia/painel-midia';
 
@@ -28,6 +30,8 @@ export interface ComposerProps {
    */
   aoArquivos?: (arquivos: File[], legenda: string) => void;
   destino?: string;
+  /** 0.5.0: mandar a figurinha escolhida no painel. */
+  aoFigurinha?: (figurinha: Figurinha) => void;
 }
 
 /** Teto de crescimento do campo antes de virar rolagem interna. */
@@ -47,6 +51,7 @@ export function renderComposer({
   painel: opcoesDoPainel,
   aoArquivos,
   destino = '',
+  aoFigurinha,
 }: ComposerProps): HTMLElement {
   const input = el('textarea', {
     class: 'composer__input',
@@ -141,7 +146,23 @@ export function renderComposer({
     if (!window.matchMedia('(pointer: coarse)').matches) input.focus();
   }
 
-  const painel = opcoesDoPainel === undefined ? null : renderPainel({ ...opcoesDoPainel, aoEmoji: porEmoji });
+  let fecharPainel = (): void => undefined;
+  const painel =
+    opcoesDoPainel === undefined
+      ? null
+      : renderPainel({
+          ...opcoesDoPainel,
+          aoEmoji: porEmoji,
+          ...(aoFigurinha === undefined
+            ? {}
+            : {
+                montarFigurinhas: (onde: HTMLElement) =>
+                  montarAbaFigurinhas(onde, (f) => {
+                    aoFigurinha(f);
+                    fecharPainel();
+                  }),
+              }),
+        });
   const botaoPainel =
     painel === null
       ? null
@@ -240,6 +261,7 @@ export function renderComposer({
   if (painel !== null && botaoPainel !== null) {
     const fechar = (): void => {
       painel.fechar();
+      painel.element.dispatchEvent(new Event('fechou'));
       botaoPainel.classList.remove('is-active');
       botaoPainel.setAttribute('aria-expanded', 'false');
       document.removeEventListener('pointerdown', foraDoPainel, true);
@@ -247,10 +269,14 @@ export function renderComposer({
     };
     function foraDoPainel(evento: Event): void {
       const alvo = evento.target as Node;
+      // Clique numa janela aberta pelo painel (criar figurinha): o painel fica.
+      if (alvo instanceof Element && alvo.closest('dialog') !== null) return;
       if (!painel!.element.contains(alvo) && !botaoPainel!.contains(alvo)) fechar();
     }
     function escDoPainel(evento: KeyboardEvent): void {
       if (evento.key !== 'Escape') return;
+      // Esc com a janela de criar figurinha aberta fecha só ela.
+      if (document.querySelector('dialog[open]') !== null) return;
       evento.stopPropagation();
       fechar();
     }
@@ -265,8 +291,9 @@ export function renderComposer({
       document.addEventListener('pointerdown', foraDoPainel, true);
       document.addEventListener('keydown', escDoPainel, true);
     });
-    // Mandou a mensagem: o painel fecha.
+    // Mandou a mensagem (ou uma figurinha): o painel fecha.
     sendButton.addEventListener('click', fechar);
+    fecharPainel = fechar;
     element.addEventListener('loft:fechar-painel', fechar);
   }
 

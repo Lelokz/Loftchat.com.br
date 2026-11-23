@@ -25,6 +25,7 @@ import { openMenu } from './components/context-menu/context-menu';
 import type { MenuItem } from './components/context-menu/context-menu';
 import { showToast } from './components/toast/toast';
 import { canLeaveGroup, isOwner, OWNER_CANNOT_LEAVE } from './lib/permissions';
+import { desfavoritar, ehFavorita, favoritar } from './lib/figurinhas';
 import type { AppState } from './state/store';
 import type { MemberId } from './types/models';
 
@@ -156,6 +157,26 @@ function textFieldItems(field: TextField): MenuItem[] {
 /* Alvos do app                                                                */
 /* -------------------------------------------------------------------------- */
 
+/** Mensagem com figurinha (0.5.0): favoritar ou tirar das favoritas. */
+function itensDaFigurinha(target: HTMLElement): MenuItem[] {
+  const img = target.querySelector<HTMLImageElement>('img.figurinha');
+  if (img === null) return [];
+  const url = img.getAttribute('src') ?? '';
+  if (ehFavorita(url)) {
+    return [{ label: 'Tirar das favoritas', onSelect: () => void desfavoritar(url) }];
+  }
+  return [
+    {
+      label: 'Favoritar figurinha',
+      onSelect: () => {
+        void favoritar({ url, largura: img.naturalWidth || 512, altura: img.naturalHeight || 512 }).then(() =>
+          showToast('Figurinha nas favoritas.'),
+        );
+      },
+    },
+  ];
+}
+
 function messageItems(
   target: HTMLElement,
   actions: ContextMenuActions,
@@ -172,6 +193,7 @@ function messageItems(
   const canDelete = authorId === actions.uid || isOwner(group, actions.uid);
 
   const items: MenuItem[] = [
+    ...itensDaFigurinha(target),
     { label: 'Copiar texto', disabled: text === '', onSelect: () => copy(text, 'Copiado.') },
     { label: 'Responder', onSelect: () => actions.replyToMessage(messageId, sala) },
   ];
@@ -230,6 +252,7 @@ function dmMessageItems(
   // AppState) — a de grupo e a de PV podem estar carregadas ao mesmo tempo.
   const pinned = state.pinnedDmMessages.some((p) => p.messageId === messageId);
   const items: MenuItem[] = [
+    ...itensDaFigurinha(target),
     { label: 'Copiar texto', disabled: text === '', onSelect: () => copy(text, 'Copiado.') },
     { label: 'Responder', onSelect: () => actions.replyToMessage(messageId) },
     // Fixar é dos DOIS participantes do PV, não só de quem escreveu — etapa 19.

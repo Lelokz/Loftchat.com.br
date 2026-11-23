@@ -110,6 +110,9 @@ import { textoDoErro } from './lib/firestore-errors';
 import { ligarAvisos } from './lib/avisos';
 import { criarNaoLidas } from './lib/nao-lidas';
 import { mandarArquivos } from './lib/envios';
+import { ligarFigurinhas, usouFigurinha } from './lib/figurinhas';
+import type { Figurinha } from './lib/figurinhas';
+import type { Midia } from './lib/firestore';
 
 export interface AppHandle {
   element: HTMLElement;
@@ -775,6 +778,31 @@ export function mountApp(
     void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
   };
 
+  /* FIGURINHA (0.5.0): vai como mensagem pequena, sem balão, e entra nas recentes. */
+  const figurinhaComoMidia = (f: Figurinha): Midia => ({
+    kind: 'sticker',
+    attachment: { url: f.url, fileName: 'figurinha', mimeType: 'image/webp', sizeBytes: 0, largura: f.largura, altura: f.altura },
+  });
+  const handleFigurinha = (f: Figurinha): void => {
+    void usouFigurinha(f).catch(() => undefined);
+    const state = store.getState();
+    const enviar =
+      state.activeDmUid !== null
+        ? sendDmMessage(user.uid, state.activeDmUid, '', undefined, figurinhaComoMidia(f))
+        : state.activeGroupId !== null && state.activeChannelId !== null
+          ? sendMessage(state.activeGroupId, state.activeChannelId, user.uid, '', undefined, figurinhaComoMidia(f))
+          : Promise.resolve();
+    void enviar.catch(() => showToast('Não deu para mandar a figurinha.'));
+  };
+  const handleFigurinhaSala = (f: Figurinha): void => {
+    const state = store.getState();
+    const grupo = state.voice?.groupId ?? null;
+    const canal = state.roomChatChannelId;
+    if (grupo === null || canal === null) return;
+    void usouFigurinha(f).catch(() => undefined);
+    void sendMessage(grupo, canal, user.uid, '', undefined, figurinhaComoMidia(f)).catch(() => showToast('Não deu para mandar a figurinha.'));
+  };
+
   /** Envia no chat da sala (etapa 8b): o canal de voz em que estou, no grupo da chamada. */
   const handleSendSala = async (body: string): Promise<void> => {
     const state = store.getState();
@@ -1279,6 +1307,7 @@ export function mountApp(
         },
         onSend: handleSendSala,
         aoArquivos: handleArquivosSala,
+        aoFigurinha: handleFigurinhaSala,
         ...(state.roomChatChannelId === null ? {} : { destino: `canal:${state.roomChatChannelId}` }),
       });
       painelDaSalaNovo = true;
@@ -2214,6 +2243,7 @@ export function mountApp(
                   onSend: handleSend,
                   painel: {},
                   aoArquivos: handleArquivos,
+                  aoFigurinha: handleFigurinha,
                   destino: `pv:${friendUid}`,
                 }),
           );
@@ -2331,6 +2361,7 @@ export function mountApp(
           channel,
           onSend: handleSend,
           aoArquivos: handleArquivos,
+          aoFigurinha: handleFigurinha,
           onOpenChannels: () => setDrawer('left'),
           onOpenMembers: () => setDrawer('right'),
           onTogglePanel: alternarPainel,
@@ -2685,6 +2716,7 @@ export function mountApp(
     return state.roomChatChannelId === null ? '' : `canal:${state.roomChatChannelId}`;
   };
   const avisos = ligarAvisos(user.uid, abrirConversa);
+  const pararFigurinhas = ligarFigurinhas(user.uid);
 
   /*
    * NÃO LIDAS (0.4.5): mudou uma contagem → redesenha (uma vez só, logo
@@ -2749,6 +2781,7 @@ export function mountApp(
       acompanharChamada.desligar();
       avisos.parar();
       naoLidas.parar();
+      pararFigurinhas();
       store.dispose();
     },
   };

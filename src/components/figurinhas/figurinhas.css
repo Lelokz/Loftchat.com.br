@@ -1,0 +1,179 @@
+/* Figurinhas (0.5.0): a aba do painel e o criador. */
+
+.figurinhas__grade {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.figurinhas__item {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 6px;
+  border-radius: 12px;
+  background-color: var(--surface-hover);
+}
+
+.figurinhas__item:hover {
+  background-color: var(--accent-soft);
+}
+
+.figurinhas__item img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.figurinhas__criar {
+  gap: 2px;
+  align-content: center;
+  border: 2px dashed var(--accent-text);
+  background: none;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.figurinhas__criar b {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.figurinhas__cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.figurinhas__editar {
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.figurinhas__editavel {
+  position: relative;
+}
+
+.figurinhas__tirar {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: var(--danger);
+  color: var(--danger-on);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.figurinhas__vazio {
+  padding: 4px 0 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* --- criador ------------------------------------------------------------- */
+
+.criador {
+  display: grid;
+  gap: 12px;
+}
+
+.criador__formas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.criador__forma {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.criador__forma[aria-pressed='true'] {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.criador__meio {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px;
+  align-items: center;
+}
+
+.criador__palco {
+  display: block;
+  width: 100%;
+  aspect-ratio: 520 / 340;
+  border-radius: 12px;
+  background: repeating-conic-gradient(#2a2050 0% 25%, #1f1840 0% 50%) 0 0 / 20px 20px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.criador__lado {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.criador__rotulo {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.criador__previa {
+  width: 110px;
+  height: 110px;
+}
+
+.criador__zoom-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+
+.criador__zoom {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.criador__erro {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .criador__meio {
+    grid-template-columns: 1fr;
+  }
+
+  .criador__lado {
+    grid-auto-flow: column;
+    justify-content: start;
+  }
+
+  .criador__previa {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+.painel__lista--figurinhas {
+  padding: 10px 12px;
+}

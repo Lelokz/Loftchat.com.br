@@ -631,6 +631,20 @@ service cloud.firestore {
         && request.resource.data.desde is string && request.resource.data.desde.size() <= 40;
     }
 
+    /* ---------------------------- figurinhas ----------------------------- */
+    // Figurinhas (0.5.0): as recentes (10) e as favoritas (até 300) de cada
+    // pessoa. Só ela lê e mexe. O arquivo mora no R2 (pelo carteiro).
+
+    match /figurinhas/{userId} {
+      allow read, delete: if signedIn() && userId == uid();
+      allow create, update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['favoritas', 'recentes'])
+        && request.resource.data.get('favoritas', []) is list
+        && request.resource.data.get('favoritas', []).size() <= 300
+        && request.resource.data.get('recentes', []) is list
+        && request.resource.data.get('recentes', []).size() <= 10;
+    }
+
     /* ---------------------------- infoDeTela ---------------------------- */
     // "Mandar informações da tela" (Configurações → Sobre, 23/11/2026): cada
     // pessoa só MANDA o retrato do próprio aparelho; ninguém lê nem muda pelo
