@@ -2,6 +2,44 @@
 
 Estado em 15/11/2026.
 
+## Notificações de mensagem (23/11/2026) — versão 0.4.0
+
+Plano aprovado: opção A (carteiro na Cloudflare, grátis, sem cartão) + FCM no
+Android + bandeja no PC + Configurações → Notificações.
+
+- **Carteiro** (`carteiro/`, Cloudflare Worker `loftchat-carteiro`, conta
+  Cloudflare bevonesileonardo). Quem manda a mensagem chama `POST /avisar`
+  com o token do Firebase. O carteiro confere o token (chaves do Google),
+  confere que a mensagem existe, é dessa pessoa e tem menos de 2 minutos, e
+  avisa os outros membros (grupo) ou o outro da dupla (PV). Celular: FCM
+  (dados, prioridade alta). PC: escreve `avisos/{uid}`. A foto vai por
+  `GET /foto/{uid}` assinada (HMAC). Segredos só na Cloudflare:
+  `CHAVE_GOOGLE` (conta de serviço firebase-adminsdk, criada por IAM, nunca em
+  arquivo) e `SEGREDO_FOTO`. Como publicar: `carteiro/LEIA.md`.
+- **Regras novas**: `aparelhos/{uid}` (só o dono, mapa `lista` com até 10
+  aparelhos) e `avisos/{uid}` (dono lê/apaga, só o carteiro escreve).
+- **Android**: `ServicoDosAvisos` (FirebaseMessagingService) monta a
+  notificação: foto redonda, nome, onde ("no seu privado" / "Grupo · #canal"),
+  hora e texto (cortado em 180 com "…"). Uma notificação por conversa. Não
+  avisa a conversa aberta com o app na frente. Tocar abre a conversa
+  (`PluginDosAvisos`, evento `abrir`). Pede a permissão do Android 13+ ao
+  entrar. Sem permissão, o aparelho não se anota.
+- **PC**: fechar a janela esconde (fica na bandeja: Abrir / Sair). O chat
+  escuta `avisos/{uid}` e pede ao programa a notificação do sistema (foto
+  baixada só do carteiro). Clique abre a conversa. Aviso com mais de 2
+  minutos (PC estava fechado) não aparece.
+- **Configurações → Notificações**: liga/desliga neste aparelho (tira ou põe
+  o aparelho na lista na hora). Sair da conta também tira.
+- **Testes**: `tests/carteiro.spec.ts` (carteiro local via `wrangler dev`
+  apontado para o emulador: grupo, PV, texto cortado, foto assinada,
+  recusas, regras, e o caminho pela tela) e dois testes novos em
+  `tests/desktop.spec.ts` (bandeja + aviso + clique; o interruptor). A tela
+  de teste ganhou D-Bus próprio (`dbus-run-session`), para a bandeja e as
+  notificações dos testes não aparecerem na barra de verdade.
+- Prova no carteiro de verdade: com uma conta temporária (apagada depois),
+  ele recusou login falso e leu o banco com a chave (404 para mensagem
+  inexistente). O envio real pelo Google só se confirma no celular.
+
 ## Super plano dos celulares + "Mandar informações da tela" (23/11/2026) — versão 0.3.5
 
 Ferramenta (fora do git): `Arquivo/Loft-desktop/scripts-de-teste/zz-celulares.spec.ts`

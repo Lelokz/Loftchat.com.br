@@ -1,5 +1,16 @@
 [
   {
+    "versao": "0.4.0",
+    "data": "2026-11-23",
+    "itens": [
+      "Notificações de mensagem! Chegou mensagem num grupo ou no privado, o Loftchat avisa com a foto e o nome de quem mandou, onde foi e a mensagem. No celular, avisa mesmo com o app fechado.",
+      "Tocar na notificação abre a conversa certa.",
+      "A conversa que você está olhando não avisa.",
+      "No PC, fechar a janela deixa o Loftchat no canto da barra de tarefas, para continuar avisando. Para fechar de vez: clique no ícone dele ali e em Sair.",
+      "Novo em Configurações → Notificações: liga e desliga os avisos neste aparelho."
+    ]
+  },
+  {
     "versao": "0.3.5",
     "data": "2026-11-23",
     "itens": [
