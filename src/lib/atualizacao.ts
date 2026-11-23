@@ -56,6 +56,8 @@ const QUATRO_HORAS = 4 * 60 * 60 * 1000;
 
 interface Atualizador {
   instalar(opcoes: { url: string }): Promise<void>;
+  /** 0.5.5: a versão nova pelo link de download (sem o limite da API do GitHub). */
+  procurar(opcoes: { repositorio: string; apk: string }): Promise<{ versao: string; apk: string }>;
   addListener(evento: 'progresso', ouvinte: (p: { pct: number }) => void): Promise<{ remove: () => Promise<void> }>;
 }
 const atualizador = registerPlugin<Atualizador>('Atualizador');
@@ -101,40 +103,22 @@ export function maisNova(a: string, b: string): boolean {
   return false;
 }
 
-interface Lancamento {
-  versao: string;
-  notas: string[];
-  apk: string | null;
-}
-
-/** A última versão publicada nas Releases do GitHub. */
-async function ultimaPublicada(): Promise<Lancamento | null> {
-  const resposta = await fetch(`https://api.github.com/repos/${REPOSITORIO}/releases/latest`, {
-    headers: { accept: 'application/vnd.github+json' },
-    cache: 'no-store',
-  });
+/**
+ * O que mudou numa versão: o `novidades.json` daquela etiqueta, direto do
+ * GitHub (o raw não tem o limite de 60 por hora da API, e libera o CORS).
+ */
+async function notasDa(versao: string): Promise<string[] | null> {
+  const resposta = await fetch(`https://raw.githubusercontent.com/${REPOSITORIO}/v${versao}/novidades.json`, { cache: 'no-store' });
   if (!resposta.ok) return null;
-  const dados = (await resposta.json()) as {
-    tag_name?: string;
-    body?: string | null;
-    assets?: Array<{ name: string; browser_download_url: string }>;
-  };
-  if (typeof dados.tag_name !== 'string') return null;
-  return {
-    versao: dados.tag_name.replace(/^v/, ''),
-    // As linhas "- ..." do texto da versão (scripts/notas-da-versao.mjs).
-    notas: (dados.body ?? '')
-      .split('\n')
-      .filter((l) => l.startsWith('- '))
-      .map((l) => l.slice(2).trim()),
-    apk: dados.assets?.find((a) => a.name === NOME_DO_APK)?.browser_download_url ?? null,
-  };
+  const lista = (await resposta.json()) as Array<{ versao?: unknown; itens?: unknown }>;
+  const desta = Array.isArray(lista) ? lista.find((n) => n.versao === versao) : undefined;
+  return Array.isArray(desta?.itens) ? desta.itens.filter((x): x is string => typeof x === 'string') : null;
 }
 
 /** O que mudou na versão nova (para a faixa e a tela Sobre). */
 async function buscarNotas(versao: string): Promise<void> {
-  const ultima = await ultimaPublicada().catch(() => null);
-  if (ultima !== null && ultima.versao === versao) mudar({ notas: ultima.notas });
+  const notas = await notasDa(versao).catch(() => null);
+  if (notas !== null && estado.nova === versao) mudar({ notas });
 }
 
 /** Procura agora (abrir o app, a cada 4 horas e o botão "Procurar atualizações"). */
@@ -151,12 +135,15 @@ export async function procurarAtualizacao(): Promise<void> {
       mudar({ conferido: versao === null && estado.nova === null });
       return;
     }
-    const ultima = await ultimaPublicada();
-    if (ultima !== null && ultima.apk !== null && maisNova(ultima.versao, estado.atual)) {
+    // Android: pelo link de download, no lado nativo (sem CORS e sem o
+    // limite da API — no 4G ele estourava e a faixa nunca aparecia).
+    const ultima = await atualizador.procurar({ repositorio: REPOSITORIO, apk: NOME_DO_APK });
+    if (maisNova(ultima.versao, estado.atual)) {
       apkDaNova = ultima.apk;
-      mudar({ nova: ultima.versao, notas: ultima.notas, pronta: true, conferido: false });
+      mudar({ nova: ultima.versao, pronta: true, conferido: false });
+      void buscarNotas(ultima.versao);
     } else {
-      mudar({ conferido: ultima !== null });
+      mudar({ conferido: true });
     }
   } catch {
     mudar({ erro: 'Não deu para procurar agora (sem internet?). Tente de novo daqui a pouco.' });

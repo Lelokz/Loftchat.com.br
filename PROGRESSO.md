@@ -2,6 +2,27 @@
 
 Estado em 15/11/2026.
 
+## Atualização do celular consertada (23/11/2026) — versão 0.6.0
+
+O Leo: nos celulares dos amigos a faixa de atualização não aparecia (só no
+dele). Causa: o Android perguntava a versão à API do GitHub
+(`/releases/latest`), que só responde 60 vezes por hora por endereço de
+internet; no 4G (e em muita internet de casa) a operadora põe muita gente
+no mesmo endereço, o limite vive estourado, a resposta vinha 403 e o app
+ficava QUIETO (nem faixa, nem erro).
+
+- `PluginDoAtualizador.procurar`: HEAD em
+  `github.com/<repo>/releases/latest/download/Loftchat-Android.apk` sem
+  seguir o redirecionamento; o `Location`
+  (`.../releases/download/vX.Y.Z/Loftchat-Android.apk`) dá a versão e o APK.
+  Não é API (sem o limite de 60) e é nativo (sem CORS). Conferido em Java
+  contra o GitHub de verdade: achou a 0.5.5.
+- Novidades: do `novidades.json` da etiqueta, no raw.githubusercontent
+  (CORS liberado, sem limite) — PC e celular.
+- Falhou a procura → mensagem de erro (antes: silêncio).
+- **Quem tem versão antiga continua com o jeito antigo**: precisa instalar a
+  0.6.0 na mão UMA vez (o link da Release); depois atualiza sozinho.
+
 ## Mensagem de voz (23/11/2026) — versão 0.5.5
 
 Foto aprovada ("pode, ficou legal"): campo vazio → o Enviar vira microfone;

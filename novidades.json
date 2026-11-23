@@ -1,5 +1,13 @@
 [
   {
+    "versao": "0.6.0",
+    "data": "2026-11-23",
+    "itens": [
+      "Atualização no celular consertada: em muitos celulares (principalmente no 4G) o Loftchat não ficava sabendo que tinha versão nova, e a faixa \"Atualização disponível\" nunca aparecia. Agora ele confere de outro jeito, que funciona em qualquer internet.",
+      "Se não der para procurar atualização (sem internet), o Loftchat agora avisa em vez de ficar quieto."
+    ]
+  },
+  {
     "versao": "0.5.5",
     "data": "2026-11-23",
     "itens": [

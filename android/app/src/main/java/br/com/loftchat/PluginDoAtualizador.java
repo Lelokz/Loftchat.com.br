@@ -53,6 +53,49 @@ public class PluginDoAtualizador extends Plugin {
         new Thread(() -> baixarEInstalar(call, endereco), "loftchat-atualizacao").start();
     }
 
+    /**
+     * QUAL É A VERSÃO NOVA (0.5.5) — sem a API do GitHub, que só responde 60
+     * vezes por hora por endereço de internet (no 4G a operadora põe muita
+     * gente no mesmo endereço e o limite vive estourado; o app ficava quieto).
+     * O link "baixar a última" responde com um redirecionamento para
+     * `.../releases/download/vX.Y.Z/Loftchat-Android.apk`: daí sai a versão e
+     * o endereço do APK (e só existe quando o APK já está publicado).
+     */
+    @PluginMethod
+    public void procurar(PluginCall call) {
+        String repositorio = call.getString("repositorio", "");
+        String apk = call.getString("apk", "");
+        if (!repositorio.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+") || !apk.matches("[A-Za-z0-9_.-]+")) {
+            call.reject("Pedido inválido.");
+            return;
+        }
+        new Thread(() -> {
+            HttpURLConnection c = null;
+            try {
+                c = (HttpURLConnection) new URL("https://github.com/" + repositorio + "/releases/latest/download/" + apk).openConnection();
+                c.setRequestMethod("HEAD");
+                c.setInstanceFollowRedirects(false);
+                c.setConnectTimeout(15_000);
+                c.setReadTimeout(15_000);
+                int codigo = c.getResponseCode();
+                String destino = c.getHeaderField("Location");
+                if (codigo < 300 || codigo >= 400 || destino == null) throw new IllegalStateException("HTTP " + codigo);
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("^https://github\\.com/" + java.util.regex.Pattern.quote(repositorio) + "/releases/download/v([0-9]+(?:\\.[0-9]+)*)/" + java.util.regex.Pattern.quote(apk) + "$")
+                    .matcher(destino);
+                if (!m.matches()) throw new IllegalStateException("endereço inesperado");
+                JSObject r = new JSObject();
+                r.put("versao", m.group(1));
+                r.put("apk", destino);
+                call.resolve(r);
+            } catch (Exception erro) {
+                call.reject("Não deu para procurar a versão nova.", "PROCURAR", erro);
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        }, "loftchat-procurar").start();
+    }
+
     private void baixarEInstalar(PluginCall call, String endereco) {
         File pasta = new File(getContext().getCacheDir(), "atualizacao");
         File apk = new File(pasta, "Loftchat.apk");

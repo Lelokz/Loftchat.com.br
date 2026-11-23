@@ -8,7 +8,7 @@ import type { TestAccount } from './helpers';
  * Configurações → Sobre o Loftchat.
  *
  * O programa é de mentira (um `window.loftDesktop` que o teste comanda) e a
- * página de Releases do GitHub também (`page.route`) — nada sai para a
+ * lista de novidades do GitHub também (`page.route`) — nada sai para a
  * internet.
  */
 
@@ -40,13 +40,13 @@ test('programa: acha a versão nova, baixa, avisa; Depois some; Sobre instala', 
   const conta = newAccount('Sobre programa');
   accounts.push(conta);
 
-  await page.route('https://api.github.com/repos/Lelokz/Loftchat.com.br/releases/latest', (rota) =>
+  // As novidades vêm do novidades.json da etiqueta (0.5.5: não da API, que tem limite).
+  await page.route('https://raw.githubusercontent.com/Lelokz/Loftchat.com.br/v9.9.0/novidades.json', (rota) =>
     rota.fulfill({
-      json: {
-        tag_name: 'v9.9.0',
-        body: '## Novidades da versão 9.9.0\n\n- Coisa nova um\n- Coisa nova dois\n',
-        assets: [],
-      },
+      json: [
+        { versao: '9.9.0', data: '2099-01-01', itens: ['Coisa nova um', 'Coisa nova dois'] },
+        { versao: '0.2.0', data: '2026-11-17', itens: ['Velha'] },
+      ],
     }),
   );
   await page.addInitScript(() => {
