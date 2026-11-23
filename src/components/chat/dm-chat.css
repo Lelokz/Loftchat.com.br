@@ -16,6 +16,8 @@
 }
 
 .dm-chat__identity {
+  /* Ocupa o meio: o botão do painel vai para o canto, como nos grupos. */
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;

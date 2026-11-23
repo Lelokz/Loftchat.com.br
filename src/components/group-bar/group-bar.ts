@@ -1,7 +1,7 @@
 import './group-bar.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { logoIcon, plusIcon } from '../../lib/icons';
+import { chatsIcon, logoIcon, plusIcon } from '../../lib/icons';
 import { CARD_COLORS, cardColorId } from '../../lib/person-theme';
 import { barItems, tabLabel } from '../../lib/private-prefs';
 import type { GroupFolder, TabMode } from '../../lib/private-prefs';
@@ -64,7 +64,7 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
       title: 'Privado: amigos e conversas',
       'aria-current': homeActive ? 'true' : undefined,
     },
-    [el('span', { class: 'group-bar__tab-icon' }, [iconEl(logoIcon(14))]), el('span', {}, ['Privado'])],
+    [el('span', { class: 'group-bar__tab-icon' }, [iconEl(chatsIcon(15))]), el('span', {}, ['Privado'])],
   );
   privado.addEventListener('click', onOpenHome);
 

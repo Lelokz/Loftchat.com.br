@@ -34,6 +34,10 @@ Consertado:
     Firebase mais novo traz a versão corrigida, e ele só roda em Node (não vai
     no pacote do app). No programa, `venmic → cmake-js → tar` é só de montar.
 
+Visual aprovado por foto (23/11): a aba Privado ganhou ícone próprio (dois balões
+de conversa — antes era a casinha, igual ao logo do lado) e, no PV, o botão do
+painel foi para o canto direito, como nos grupos.
+
 Testes do que mudou: 75 passaram (amigos, PV, celular, grupo, fixadas, canais,
 chat da sala, suíte principal).
 

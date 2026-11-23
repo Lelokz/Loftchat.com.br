@@ -95,6 +95,14 @@ export const phoneIcon = (size?: number): string =>
 export const menuIcon = (size?: number): string =>
   svg('<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>', size);
 
+/** Dois balões de conversa — a aba Privado (antes era a casinha, igual ao logo). */
+export const chatsIcon = (size?: number): string =>
+  svg(
+    '<path d="M4 4.5h10a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H8.5L5 16.5v-3H4A1.5 1.5 0 0 1 2.5 12V6A1.5 1.5 0 0 1 4 4.5Z"/>' +
+      '<path d="M18.5 8.5h1.5A1.5 1.5 0 0 1 21.5 10v6a1.5 1.5 0 0 1-1.5 1.5h-1v3l-3.5-3H12a1.5 1.5 0 0 1-1.5-1.5v-1"/>',
+    size,
+  );
+
 export const peopleIcon = (size?: number): string =>
   svg(
     '<path d="M15.5 20v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3.5 3.5 0 0 0-3.5 3.5V20"/><circle cx="9.5" cy="8" r="3.25"/><path d="M20.5 20v-1.5a3.5 3.5 0 0 0-2.6-3.4"/><path d="M15.5 4.7a3.25 3.25 0 0 1 0 6.3"/>',
