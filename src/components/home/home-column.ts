@@ -3,6 +3,7 @@ import './home-column.css';
 import { avatarEl, el, iconEl } from '../../lib/dom';
 import { peopleIcon } from '../../lib/icons';
 import type { DmThread, MemberId, UserProfile } from '../../types/models';
+import { bolinha } from '../bolinha/bolinha';
 
 export interface HomeColumnProps {
   dmThreads: DmThread[];
@@ -13,6 +14,8 @@ export interface HomeColumnProps {
   profiles: Map<MemberId, UserProfile>;
   me: MemberId;
   onSelectDm: (uid: MemberId) => void;
+  /** Não lidas (0.4.5) de cada PV. */
+  naoLidas?: (uid: MemberId) => number;
   /** Clicar em "Amigos" fecha o PV aberto, se houver. */
   onOpenFriends: () => void;
 }
@@ -95,11 +98,12 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
     const friendUid = otherOf(thread, props.me);
     const profile = props.profiles.get(friendUid);
     const isActive = friendUid === props.activeDmUid;
+    const naoLidas = props.naoLidas?.(friendUid) ?? 0;
 
     const button = el(
       'button',
       {
-        class: `home-column__dm${isActive ? ' is-active' : ''}`,
+        class: `home-column__dm${isActive ? ' is-active' : ''}${naoLidas > 0 ? ' tem-nao-lidas' : ''}`,
         type: 'button',
         'aria-current': isActive ? 'true' : undefined,
       },
@@ -111,6 +115,7 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
             thread.lastMessage.body === '' ? '—' : thread.lastMessage.body,
           ]),
         ]),
+        bolinha(naoLidas, 'fim'),
       ],
     );
     button.addEventListener('click', () => props.onSelectDm(friendUid));

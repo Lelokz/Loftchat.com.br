@@ -605,7 +605,30 @@ service cloud.firestore {
           && (!channelChanged('position') || (d.position is int && d.position >= 0 && d.position < 1000));
       }
 
+      /*
+       * NÃO LIDAS (0.4.5): quem manda mensagem anota no canal a hora e o autor
+       * da última. Qualquer membro, só estes dois campos, só para a frente e
+       * sempre com o próprio uid.
+       */
+      allow update: if isMember(resource.data.groupId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimaEm', 'ultimaDe'])
+        && request.resource.data.ultimaEm is string && request.resource.data.ultimaEm.size() <= 40
+        && request.resource.data.ultimaEm > resource.data.get('ultimaEm', '')
+        && request.resource.data.ultimaDe == uid();
+
       allow delete: if isOwner(resource.data.groupId);
+    }
+
+    /* ------------------------------- lidas ------------------------------- */
+    // Não lidas (0.4.5): até onde a pessoa já leu cada conversa. Só ela.
+
+    match /lidas/{userId} {
+      allow read, delete: if signedIn() && userId == uid();
+      allow create, update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['marcas', 'desde'])
+        && request.resource.data.marcas is map
+        && request.resource.data.marcas.size() <= 500
+        && request.resource.data.desde is string && request.resource.data.desde.size() <= 40;
     }
 
     /* ---------------------------- infoDeTela ---------------------------- */

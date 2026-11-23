@@ -647,6 +647,7 @@ export async function sendMessage(
   const body = rawBody.trim();
   if (body === '') return;
 
+  const sentAt = nowIso();
   const nova = await withTimeout(
     addDoc(collection(db, 'messages'), {
       groupId,
@@ -654,12 +655,14 @@ export async function sendMessage(
       authorId,
       kind: 'text',
       body,
-      sentAt: nowIso(),
+      sentAt,
       // Só entra quando existe: documento com `replyTo: undefined` é recusado.
       ...(replyTo === undefined ? {} : { replyTo }),
     }),
   );
   avisarCarteiro('grupo', nova.id);
+  // Não lidas (0.4.5): o canal guarda a hora e o autor da última mensagem.
+  void updateDoc(doc(db, 'channels', channelId), { ultimaEm: sentAt, ultimaDe: authorId }).catch(() => undefined);
 }
 
 /** Quanto do texto citado (resposta ou fixada) é copiado para dentro do documento novo. */

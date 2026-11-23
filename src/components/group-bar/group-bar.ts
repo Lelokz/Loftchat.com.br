@@ -8,6 +8,7 @@ import type { GroupFolder, TabMode } from '../../lib/private-prefs';
 import { enableDragSort } from '../../lib/drag-sort';
 import type { Group, GroupId, Member } from '../../types/models';
 import { renderSessionFooter } from '../session-footer/session-footer';
+import { bolinha } from '../bolinha/bolinha';
 
 export interface GroupBarProps {
   /** Grupos em que sou membro, vindos do Firestore. */
@@ -27,6 +28,8 @@ export interface GroupBarProps {
   onToggleFolder: (folderId: string) => void;
   onReorderInFolder: (ids: GroupId[]) => void;
   activeGroupId: GroupId | null;
+  /** Não lidas (0.4.5): quantas em cada grupo e no privado. */
+  naoLidas?: { grupo(id: GroupId): number; privado(): number };
   /** A aba Privado está ativa? Nenhum grupo fica marcado quando ela está. */
   homeActive: boolean;
   /** Eu — o cartão no canto da barra (nome e @). */
@@ -64,7 +67,11 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
       title: 'Privado: amigos e conversas',
       'aria-current': homeActive ? 'true' : undefined,
     },
-    [el('span', { class: 'group-bar__tab-icon' }, [iconEl(chatsIcon(15))]), el('span', { class: 'group-bar__tab-label' }, ['Privado'])],
+    [
+      el('span', { class: 'group-bar__tab-icon' }, [iconEl(chatsIcon(15))]),
+      el('span', { class: 'group-bar__tab-label' }, ['Privado']),
+      !homeActive && bolinha(props.naoLidas?.privado() ?? 0, 'aba'),
+    ],
   );
   privado.addEventListener('click', onOpenHome);
 
@@ -89,7 +96,11 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
         'data-context': 'group',
         'data-group-id': group.id,
       },
-      [grupoAvatar(group), rotulo !== null && el('span', { class: 'group-bar__name' }, [rotulo])],
+      [
+        grupoAvatar(group),
+        rotulo !== null && el('span', { class: 'group-bar__name' }, [rotulo]),
+        !isActive && bolinha(props.naoLidas?.grupo(group.id) ?? 0, 'aba'),
+      ],
     );
     button.addEventListener('click', () => onSelectGroup(group.id));
     return el('li', { 'data-sort-id': group.id }, [button]);
@@ -122,7 +133,11 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
         'aria-expanded': String(aberta),
         'data-folder-id': pasta.id,
       },
-      [miniaturas, comNome && el('span', { class: 'group-bar__name' }, [pasta.name])],
+      [
+        miniaturas,
+        comNome && el('span', { class: 'group-bar__name' }, [pasta.name]),
+        !aberta && bolinha(membros.reduce((soma, g) => soma + (props.naoLidas?.grupo(g.id) ?? 0), 0), 'aba'),
+      ],
     );
     botao.addEventListener('click', () => props.onToggleFolder(pasta.id));
     const filhos: HTMLElement[] = [botao];

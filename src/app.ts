@@ -108,6 +108,7 @@ import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
 import { ligarAvisos } from './lib/avisos';
+import { criarNaoLidas } from './lib/nao-lidas';
 
 export interface AppHandle {
   element: HTMLElement;
@@ -839,6 +840,7 @@ export function mountApp(
       onToggleFolder: alternarPasta,
       onReorderInFolder: reordenarNaPasta,
       activeGroupId: state.activeGroupId,
+      naoLidas,
       homeActive: state.view === 'home',
       onOpenHome: () => {
         setDrawer(null);
@@ -922,6 +924,7 @@ export function mountApp(
   /** Coluna 2 na tela inicial. A faixa de chamada continua aqui. */
   function buildHomeColumn(state: AppState): HTMLElement {
     const parts = renderHomeColumn({
+      naoLidas: (uid) => naoLidas.pv(uid),
       dmThreads: state.dmThreads,
       dmThreadsLoaded: state.dmThreadsLoaded,
       activeDmUid: state.activeDmUid,
@@ -1001,6 +1004,7 @@ export function mountApp(
   function buildChannelList(state: AppState): HTMLElement {
     const callBar = buildCallBar(state);
     return renderChannelList({
+      naoLidas: (id) => naoLidas.canal(id),
       group: activeGroup(state) ?? null,
       channels: state.channels,
       channelsLoaded: state.channelsLoaded,
@@ -1972,9 +1976,13 @@ export function mountApp(
     }
 
     const prev = groupBarEl === null ? null : previous;
+    // Não lidas (0.4.5): mudou alguma bolinha desde o último desenho.
+    const bolinhasMudaram = versaoDasBolinhas !== bolinhasDesenhadas;
+    bolinhasDesenhadas = versaoDasBolinhas;
 
     const groupsChanged =
       prev === null ||
+      bolinhasMudaram ||
       prev.groups !== state.groups ||
       prev.activeGroupId !== state.activeGroupId;
 
@@ -2646,12 +2654,37 @@ export function mountApp(
   };
   const avisos = ligarAvisos(user.uid, abrirConversa);
 
+  /*
+   * NÃO LIDAS (0.4.5): mudou uma contagem → redesenha (uma vez só, logo
+   * depois) as abas e a coluna da esquerda.
+   */
+  let versaoDasBolinhas = 0;
+  let bolinhasDesenhadas = 0;
+  let desenhoMarcado = false;
+  const naoLidas = criarNaoLidas(user.uid, () => {
+    versaoDasBolinhas += 1;
+    if (desenhoMarcado) return;
+    desenhoMarcado = true;
+    setTimeout(() => {
+      desenhoMarcado = false;
+      if (root.isConnected) render(store.getState());
+    }, 0);
+  });
+  const sincronizarNaoLidas = (state: AppState): void =>
+    naoLidas.sincronizar(
+      state.groups.map((g) => g.id),
+      state.dmThreads,
+      conversaAberta(state),
+    );
+
   const unsubscribe = store.subscribe((state) => {
     render(state);
     acompanharChamada.aoMudar();
     avisos.conversa(conversaAberta(state));
+    sincronizarNaoLidas(state);
   });
   avisos.conversa(conversaAberta(store.getState()));
+  sincronizarNaoLidas(store.getState());
   render(store.getState());
 
   return {
@@ -2683,6 +2716,7 @@ export function mountApp(
       paintChatBackground(document.documentElement, null);
       acompanharChamada.desligar();
       avisos.parar();
+      naoLidas.parar();
       store.dispose();
     },
   };

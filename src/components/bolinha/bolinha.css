@@ -1,0 +1,41 @@
+/* Não lidas (0.4.5): vermelha com número, no canto de baixo do ícone da aba ou na ponta da linha. */
+.bolinha {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: var(--danger-on);
+  font: 800 11px/1 var(--font-sans);
+  pointer-events: none;
+}
+
+.bolinha--aba {
+  position: absolute;
+  bottom: -1px;
+  left: 20px;
+  z-index: 2;
+  box-shadow: 0 0 0 2px var(--surface-rail);
+}
+
+.bolinha--fim {
+  margin-left: auto;
+}
+
+/* A conversa com mensagem nova: nome em destaque. */
+.tem-nao-lidas .channel__name,
+.tem-nao-lidas .home-column__dm-name,
+.tem-nao-lidas .home-column__dm-preview {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+/* A aba guarda a bolinha no canto dela. */
+.group-bar__tab {
+  position: relative;
+}

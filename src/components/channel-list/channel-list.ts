@@ -5,6 +5,7 @@ import { chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
 import { renderCallBar } from '../call-bar/call-bar';
 import type { CallBarProps } from '../call-bar/call-bar';
 import { renderLoading } from '../empty-state/empty-state';
+import { bolinha } from '../bolinha/bolinha';
 import { channelSections } from '../../lib/channel-layout';
 import type { Channel, ChannelId, Group } from '../../types/models';
 
@@ -29,6 +30,8 @@ export interface ChannelListProps {
   callBar?: CallBarProps;
   /** Quem está em cada canal de voz, por id de canal. */
   voiceRosters: Map<ChannelId, VoicePresenceView[]>;
+  /** Não lidas (0.4.5) de cada canal de texto. */
+  naoLidas?: (channelId: ChannelId) => number;
 }
 
 /** Uma pessoa na lista indentada sob um canal de voz. */
@@ -54,9 +57,10 @@ function channelButton(
   state: 'idle' | 'active' | 'connected',
   onSelect: (id: ChannelId) => void,
   roster?: VoicePresenceView[],
+  naoLidas = 0,
 ): HTMLElement {
   const isVoice = channel.kind === 'voice';
-  const stateClass = state === 'active' ? ' is-active' : state === 'connected' ? ' is-connected' : '';
+  const stateClass = `${state === 'active' ? ' is-active' : state === 'connected' ? ' is-connected' : ''}${naoLidas > 0 ? ' tem-nao-lidas' : ''}`;
 
   const button = el(
     'button',
@@ -83,6 +87,7 @@ function channelButton(
       roster?.some((person) => person.sharingScreen) === true &&
         el('span', { class: 'channel__on-air' }, ['AO VIVO']),
       state === 'connected' && el('span', { class: 'channel__live' }, ['conectado']),
+      bolinha(naoLidas, 'fim'),
     ],
   );
   button.addEventListener('click', () => onSelect(channel.id));
@@ -155,7 +160,13 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
               onEnterVoice,
               props.voiceRosters.get(channel.id) ?? [],
             )
-          : channelButton(channel, channel.id === activeChannelId ? 'active' : 'idle', onSelectChannel),
+          : channelButton(
+              channel,
+              channel.id === activeChannelId ? 'active' : 'idle',
+              onSelectChannel,
+              undefined,
+              props.naoLidas?.(channel.id) ?? 0,
+            ),
       ),
     );
 
