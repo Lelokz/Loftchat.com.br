@@ -1,5 +1,13 @@
 [
   {
+    "versao": "0.2.5",
+    "data": "2026-11-23",
+    "itens": [
+      "Primeira atualização feita pelo próprio Loftchat: se você está na 0.2.0, o aviso de atualização apareceu sozinho.",
+      "Os instaladores do Windows, do Linux e do Android saem juntos, numa página só de cada versão."
+    ]
+  },
+  {
     "versao": "0.2.0",
     "data": "2026-11-17",
     "itens": [
