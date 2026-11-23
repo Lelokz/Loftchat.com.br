@@ -27,6 +27,25 @@
         { "fieldPath": "threadId", "order": "ASCENDING" },
         { "fieldPath": "sentAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "_comment": "Não lidas (0.4.5): contar as mensagens novas de um canal — where groupId ==, channelId ==, sentAt > marca, limit 10, sem orderBy (o Firestore ordena por sentAt crescente). Ver src/lib/nao-lidas.ts.",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "channelId", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comment": "Não lidas (0.4.5): contar as mensagens novas de um PV — where threadId ==, sentAt > marca, limit 10. Ver src/lib/nao-lidas.ts.",
+      "collectionGroup": "dmMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "threadId", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
