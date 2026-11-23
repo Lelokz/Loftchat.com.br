@@ -8,7 +8,12 @@
  *
  * GET /foto/{uid}?v=..&a=..
  *   A foto de quem mandou, para a notificação. Só com assinatura do carteiro.
+ *
+ * POST /arquivo, GET /arquivo/<chave> e a limpeza diária: ver arquivos.ts (0.5.0).
  */
+
+import { entregarArquivo, limpar, receberArquivo } from './arquivos';
+import type { Balde } from './arquivos';
 
 export interface Env {
   PROJETO: string;
@@ -16,6 +21,8 @@ export interface Env {
   SEGREDO_FOTO: string;
   /** Só no teste local: endereço do emulador do Firestore. */
   EMULADOR?: string;
+  /** O R2 com os arquivos (0.5.0). */
+  ARQUIVOS?: Balde;
 }
 
 const TEXTO_MAX = 180;
@@ -55,7 +62,8 @@ function json(corpo: unknown, status = 200): Response {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, GET, OPTIONS',
-  'access-control-allow-headers': 'authorization, content-type',
+  'access-control-allow-headers': 'authorization, content-type, range',
+  'access-control-expose-headers': 'content-length, content-range, accept-ranges',
 };
 
 /** Guarda resultados por um tempo, dentro da mesma instância do carteiro. */
@@ -329,6 +337,14 @@ function passouDoLimite(uid: string): boolean {
   return c.n > AVISOS_POR_MINUTO;
 }
 
+/** Mensagem só com arquivo vira "📷 Foto", "🎬 Vídeo"… (com legenda, a legenda). */
+function textoDoAviso(msg: Dados): string {
+  const corpo = String(msg['body'] ?? '').trim();
+  if (corpo !== '') return cortar(corpo);
+  const tipos: Record<string, string> = { image: '📷 Foto', gif: 'GIF', video: '🎬 Vídeo', sticker: 'Figurinha' };
+  return tipos[String(msg['kind'])] ?? '';
+}
+
 function cortar(texto: string): string {
   const limpo = texto.trim();
   return limpo.length > TEXTO_MAX ? `${limpo.slice(0, TEXTO_MAX - 1).trimEnd()}…` : limpo;
@@ -417,7 +433,7 @@ async function entregar(env: Env, origem: string, tipo: 'grupo' | 'pv', id: stri
     de: nome,
     deUid: uid,
     onde,
-    texto: cortar(String(msg['body'] ?? '')),
+    texto: textoDoAviso(msg),
     quando: String(msg['sentAt']),
     conversa,
     abrir,
@@ -456,11 +472,30 @@ export default {
       if (req.method === 'POST' && url.pathname === '/avisar') return await avisar(req, env, ctx);
       const foto = /^\/foto\/([^/]+)$/.exec(url.pathname);
       if (req.method === 'GET' && foto !== null) return await servirFoto(req, env, foto[1]!);
+      if (url.pathname === '/arquivo' || url.pathname.startsWith('/arquivo/')) {
+        if (env.ARQUIVOS === undefined) return json({ erro: 'arquivos ainda não ligados' }, 503);
+        if (req.method === 'POST' && url.pathname === '/arquivo') {
+          const uid = await quemChamou(req, env);
+          if (uid === null) return json({ erro: 'sem login' }, 401);
+          return await receberArquivo(req, env.ARQUIVOS, uid);
+        }
+        if (req.method === 'GET') return await entregarArquivo(req, env.ARQUIVOS, url.pathname.slice('/arquivo/'.length));
+      }
+      // Só no teste local: roda a limpeza como se fosse "agora".
+      if (env.EMULADOR !== undefined && req.method === 'POST' && url.pathname === '/teste/limpar' && env.ARQUIVOS !== undefined) {
+        const agora = Number(url.searchParams.get('agora') ?? Date.now());
+        return json(await limpar(env.ARQUIVOS, agora));
+      }
       if (url.pathname === '/') return new Response('Carteiro do Loftchat.', { headers: CORS });
       return json({ erro: 'não existe' }, 404);
     } catch (e) {
       console.log(String(e));
       return json({ erro: 'falhou' }, 500);
     }
+  },
+
+  /** A limpeza de todo dia (wrangler.toml → crons). */
+  async scheduled(_evento: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (env.ARQUIVOS !== undefined) ctx.waitUntil(limpar(env.ARQUIVOS).then((r) => console.log('limpeza', JSON.stringify(r))));
   },
 };

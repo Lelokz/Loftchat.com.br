@@ -11,3 +11,12 @@ PROJETO = "loft-3d6c0f"
 
 [observability]
 enabled = true
+
+# Arquivos (0.5.0): imagem, GIF, vídeo e figurinha. Ver src/arquivos.ts.
+[[r2_buckets]]
+binding = "ARQUIVOS"
+bucket_name = "loftchat-arquivos"
+
+# A limpeza de todo dia (03:17 em Brasília).
+[triggers]
+crons = ["17 6 * * *"]
