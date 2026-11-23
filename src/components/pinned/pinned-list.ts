@@ -101,7 +101,6 @@ export function openPinnedMessagesPanel(initial: PinnedListProps): PinnedPanel {
     title: 'Mensagens fixadas',
     body,
     confirmLabel: 'Fechar',
-    cancelLabel: 'Fechar',
   });
   return {
     element: body,

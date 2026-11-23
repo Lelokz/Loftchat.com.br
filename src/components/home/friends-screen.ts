@@ -4,6 +4,7 @@ import { avatarEl, el, iconEl } from '../../lib/dom';
 import { menuIcon } from '../../lib/icons';
 import { trocarConteudoComTransicao } from '../../lib/transition';
 import type { Friendship, MemberId, UserProfile } from '../../types/models';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export type FriendsTab = 'amigos' | 'pendentes' | 'adicionar' | 'bloqueados';
 
@@ -21,7 +22,10 @@ export interface FriendsScreenProps {
   /** Rejeita com a mensagem a mostrar. Devolve o que aconteceu. */
   onAdd: (username: string) => Promise<'sent' | 'accepted'>;
   onAccept: (id: string) => void;
+  /** Recusar ou cancelar um pedido (sem perguntar: dá para pedir de novo). */
   onRemove: (id: string) => void;
+  /** Desfazer amizade: pergunta antes (ver app.ts). */
+  onUnfriend: (friendshipId: string, uid: MemberId) => void;
   onBlock: (uid: MemberId) => void;
   onUnblock: (uid: MemberId) => void;
   /** Abre o PV — clicar na linha (só na aba Amigos) ou "Enviar mensagem" no menu de contexto. */
@@ -277,7 +281,7 @@ function corpo(
         profiles.get(outro),
         outro,
         [
-          action('Desfazer amizade', () => props.onRemove(f.id), true),
+          action('Desfazer amizade', () => props.onUnfriend(f.id, outro), true),
           action('Bloquear', () => props.onBlock(outro), true),
         ],
         props.onOpenDm,
@@ -339,7 +343,7 @@ function addForm(props: FriendsScreenProps): HTMLElement {
       .catch((error: unknown) => {
         aviso.classList.add('friends__note--error');
         aviso.textContent =
-          error instanceof Error ? error.message : 'Não foi possível enviar o pedido.';
+          textoDoErro(error, 'Não foi possível enviar o pedido.');
       })
       .finally(() => {
         enviar.removeAttribute('disabled');

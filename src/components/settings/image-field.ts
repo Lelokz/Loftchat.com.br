@@ -3,6 +3,7 @@ import { IMAGE_SPECS } from '../../lib/images';
 import type { ImageKind } from '../../lib/images';
 import { openImageAdjuster } from '../image-adjuster/image-adjuster';
 import { showToast } from '../toast/toast';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface ImageFieldOptions {
   kind: ImageKind;
@@ -51,7 +52,7 @@ export function renderImageField(options: ImageFieldOptions): HTMLElement {
   function ajustar(source: File | string): void {
     openImageAdjuster({ kind, source, onApply: onChange, onPickAnother: escolherArquivo }).catch(
       (error: unknown) => {
-        showToast(error instanceof Error ? error.message : 'Não deu para abrir essa imagem.');
+        showToast(textoDoErro(error, 'Não deu para abrir essa imagem.'));
       },
     );
   }

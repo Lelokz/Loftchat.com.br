@@ -137,7 +137,8 @@ export function openModal(options: ModalOptions): ModalController {
     ]),
     body,
     errorBox,
-    el('footer', { class: 'modal__footer' }, [cancelButton, confirmButton]),
+    // Janela só informativa (sem onConfirm): um botão só, nunca "Fechar" duas vezes.
+    el('footer', { class: 'modal__footer' }, onConfirm === undefined ? [confirmButton] : [cancelButton, confirmButton]),
   ]);
 
   form.addEventListener('submit', (event) => {

@@ -32,7 +32,6 @@ export interface ContextMenuActions {
   getState(): AppState;
   uid: MemberId;
   copyInviteLink(groupId: string): void;
-  renameGroup(groupId: string): void;
   groupSettings(groupId: string): void;
   groupNickname(groupId: string): void;
   /** Etapa 5c: abre Configurações → Aparência apontando para o fundo deste canal. */
@@ -54,7 +53,6 @@ export interface ContextMenuActions {
   replyToMessage(messageId: string, sala?: boolean): void;
   /** Entra em edição no próprio balão. Só o autor chega aqui. Grupo ou PV, mesma regra acima. */
   editMessage(messageId: string): void;
-  openVoiceDiagnostics(): void;
   /** Abre o PV com este amigo — item "Enviar mensagem" do menu de contexto dele. */
   openDm(friendUid: MemberId): void;
   /**
@@ -315,7 +313,6 @@ function groupItems(
     items.push(
       { label: 'Configurações do grupo', onSelect: () => actions.groupSettings(groupId) },
       { label: 'Copiar código do grupo', onSelect: () => actions.copyInviteLink(groupId) },
-      { label: 'Renomear grupo', onSelect: () => actions.renameGroup(groupId) },
     );
   }
 
@@ -562,9 +559,6 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
         break;
       case 'member':
         items = memberItems(target, actions, state);
-        break;
-      case 'room':
-        items = [{ label: 'Diagnóstico da conexão', onSelect: actions.openVoiceDiagnostics }];
         break;
       default:
         items = [];

@@ -324,10 +324,9 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
   if (failedNames.length > 0) {
     notices.push(
       el('p', { class: 'room__notice', role: 'alert' }, [
-        `${failedNames.join(', ')} está na sala, mas a conexão não fechou — ` +
-          'nem direta nem pelo servidor de relay. ' +
-          'Uma das duas redes bloqueia os dois caminhos. ' +
-          'O diagnóstico (Ctrl+Alt+V) mostra onde parou.',
+        `${failedNames.join(', ')} está na sala, mas a conexão não fechou: ` +
+          'a internet de um dos lados está bloqueando a chamada. ' +
+          'Tente sair e entrar de novo, ou trocar de rede (Wi-Fi ↔ dados).',
       ]),
     );
   }
@@ -362,7 +361,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
         screen.sharerName !== null && !screen.isMine ? ' has-video' : ''
       }${emGrade ? ' room--grade' : ' room--palco'}`,
       'aria-label': `Sala de voz ${channelName}`,
-      // Alvo do menu de contexto, que traz o diagnóstico da conexão.
+      // Alvo do menu de contexto (hoje cai no menu mínimo: Copiar/Recarregar).
       'data-context': 'room',
     },
     [header, ...notices, ...miolo, controls],

@@ -3,6 +3,7 @@ import './auth-screen.css';
 import { el, iconEl } from '../../lib/dom';
 import { usernameProblem } from '../../lib/friends';
 import { logoIcon } from '../../lib/icons';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface AuthScreenProps {
   /** Rejeita com um Error cuja `message` já está traduzida para português. */
@@ -332,7 +333,7 @@ export function renderAuthScreen({
       // Em caso de sucesso a tela inteira é substituída pelo app, então o estado
       // de carregando fica de propósito — evita duplo envio durante a troca.
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Não foi possível concluir.');
+      setError(textoDoErro(error, 'Não foi possível concluir.'));
       setBusy(false);
       passwordInput.focus();
     }

@@ -1,4 +1,4 @@
-/* Barra de composição — clipe, campo, microfone, enviar. */
+/* Barra de composição — campo e enviar. */
 
 .composer {
   flex: none; /* fica colada na base, nunca é empurrada para fora */
@@ -14,14 +14,6 @@
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
-}
-
-.composer__action {
-  width: 34px;
-  height: 34px;
-  flex: none;
-  margin-bottom: 2px;
-  border-radius: var(--radius-md);
 }
 
 /*

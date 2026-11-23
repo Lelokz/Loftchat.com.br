@@ -205,6 +205,8 @@ test('bloquear impede escrever no PV, e a conversa antiga continua legível', as
   // a linha de B some de lá (ver `blockUser`); a conversa não some com ela.
   await openFriends(a.page, 'amigos');
   await a.page.getByRole('button', { name: 'Bloquear', exact: true }).click();
+  // Bloquear pergunta antes (revisão 23/11/2026).
+  await a.page.getByRole('dialog', { name: 'Bloquear' }).getByRole('button', { name: 'Bloquear' }).click();
 
   // De volta ao PV pela lista de conversas — não tem mais como chegar lá pela
   // aba Amigos, porque bloquear desfez o vínculo.
@@ -290,6 +292,8 @@ test('as REGRAS protegem o PV contra REST cru: leitura, autoria e bloqueio', asy
   // A bloqueia B; B não consegue mais CRIAR mensagem nesta conversa.
   await openFriends(a.page, 'amigos');
   await a.page.getByRole('button', { name: 'Bloquear', exact: true }).click();
+  // Bloquear pergunta antes (revisão 23/11/2026).
+  await a.page.getByRole('dialog', { name: 'Bloquear' }).getByRole('button', { name: 'Bloquear' }).click();
 
   expect(
     await putDocViaRest(b.account, `dmMessages/pos-bloqueio-${Date.now()}`, {

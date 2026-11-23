@@ -713,8 +713,11 @@ service cloud.firestore {
       // precisa poder limpar sozinho: se a outra pessoa fechou o navegador à
       // força, os documentos dela ficariam para sempre — e sinalização velha não
       // é lixo inofensivo, é uma oferta antiga sendo consumida como nova.
+      // O DONO também apaga, para o grupo apagado não deixar sinal órfão
+      // (deleteGroupCascade, revisão 23/11/2026).
       allow delete: if signedIn()
-        && (resource.data.from == uid() || resource.data.to == uid());
+        && (resource.data.from == uid() || resource.data.to == uid()
+            || isOwner(resource.data.groupId));
     }
   }
 }

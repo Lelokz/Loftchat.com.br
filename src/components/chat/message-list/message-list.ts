@@ -503,32 +503,58 @@ function editor(message: MessageBase, props: MessageListProps): HTMLElement {
   return campo;
 }
 
+/**
+ * O texto da mensagem com os endereços (http/https) viram link clicável
+ * (revisão 23/11/2026). Só `http(s)://` vira link — nada de `javascript:` — e
+ * o texto entra como texto, nunca como HTML. Abre fora: no programa e no app,
+ * no navegador do sistema; no site, em outra aba.
+ */
+const ENDERECO = /\bhttps?:\/\/[^\s<>"']+/g;
+
+function textoComLinks(texto: string): (string | HTMLElement)[] {
+  const pedacos: (string | HTMLElement)[] = [];
+  let desde = 0;
+  for (const achado of texto.matchAll(ENDERECO)) {
+    let url = achado[0];
+    // Pontuação no fim ("veja https://x.com.") fica fora do link.
+    while (/[.,;:!?)\]]$/.test(url)) url = url.slice(0, -1);
+    const inicio = achado.index;
+    if (inicio > desde) pedacos.push(texto.slice(desde, inicio));
+    pedacos.push(
+      el("a", { class: "message__link", href: url, target: "_blank", rel: "noopener noreferrer" }, [url]),
+    );
+    desde = inicio + url.length;
+  }
+  if (desde < texto.length) pedacos.push(texto.slice(desde));
+  return pedacos;
+}
+
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
 function renderContent(message: MessageBase): HTMLElement {
   switch (message.kind) {
     case "text":
-      return el("p", { class: "message__text" }, [message.body]);
+      return el("p", { class: "message__text" }, textoComLinks(message.body));
 
     case "image":
       return el("div", { class: "message__content" }, [
         message.attachment && renderImage(message.attachment),
         message.body !== "" &&
-          el("p", { class: "message__text" }, [message.body]),
+          el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
 
     case "file":
       return el("div", { class: "message__content" }, [
         message.attachment && renderFile(message.attachment),
         message.body !== "" &&
-          el("p", { class: "message__text" }, [message.body]),
+          el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
 
     case "audio":
       return el("div", { class: "message__content" }, [
         message.attachment && renderAudio(message.attachment),
         message.body !== "" &&
-          el("p", { class: "message__text" }, [message.body]),
+          el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
   }
 }

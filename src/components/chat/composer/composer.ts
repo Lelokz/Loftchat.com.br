@@ -2,7 +2,7 @@ import './composer.css';
 
 import { el, iconEl } from '../../../lib/dom';
 import { firestoreErrorMessage } from '../../../lib/firestore-errors';
-import { clipIcon, micIcon, sendIcon } from '../../../lib/icons';
+import { sendIcon } from '../../../lib/icons';
 
 export interface ComposerProps {
   /** Nome do canal (ou da pessoa, no PV), só para o placeholder. */
@@ -115,30 +115,8 @@ export function renderComposer({
 
   return el('div', { class: 'composer' }, [
     errorBox,
-    el('div', { class: 'composer__row' }, [
-      el(
-        'button',
-        {
-          class: 'icon-button composer__action',
-          type: 'button',
-          title: 'Anexar arquivo ou imagem (ainda não implementado)',
-        },
-        [iconEl(clipIcon(19)), el('span', { class: 'sr-only' }, ['Anexar arquivo ou imagem'])],
-      ),
-
-      input,
-
-      el(
-        'button',
-        {
-          class: 'icon-button composer__action',
-          type: 'button',
-          title: 'Gravar áudio (ainda não implementado)',
-        },
-        [iconEl(micIcon(19)), el('span', { class: 'sr-only' }, ['Gravar áudio'])],
-      ),
-
-      sendButton,
-    ]),
+    // Anexar e gravar áudio voltam quando existirem de verdade: botão que não
+    // faz nada parecia quebrado (revisão 23/11/2026).
+    el('div', { class: 'composer__row' }, [input, sendButton]),
   ]);
 }

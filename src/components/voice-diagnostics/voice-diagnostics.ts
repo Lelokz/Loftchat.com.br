@@ -83,7 +83,6 @@ export function openVoiceDiagnostics(
       'passando por relay e consumindo o plano gratuito.',
     body,
     confirmLabel: 'Fechar',
-    cancelLabel: 'Fechar',
   });
 
   /*

@@ -167,6 +167,17 @@
   overflow-wrap: anywhere;
 }
 
+/* Link dentro da mensagem: sublinhado; no meu balão (fundo roxo) fica branco. */
+.message__link {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.message--mine .message__link {
+  color: inherit;
+}
+
 .message__content {
   display: flex;
   flex-direction: column;

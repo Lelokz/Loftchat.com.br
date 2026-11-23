@@ -13,6 +13,8 @@
  * pararia de funcionar em silêncio.
  */
 
+import { authErrorMessage } from './auth-errors';
+
 const CAUSES: Record<string, string> = {
   'permission-denied': 'Você não tem permissão para isso.',
   'failed-precondition': 'O banco ainda não está pronto para esta consulta.',
@@ -50,6 +52,24 @@ export function firestoreErrorMessage(error: unknown, action: string): string {
   const code = readCode(error);
   const cause = code === undefined ? undefined : CAUSES[code];
   return cause === undefined ? `${action} Tente de novo.` : `${action} ${cause}`;
+}
+
+/**
+ * O texto de um erro para mostrar na tela, sempre em português.
+ *
+ * Erro do Firebase (tem `code`) passa pelo tradutor; erro do próprio Loftchat
+ * (um `Error` com a frase já escrita) mostra a frase; o resto (TypeError e
+ * afins, com texto em inglês do navegador) vira `acao` + "Tente de novo.".
+ */
+export function textoDoErro(error: unknown, acao: string): string {
+  const code = readCode(error);
+  if (code !== undefined) {
+    return code.startsWith('auth/') ? authErrorMessage(error) : firestoreErrorMessage(error, acao);
+  }
+  const doNavegador =
+    error instanceof TypeError || error instanceof RangeError || error instanceof SyntaxError || error instanceof ReferenceError;
+  if (error instanceof Error && !doNavegador && error.message !== '') return error.message;
+  return `${acao} Tente de novo.`;
 }
 
 /**

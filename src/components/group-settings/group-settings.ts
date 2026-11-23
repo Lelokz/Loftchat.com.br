@@ -25,6 +25,7 @@ import type { Channel, Group } from '../../types/models';
 import { renderImageField } from '../settings/image-field';
 import { renderGroupCard } from './group-card';
 import { showToast } from '../toast/toast';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface GroupSettingsOptions {
   group: Group;
@@ -457,11 +458,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
       desenhar();
     } catch (error) {
       salvando = false;
-      mostrarErro(
-        error instanceof Error && error.message !== ''
-          ? error.message
-          : 'Não deu para salvar. Confira a internet e tente de novo.',
-      );
+      mostrarErro(textoDoErro(error, 'Não deu para salvar.'));
       atualizarBarra();
     }
   }

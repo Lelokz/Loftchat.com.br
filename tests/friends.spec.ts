@@ -202,6 +202,8 @@ test('bloquear desfaz a amizade e impede pedido novo', async ({ browser }) => {
 
   // A bloqueia B.
   await a.page.getByRole('button', { name: 'Bloquear' }).click();
+  // Bloquear pergunta antes (revisão 23/11/2026).
+  await a.page.getByRole('dialog', { name: 'Bloquear' }).getByRole('button', { name: 'Bloquear' }).click();
   await expect(a.page.locator('.friends__row')).toHaveCount(0, { timeout: 30_000 });
 
   await openFriends(a.page, 'bloqueados');

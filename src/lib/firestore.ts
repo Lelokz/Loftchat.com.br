@@ -791,11 +791,6 @@ export async function createChannel(
   );
 }
 
-export async function renameGroup(groupId: string, rawName: string): Promise<void> {
-  const name = rawName.trim();
-  await withTimeout(updateDoc(doc(db, 'groups', groupId), { name, initials: initials(name) }));
-}
-
 /**
  * Sorteia um código livre e grava o convite. O código é o id do documento.
  *
@@ -911,7 +906,7 @@ export async function leaveGroup(groupId: string, uid: MemberId): Promise<void> 
 }
 
 /** Etapas da cascata, na ordem em que acontecem. */
-export type DeleteStep = 'messages' | 'channels' | 'invites' | 'members' | 'group';
+export type DeleteStep = 'voice' | 'messages' | 'channels' | 'invites' | 'members' | 'group';
 
 export interface DeleteProgress {
   step: DeleteStep;
@@ -957,6 +952,44 @@ async function deletePage(
 }
 
 /**
+ * Os sinais WebRTC que sobraram nos canais de voz do grupo (de quem fechou o
+ * programa à força no meio da chamada). Quem sai direito já limpa os seus.
+ *
+ * Melhor esforço: a regra que deixa o DONO apagar sinal dos outros é de
+ * 23/11/2026; se ela ainda não estiver publicada, o permission-denied aqui não
+ * pode travar a exclusão do grupo inteiro — sobra lixo, como antes.
+ */
+async function apagarSobrasDaVoz(groupId: string): Promise<number> {
+  let apagados = 0;
+  const canais = await withTimeout(
+    getDocs(query(collection(db, 'channels'), where('groupId', '==', groupId), where('kind', '==', 'voice'))),
+  );
+  for (const canal of canais.docs) {
+    try {
+      for (;;) {
+        const sinais = await withTimeout(
+          getDocs(
+            query(
+              collection(db, 'voiceChannels', canal.id, 'signals'),
+              where('groupId', '==', groupId),
+              limit(DELETE_PAGE),
+            ),
+          ),
+        );
+        if (sinais.empty) break;
+        const batch = writeBatch(db);
+        for (const sinal of sinais.docs) batch.delete(sinal.ref);
+        await withTimeout(batch.commit());
+        apagados += sinais.size;
+      }
+    } catch (error) {
+      if (!isPermissionDenied(error)) throw error;
+    }
+  }
+  return apagados;
+}
+
+/**
  * Apaga o grupo inteiro, na ordem que as REGRAS exigem.
  *
  * A ordem não é estética. `isOwner()` faz um get() no documento do grupo, então
@@ -978,6 +1011,18 @@ export async function deleteGroupCascade(
 ): Promise<void> {
   let removed = 0;
   const advance = (step: DeleteStep): void => onProgress({ step, removed });
+
+  // 0. A sala de voz (revisão 23/11/2026): quem estava nela e os sinais da
+  //    chamada. Antes dos canais, porque os sinais moram DENTRO do canal de
+  //    voz, e antes das memberships, porque a leitura pede isMember.
+  advance('voice');
+  removed += await apagarSobrasDaVoz(groupId);
+  for (;;) {
+    const count = await deletePage('voiceParticipants', groupId, null);
+    if (count === 0) break;
+    removed += count;
+    advance('voice');
+  }
 
   // 1-3. Mensagens podem ser milhares; canais e convites, poucos. O laço é o
   //      mesmo para os três, e é o que respeita o teto do batch.

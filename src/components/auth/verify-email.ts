@@ -1,6 +1,7 @@
 import './verify-email.css';
 
 import { el } from '../../lib/dom';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface VerifyEmailProps {
   email: string;
@@ -65,7 +66,7 @@ export function renderVerifyEmail({
       })
       .catch((error: unknown) => {
         aviso.textContent =
-          error instanceof Error ? error.message : 'Não foi possível reenviar agora.';
+          textoDoErro(error, 'Não foi possível reenviar agora.');
         reenviar.removeAttribute('disabled');
       });
   });

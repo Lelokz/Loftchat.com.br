@@ -60,6 +60,7 @@ import { MAX_BIO, MAX_DISPLAY_NAME, MAX_USERNAME_CHANGES } from '../../types/mod
 import type { Group, UserProfile } from '../../types/models';
 import { renderPersonCard } from '../person-card/person-card';
 import { showToast } from '../toast/toast';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface SettingsOptions {
   user: User;
@@ -846,9 +847,7 @@ export function openSettings(options: SettingsOptions): void {
       mostrarErro(
         error instanceof UsernameTakenError
           ? `@${atual.username} já é de alguém. Escolha outro.`
-          : error instanceof Error && error.message !== ''
-            ? error.message
-            : 'Não deu para salvar. Confira a internet e tente de novo.',
+          : textoDoErro(error, 'Não deu para salvar.'),
       );
       atualizarBarra();
     }

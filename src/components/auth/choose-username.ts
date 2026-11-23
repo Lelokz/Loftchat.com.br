@@ -2,6 +2,7 @@ import './choose-username.css';
 
 import { el } from '../../lib/dom';
 import { usernameProblem } from '../../lib/friends';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface ChooseUsernameProps {
   /** Rejeita com a mensagem a mostrar. */
@@ -88,7 +89,7 @@ export function renderChooseUsername({
     void onChoose(nome)
       .catch((error: unknown) => {
         erro.textContent =
-          error instanceof Error ? error.message : 'Não foi possível reservar esse nome.';
+          textoDoErro(error, 'Não foi possível reservar esse nome.');
       })
       .finally(() => {
         enviar.removeAttribute('disabled');

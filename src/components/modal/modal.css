@@ -227,9 +227,11 @@
   border-radius: var(--radius-lg);
   background-color: var(--accent-soft);
   color: var(--text-primary);
-  font: 800 28px / 1 var(--font-sans);
+  /* Diminui em celular estreito: em 360px o código encostava na borda. */
+  font: 800 clamp(20px, 6.5vw, 28px) / 1 var(--font-sans);
   letter-spacing: 0.22em;
   text-align: center;
+  white-space: nowrap;
   user-select: all;
 }
 

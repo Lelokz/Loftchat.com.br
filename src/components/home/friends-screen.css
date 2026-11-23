@@ -113,6 +113,26 @@
 .friends__handle {
   font-size: var(--font-size-sm);
   color: var(--text-muted);
+  /* @ comprido não pode passar por baixo dos botões (revisão 23/11/2026). */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Celular: os botões descem para a linha de baixo, alinhados com o nome. */
+@media (max-width: 720px) {
+  .friends__row {
+    flex-wrap: wrap;
+  }
+
+  .friends__identity {
+    flex-basis: calc(100% - 48px);
+  }
+
+  .friends__actions {
+    flex-basis: 100%;
+    padding-left: 44px;
+  }
 }
 
 .friends__actions {

@@ -2,6 +2,41 @@
 
 Estado em 15/11/2026.
 
+## Revisão geral + site com os 3 botões (23/11/2026)
+
+**Site:** os três cartões de baixar levam a `releases/latest/download/...`
+(Windows, Linux, Android), com a versão atual lida do GitHub, o cartão do
+sistema da pessoa destacado e uma dica curta por sistema. Publicado.
+
+**Revisão geral** — passeio automático por todas as telas em 5 tamanhos (PC
+1440, notebook 1280, celular 390 e 360, celular deitado), procurando botão
+repetido, vazamento lateral, texto em inglês e erro no console. A ferramenta
+ficou FORA do repositório (`Arquivo/Loft-desktop/scripts-de-teste/zz-revisao.spec.ts`).
+Consertado:
+
+1. Desfazer amizade e Bloquear perguntam antes. No celular o @ do amigo
+   passava por baixo dos botões e o toque para abrir a conversa caía em
+   "Desfazer amizade" — desfazia na hora, sem volta.
+2. Erro do servidor nunca mais em inglês: `textoDoErro()` em
+   `lib/firestore-errors.ts`, usado nas 8 telas que mostravam `error.message` cru.
+3. Janela só informativa (sem `onConfirm`) tem UM botão: convite, fixadas e
+   diagnóstico mostravam "Fechar" duas vezes.
+4. "Diagnóstico da conexão" saiu do menu da sala (só o atalho Ctrl+Alt+V,
+   para depurar); o aviso de conexão que falhou não manda mais apertar atalho.
+5. "Renomear grupo" saiu dos menus (repetia Configurações do grupo).
+6. Clipe e microfone do campo de mensagem saíram: não faziam nada.
+7. Link `http(s)://` na mensagem vira clicável (abre fora).
+8. Código do convite diminui em celular estreito.
+9. Apagar grupo limpa `voiceParticipants` e os sinais dos canais de voz
+   (pendência antiga). A regra nova deixa o DONO apagar sinal — enquanto ela
+   não estiver publicada, essa parte falha calada e o resto da exclusão segue.
+10. Firebase 12.19 + re2js 2.10. Sobra o aviso do `@grpc/grpc-js`: nem o
+    Firebase mais novo traz a versão corrigida, e ele só roda em Node (não vai
+    no pacote do app). No programa, `venmic → cmake-js → tar` é só de montar.
+
+Testes do que mudou: 75 passaram (amigos, PV, celular, grupo, fixadas, canais,
+chat da sala, suíte principal).
+
 ## MUDANÇA DE RUMO (15/11/2026) — o Loft vira programa e app
 
 Decisão do Leo: o chat do Loft passa a existir **só como programa (Linux e

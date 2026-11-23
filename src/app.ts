@@ -65,7 +65,6 @@ import {
   openInviteDialog,
   openJoinGroupDialog,
   openLeaveGroupDialog,
-  openRenameGroupDialog,
 } from './components/modal/dialogs';
 import { openVoiceDiagnostics } from './components/voice-diagnostics/voice-diagnostics';
 import { renderVoiceRoom } from './components/voice-room/voice-room';
@@ -84,7 +83,6 @@ import {
   pinChannelMessage,
   pinDmMessage,
   removeMember,
-  renameGroup,
   loadChannels,
   buildReplyTo,
   editDmMessage,
@@ -108,6 +106,7 @@ import { animarChegada, trocarComTransicao } from './lib/transition';
 import type { PinnedMessage, ReplyTo } from './types/models';
 import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
+import { textoDoErro } from './lib/firestore-errors';
 
 export interface AppHandle {
   element: HTMLElement;
@@ -350,14 +349,6 @@ export function mountApp(
       });
   };
 
-  const handleRenameGroup = (groupId?: string): void => {
-    const group = groupId === undefined ? activeGroup(store.getState()) : groupById(groupId);
-    if (group === undefined) return;
-    openRenameGroupDialog(group.name, async (name) => {
-      await renameGroup(group.id, name);
-    });
-  };
-
   /**
    * Banner do grupo ABERTO (etapa 3a), escutado ao vivo em `groupArt/` —
    * uma escuta só, trocada quando o grupo muda. Ao vivo porque o dono pode
@@ -414,6 +405,43 @@ export function mountApp(
     if (group === undefined) return;
     openDeleteGroupDialog(group.name, async (onProgress) => {
       await deleteGroupCascade(group.id, user.uid, onProgress);
+    });
+  };
+
+  /*
+   * Desfazer amizade e bloquear PERGUNTAM antes (revisão 23/11/2026): no
+   * celular um toque fora do lugar desfazia a amizade na hora, sem volta.
+   */
+  const nomeDoAmigo = (uid: MemberId): string =>
+    store.getState().friendProfiles.get(uid)?.displayName ?? 'essa pessoa';
+
+  const handleRemoveFriend = (friendshipId: string, uid: MemberId): void => {
+    openConfirmDialog({
+      title: 'Desfazer amizade',
+      description: `Você e ${nomeDoAmigo(uid)} deixam de ser amigos. Dá para mandar outro pedido depois.`,
+      confirmLabel: 'Desfazer amizade',
+      busyLabel: 'Desfazendo…',
+      failureMessage: 'Não foi possível desfazer a amizade.',
+      async onConfirm(controller) {
+        await removeFriendship(friendshipId);
+        controller.close();
+      },
+    });
+  };
+
+  const handleBlock = (uid: MemberId): void => {
+    openConfirmDialog({
+      title: 'Bloquear',
+      description:
+        `${nomeDoAmigo(uid)} deixa de ser seu amigo e não consegue mais te mandar pedido nem falar com você no privado. ` +
+        'Dá para desbloquear depois.',
+      confirmLabel: 'Bloquear',
+      busyLabel: 'Bloqueando…',
+      failureMessage: 'Não foi possível bloquear.',
+      async onConfirm(controller) {
+        await blockUser(user.uid, uid);
+        controller.close();
+      },
     });
   };
 
@@ -573,7 +601,6 @@ export function mountApp(
         { label: 'Configurações do grupo', onSelect: () => handleGroupSettings() },
         { label: 'Criar canal', onSelect: handleCreateChannel },
         { label: 'Convidar pessoas', onSelect: handleInvite },
-        { label: 'Renomear grupo', onSelect: handleRenameGroup },
       );
     }
 
@@ -960,9 +987,8 @@ export function mountApp(
       onRemove: (id) => {
         void removeFriendship(id).catch(() => showToast('Não foi possível concluir.'));
       },
-      onBlock: (uid) => {
-        void blockUser(user.uid, uid).catch(() => showToast('Não foi possível bloquear.'));
-      },
+      onUnfriend: handleRemoveFriend,
+      onBlock: handleBlock,
       onUnblock: (uid) => {
         void unblockUser(user.uid, uid).catch(() => showToast('Não foi possível desbloquear.'));
       },
@@ -1538,15 +1564,11 @@ export function mountApp(
         profile: state.friendProfiles.get(friendUid),
         friendshipId: friendshipIdWith(state, friendUid),
         blocked: state.blockedUids.includes(friendUid),
-        onBlock: (uid) => {
-          void blockUser(user.uid, uid).catch(() => showToast('Não foi possível bloquear.'));
-        },
+        onBlock: handleBlock,
         onUnblock: (uid) => {
           void unblockUser(user.uid, uid).catch(() => showToast('Não foi possível desbloquear.'));
         },
-        onRemove: (friendshipId) => {
-          void removeFriendship(friendshipId).catch(() => showToast('Não foi possível concluir.'));
-        },
+        onRemove: (friendshipId) => handleRemoveFriend(friendshipId, friendUid),
       },
       pinnedList: {
         pins: state.pinnedDmMessages,
@@ -2457,7 +2479,7 @@ export function mountApp(
   };
   document.addEventListener('fullscreenchange', onFullscreenChange);
 
-  /** Painel de diagnóstico: atalho escondido e item no menu da sala. */
+  /** Painel de diagnóstico: só pelo atalho escondido (Ctrl+Alt+V), para depurar. */
   const handleOpenDiagnostics = (): void => {
     const state = store.getState();
     if (state.voice === null) return;
@@ -2501,7 +2523,6 @@ export function mountApp(
     getState: () => store.getState(),
     uid: user.uid,
     copyInviteLink: handleCopyInvite,
-    renameGroup: handleRenameGroup,
     groupSettings: handleGroupSettings,
     groupNickname: () => handleOpenSettings('grupos'),
     channelBackground: handleChannelBackground,
@@ -2512,7 +2533,6 @@ export function mountApp(
     deleteMessage: handleDeleteMessage,
     replyToMessage: handleReplyToMessage,
     editMessage: handleEditMessage,
-    openVoiceDiagnostics: handleOpenDiagnostics,
     openDm: (uid) => store.openDm(uid),
     togglePinMessage: handleTogglePinMessage,
     jumpToPinnedMessage: handleJumpToPin,
@@ -2571,7 +2591,7 @@ export function mountApp(
           const resultado = await sendFriendRequest(user.uid, uid);
           showToast(resultado === 'accepted' ? 'Agora vocês são amigos.' : 'Pedido de amizade enviado.');
         } catch (error) {
-          showToast(error instanceof Error ? error.message : 'Não foi possível mandar o pedido.');
+          showToast(textoDoErro(error, 'Não foi possível mandar o pedido.'));
           throw error;
         }
       },

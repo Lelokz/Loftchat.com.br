@@ -100,37 +100,6 @@ export function openCreateChannelDialog(
 
 /* -------------------------------------------------------------------------- */
 
-export function openRenameGroupDialog(
-  currentName: string,
-  onRename: (name: string) => Promise<void>,
-): void {
-  const { field, input } = modalField('group-rename', 'Novo nome', { maxlength: '60' });
-  input.value = currentName;
-
-  openModal({
-    title: 'Renomear grupo',
-    body: field,
-    confirmLabel: 'Salvar',
-    busyLabel: 'Salvando…',
-    initialFocus: input,
-    async onConfirm(controller) {
-      const name = input.value.trim();
-      if (name === '') {
-        controller.setError('O nome não pode ficar vazio.');
-        return;
-      }
-      try {
-        await onRename(name);
-        controller.close();
-      } catch (error) {
-        surface(controller, error, 'Não foi possível renomear o grupo.');
-      }
-    },
-  });
-}
-
-/* -------------------------------------------------------------------------- */
-
 /**
  * CONVIDAR PESSOAS (16/11/2026): o CÓDIGO DO GRUPO em destaque — 6 letras e
  * números, fixo, que o dono passa adiante; a pessoa digita em "+" → "Entrar
@@ -154,7 +123,6 @@ export function openInviteDialog(props: InviteDialogProps): void {
     description: 'Passe o código do grupo: a pessoa toca no + ao lado dos grupos, em "Entrar num grupo", e digita.',
     body,
     confirmLabel: 'Fechar',
-    cancelLabel: 'Fechar',
   });
 
   const copiar = (texto: string, botao: HTMLElement, nota: HTMLElement, feito: string): void => {
@@ -327,6 +295,7 @@ export function openConfirmDialog(options: ConfirmOptions): ModalController {
 
 /** O que cada etapa da cascata mostra na tela. */
 const DELETE_LABELS: Record<DeleteStep, string> = {
+  voice: 'Limpando a sala de voz',
   messages: 'Apagando as mensagens',
   channels: 'Apagando os canais',
   invites: 'Apagando os convites',

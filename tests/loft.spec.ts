@@ -306,9 +306,13 @@ test("canal criado numa aba aparece na outra SEM recarregar", async ({
 
   // Rename também propaga (é o que os listeners por documento garantem).
   await pageA.getByRole("button", { name: "Opções do grupo" }).click();
-  await pageA.getByRole("menuitem", { name: "Renomear grupo" }).click();
-  await pageA.getByLabel("Novo nome").fill("Renomeado ao Vivo");
-  await pageA.getByRole("button", { name: "Salvar" }).click();
+  await pageA.getByRole("menuitem", { name: "Configurações do grupo" }).click();
+  const telaDoGrupo = pageA.getByRole("dialog", { name: "Configurações do grupo" });
+  await telaDoGrupo.getByLabel("Nome do grupo").fill("Renomeado ao Vivo");
+  await telaDoGrupo
+    .getByRole("region", { name: "Alterações não salvas" })
+    .getByRole("button", { name: "Salvar" })
+    .click();
   await expect(pageB.locator(".channels__group-name")).toHaveText(
     "Renomeado ao Vivo",
     {
@@ -767,7 +771,7 @@ test("membro comum não vê os itens de dono no menu, e o dono não pode sair", 
   for (const hidden of [
     "Criar canal",
     "Convidar pessoas",
-    "Renomear grupo",
+    "Configurações do grupo",
     "Apagar grupo",
   ]) {
     await expect(guestMenu.getByRole("menuitem", { name: hidden })).toHaveCount(
@@ -783,7 +787,7 @@ test("membro comum não vê os itens de dono no menu, e o dono não pode sair", 
   for (const shown of [
     "Criar canal",
     "Convidar pessoas",
-    "Renomear grupo",
+    "Configurações do grupo",
     "Apagar grupo",
   ]) {
     await expect(
@@ -1050,7 +1054,7 @@ test("membro comum não vê itens de dono no menu de contexto", async ({
   ).toBeEnabled();
   for (const hidden of [
     "Copiar código do grupo",
-    "Renomear grupo",
+    "Configurações do grupo",
     "Apagar grupo",
   ]) {
     await expect(menu.getByRole("menuitem", { name: hidden })).toHaveCount(0);
