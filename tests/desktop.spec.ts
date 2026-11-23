@@ -645,3 +645,27 @@ test('notificações no PC: fechar deixa na bandeja, avisa mensagem nova e o cli
     desligarCarteiro();
   }
 });
+
+test('Configurações → Notificações: desligar tira o PC da lista, ligar põe de volta', async () => {
+  test.setTimeout(120_000);
+  const conta = newAccount('Chave avisos');
+  accounts.push(conta);
+  await signUpThroughUi(janela, conta);
+  await resolveTokens(conta);
+  const lista = async (): Promise<string> => JSON.stringify((await lerComoDono(`aparelhos/${conta.uid}`)) ?? {});
+  await expect.poll(lista, { timeout: 20_000 }).toContain('"pc"');
+
+  await janela.getByRole('button', { name: 'Configurações', exact: true }).first().click();
+  await janela.getByRole('button', { name: 'Notificações' }).click();
+  const chave = janela.getByRole('switch', { name: 'Avisar quando chegar mensagem' });
+  await expect(chave).toHaveAttribute('aria-checked', 'true');
+  await janela.screenshot({ path: 'test-results/notificacoes/configuracoes-pc.png' });
+
+  await chave.click();
+  await expect(chave).toHaveAttribute('aria-checked', 'false');
+  await expect.poll(lista, { timeout: 20_000 }).not.toContain('"pc"');
+
+  await chave.click();
+  await expect(chave).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(lista, { timeout: 20_000 }).toContain('"pc"');
+});

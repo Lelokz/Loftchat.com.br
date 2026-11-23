@@ -5,7 +5,8 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { renderNotificacoesSection } from './notificacoes-section';
 import { renderVoiceSection } from './voice-section';
 import { renderSobreSection } from './sobre-section';
 import type { SobreSection } from './sobre-section';
@@ -85,7 +86,7 @@ export interface SettingsOptions {
   fundoCanal?: { id: string; label: string };
 }
 
-export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'sobre';
+export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -282,6 +283,7 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
     itemDoMenu('voz', 'Voz e áudio', micIcon(18)),
+    itemDoMenu('notificacoes', 'Notificações', bellIcon(18)),
     el('span', { class: 'settings__nav-label' }, ['Loftchat']),
     itemDoMenu('sobre', 'Sobre o Loftchat', logoIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
@@ -941,6 +943,8 @@ export function openSettings(options: SettingsOptions): void {
     } else if (secao === 'voz') {
       secaoDeVoz = renderVoiceSection();
       conteudo.replaceChildren(...secaoDeVoz.elementos);
+    } else if (secao === 'notificacoes') {
+      conteudo.replaceChildren(...renderNotificacoesSection());
     } else if (secao === 'sobre') {
       secaoSobre = renderSobreSection(() => salvo.displayName);
       conteudo.replaceChildren(...secaoSobre.elementos);

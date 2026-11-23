@@ -33,6 +33,14 @@ export const gearIcon = (size?: number): string =>
     size,
   );
 
+/** Sino (Lucide, ISC): Configurações → Notificações. */
+export const bellIcon = (size?: number): string =>
+  svg(
+    '<path d="M10.268 21a2 2 0 0 0 3.464 0"/>' +
+      '<path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+    size,
+  );
+
 export const clipIcon = (size?: number): string =>
   svg(
     '<path d="M20.4 11.6 12.3 19.7a5.5 5.5 0 0 1-7.8-7.8l8.1-8.1a3.7 3.7 0 0 1 5.2 5.2l-8.1 8.1a1.8 1.8 0 0 1-2.6-2.6l7.5-7.5"/>',
