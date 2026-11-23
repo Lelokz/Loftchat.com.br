@@ -942,7 +942,7 @@ export function openSettings(options: SettingsOptions): void {
       secaoDeVoz = renderVoiceSection();
       conteudo.replaceChildren(...secaoDeVoz.elementos);
     } else if (secao === 'sobre') {
-      secaoSobre = renderSobreSection();
+      secaoSobre = renderSobreSection(() => salvo.displayName);
       conteudo.replaceChildren(...secaoSobre.elementos);
     } else if (secao === 'aparencia') {
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });

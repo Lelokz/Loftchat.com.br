@@ -10,6 +10,9 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
+
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -28,6 +31,19 @@ public class MainActivity extends BridgeActivity {
         // abre outro app para mostrar.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getBridge().getWebView().setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+        }
+
+        // ESCURO FORÇADO (revisão dos celulares, 23/11/2026): Xiaomi e outros
+        // pintam de escuro o app que "não tem tema escuro", invertendo cores.
+        // O Loftchat tem os próprios temas (claro e escuro) — nada de pintar
+        // por cima. São as duas chaves oficiais: a da janela (Android 10+) e a
+        // do WebView (Android 13+, pela androidx.webkit).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getWindow().getDecorView().setForceDarkAllowed(false);
+            getBridge().getWebView().setForceDarkAllowed(false);
+        }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(getBridge().getWebView().getSettings(), false);
         }
 
         // O Loftchat vai até a borda de cima, por trás do furinho da câmera

@@ -64,7 +64,7 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
       title: 'Privado: amigos e conversas',
       'aria-current': homeActive ? 'true' : undefined,
     },
-    [el('span', { class: 'group-bar__tab-icon' }, [iconEl(chatsIcon(15))]), el('span', {}, ['Privado'])],
+    [el('span', { class: 'group-bar__tab-icon' }, [iconEl(chatsIcon(15))]), el('span', { class: 'group-bar__tab-label' }, ['Privado'])],
   );
   privado.addEventListener('click', onOpenHome);
 

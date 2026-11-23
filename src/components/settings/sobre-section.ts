@@ -8,6 +8,8 @@ import {
   procurarAtualizacao,
 } from '../../lib/atualizacao';
 import type { EstadoDaAtualizacao } from '../../lib/atualizacao';
+import { mandarInfoDaTela } from '../../lib/info-da-tela';
+import { textoDoErro } from '../../lib/firestore-errors';
 
 /**
  * CONFIGURAÇÕES → SOBRE O LOFTCHAT (17/11/2026).
@@ -33,7 +35,37 @@ function blocoDeVersao(titulo: string, itens: string[], extra?: string): HTMLEle
   ]);
 }
 
-export function renderSobreSection(): SobreSection {
+/**
+ * "A tela está estranha no seu celular?" — um toque manda o retrato do
+ * aparelho (ver `lib/info-da-tela.ts`). Sem print, sem foto.
+ */
+function blocoDaTela(nome: () => string): HTMLElement {
+  const aviso = el('p', { class: 'settings__help', role: 'status' }, [
+    'Manda para quem faz o Loftchat o modelo do aparelho, o tamanho da tela e o tamanho da letra. Sem foto e sem nada das suas conversas.',
+  ]);
+  const botao = el('button', { class: 'settings__font sobre__tela', type: 'button' }, ['Mandar informações da tela']);
+  botao.addEventListener('click', () => {
+    botao.setAttribute('disabled', '');
+    botao.textContent = 'Mandando…';
+    void mandarInfoDaTela(nome())
+      .then(() => {
+        botao.textContent = 'Informações mandadas';
+        aviso.textContent = 'Pronto! Obrigado — com isso dá para arrumar a tela do seu aparelho.';
+      })
+      .catch((error: unknown) => {
+        botao.removeAttribute('disabled');
+        botao.textContent = 'Mandar informações da tela';
+        aviso.textContent = textoDoErro(error, 'Não deu para mandar.');
+      });
+  });
+  return el('div', { class: 'settings__field' }, [
+    el('span', { class: 'settings__label' }, ['A tela está estranha no seu aparelho?']),
+    botao,
+    aviso,
+  ]);
+}
+
+export function renderSobreSection(nome: () => string = () => ''): SobreSection {
   const caixa = el('div', { class: 'sobre__estado', role: 'status' });
 
   const desenhar = (e: EstadoDaAtualizacao): void => {
@@ -116,6 +148,7 @@ export function renderSobreSection(): SobreSection {
       ]),
     ]),
     el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Atualizações']), caixa]),
+    blocoDaTela(nome),
     el('div', { class: 'settings__field' }, [el('span', { class: 'settings__label' }, ['Novidades']), novidades]),
   ];
 

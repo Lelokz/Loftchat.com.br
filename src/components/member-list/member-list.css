@@ -2,6 +2,8 @@
 
 .members {
   display: grid;
+  /* Coluna presa à largura do painel: conteúdo largo (letra grande) não estica. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   background-color: var(--surface-side);

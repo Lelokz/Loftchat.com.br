@@ -168,6 +168,7 @@
     grid-template-rows: var(--topbar-h) minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
     /* --app-height vem da visualViewport: é a altura REAL com o teclado aberto. */
+    height: 100vh; /* navegador interno antigo (sem dvh) */
     height: var(--app-height, 100dvh);
     /* Os botões começam ABAIXO da câmera/barra do sistema (o fundo vai até a
        borda): sem isto as abas e o perfil ficavam embaixo da hora e da
@@ -202,6 +203,70 @@
 
   .app > .group-bar .group-bar__tab {
     max-width: 150px;
+  }
+
+  /*
+   * Celular estreito (revisão dos celulares, 23/11/2026): a fileira de cima
+   * não cabia — em 360 px o "+" cobria o nome do grupo e em 320 o "Privado"
+   * virava "ivado". Sai o logo (a aba Privado é o início), o Privado fica só
+   * com o ícone (o nome continua para o leitor de tela) e o cartão fica só
+   * com a engrenagem.
+   */
+  .app > .group-bar .group-bar__brand,
+  .app > .group-bar .session-footer > .avatar {
+    display: none;
+  }
+
+  .app > .group-bar .group-bar__tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .app > .group-bar .group-bar__tab:has(.group-bar__tab-label) {
+    padding-right: 6px;
+  }
+
+  /* Alvo de dedo: 44 px (o Google pede 48 dp; 28 era pequeno demais). */
+  .app .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .app > .group-bar .group-bar__tab,
+  .app > .group-bar .group-bar__add {
+    height: 44px;
+  }
+
+  .app > .group-bar .group-bar__add {
+    width: 44px;
+  }
+
+  /* Abas e "voltar" também no tamanho de dedo. */
+  .app .friends__tab,
+  .app .group-panel__tab {
+    min-height: 40px;
+  }
+
+  .settings__back {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Letra do celular aumentada: as abas do painel encolhem em vez de empurrar
+     o painel para fora da tela. */
+  .app > .members {
+    overflow-x: hidden;
+  }
+
+  .app .group-panel__tab {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .chat,

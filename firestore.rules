@@ -608,6 +608,30 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.groupId);
     }
 
+    /* ---------------------------- infoDeTela ---------------------------- */
+    // "Mandar informações da tela" (Configurações → Sobre, 23/11/2026): cada
+    // pessoa só MANDA o retrato do próprio aparelho; ninguém lê nem muda pelo
+    // app (o Léo lê pelo acesso de dono do projeto). Formato fechado e curto.
+
+    match /infoDeTela/{infoId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['nome', 'quando', 'onde', 'versao', 'navegador',
+             'telaW', 'telaH', 'janelaW', 'janelaH', 'densidade', 'letra', 'escuro', 'toque',
+             'margens', 'recursos'])
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 60
+        && request.resource.data.quando is string && request.resource.data.quando.size() <= 40
+        && request.resource.data.onde in ['android', 'pc', 'site']
+        && request.resource.data.versao is string && request.resource.data.versao.size() <= 20
+        && request.resource.data.navegador is string && request.resource.data.navegador.size() <= 300
+        && request.resource.data.margens is string && request.resource.data.margens.size() <= 60
+        && request.resource.data.recursos is string && request.resource.data.recursos.size() <= 120
+        && request.resource.data.telaW is number && request.resource.data.telaH is number
+        && request.resource.data.janelaW is number && request.resource.data.janelaH is number
+        && request.resource.data.densidade is number && request.resource.data.letra is number
+        && request.resource.data.escuro is bool && request.resource.data.toque is bool;
+      allow read, update, delete: if false;
+    }
+
     /* ----------------------------- messages ----------------------------- */
     // `groupId` é denormalizado na mensagem justamente para esta regra: uma
     // consulta (exists da membership) em vez de duas (get do canal + exists),

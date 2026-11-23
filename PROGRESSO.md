@@ -2,6 +2,37 @@
 
 Estado em 15/11/2026.
 
+## Super plano dos celulares + "Mandar informações da tela" (23/11/2026) — versão 0.3.5
+
+Ferramenta (fora do git): `Arquivo/Loft-desktop/scripts-de-teste/zz-celulares.spec.ts`
+— o passeio da revisão com PERFIS de aparelho (tamanho, densidade, letra do
+sistema, barra de 3 botões, escuro forçado) e detector de "botão por cima de
+texto" e texto cortado. Perfis de yesviz.com/viewport (Galaxy A 412@2.625, J7
+Prime2 412x732, Redmi Note 393x851@2.75, Moto G8 360x780@2, LG K20 320x640@1.5);
+os HD+ baratos (A06, Redmi 9A/14C, Moto E) são ESTIMATIVA 360x800@2 — o botão
+novo traz o número real.
+
+Achados e consertos (foto aprovada):
+- Em 360 px ou menos a fileira de cima não cabia: o "+" cobria o nome do grupo
+  e em 320 o "Privado" virava "ivado". No celular saem o logo e a foto do
+  cartão, e o Privado fica só com o ícone (nome continua para leitor de tela).
+- A engrenagem parecia um sol: agora é engrenagem (contorno da Lucide, ISC).
+- Alvos de toque de 28 px → 44 px no celular (ícones, abas, "voltar").
+- Letra do sistema aumentada (o WebView do Android multiplica TODO tamanho de
+  letra, inclusive px): o painel de membros saía da tela. Coluna do grid presa
+  (`minmax(0, 1fr)`) e abas que encolhem com reticências.
+- Escuro forçado (Xiaomi e outros): `setForceDarkAllowed(false)` na janela e
+  no WebView + `setAlgorithmicDarkeningAllowed(false)` (androidx.webkit).
+- Navegador interno antigo: o Loftchat usa `:has` (105), `dvh` (108) e
+  `color-mix` (111). A altura do app ganhou `100vh` antes do `dvh`; `color-mix`
+  só no véu do fundo do chat (sem ele, só não aparece o fundo).
+
+**Configurações → Sobre → "Mandar informações da tela"** (`lib/info-da-tela.ts`):
+grava em `infoDeTela/` nome de exibição, modelo/Android/WebView (userAgent),
+tela, janela, densidade, letra do sistema (medida), escuro, toque, margens do
+sistema e se tem `color-mix`/`:has`/`dvh`. A regra só deixa CRIAR, com formato
+fechado; ninguém lê pelo app — eu leio como dono do projeto.
+
 ## Revisão geral + site com os 3 botões (23/11/2026)
 
 **Site:** os três cartões de baixar levam a `releases/latest/download/...`
