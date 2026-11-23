@@ -166,6 +166,8 @@
   .plat .det { color: var(--texto-fraco); font: 12.5px var(--mono); }
   .plat .botao { margin-top: 20px; }
   .plat.breve { opacity: .6; } .plat.breve .botao { pointer-events: none; }
+  .plat .dica { margin-top: 10px; font-size: 13px; line-height: 1.45; color: var(--texto-fraco); }
+  .download .versao-atual { margin-top: 14px; font: 13px var(--mono); letter-spacing: .06em; color: var(--cor-texto); }
 
   footer { padding: 46px 0 60px; border-top: 1px solid var(--traco); color: var(--texto-fraco); font-size: 14px; }
   footer .largura { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
