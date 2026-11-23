@@ -10,6 +10,7 @@ import {
   formatTime,
   localDayKey,
 } from "../../../lib/format";
+import { dadosDoYouTube, idDoYouTube, linkDoYouTube, thumbDoYouTube } from "../../../lib/youtube";
 import type {
   Attachment,
   Member,
@@ -529,12 +530,37 @@ function textoComLinks(texto: string): (string | HTMLElement)[] {
   return pedacos;
 }
 
+/**
+ * O cartão do YouTube (0.5.0): thumb, título e canal; clicar abre o vídeo
+ * fora do Loftchat. O título chega depois, sem segurar a lista.
+ */
+function cartaoDoYouTube(id: string): HTMLElement {
+  const titulo = el("span", { class: "youtube__titulo" }, ["Vídeo do YouTube"]);
+  const canal = el("span", { class: "youtube__canal" });
+  void dadosDoYouTube(id).then((dados) => {
+    if (dados === null) return;
+    titulo.textContent = dados.titulo;
+    canal.textContent = dados.canal;
+  });
+  return el(
+    "a",
+    { class: "youtube", href: linkDoYouTube(id), target: "_blank", rel: "noopener noreferrer", "data-youtube": id },
+    [
+      el("img", { class: "youtube__thumb", src: thumbDoYouTube(id), alt: "", loading: "lazy" }),
+      el("span", { class: "youtube__texto" }, [el("span", { class: "youtube__fonte" }, ["YouTube"]), titulo, canal]),
+    ],
+  );
+}
+
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
 function renderContent(message: MessageBase): HTMLElement {
   switch (message.kind) {
-    case "text":
-      return el("p", { class: "message__text" }, textoComLinks(message.body));
+    case "text": {
+      const texto = el("p", { class: "message__text" }, textoComLinks(message.body));
+      const video = idDoYouTube(message.body);
+      return video === null ? texto : el("div", { class: "message__content" }, [texto, cartaoDoYouTube(video)]);
+    }
 
     case "image":
       return el("div", { class: "message__content" }, [
