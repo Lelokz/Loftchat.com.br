@@ -1,0 +1,227 @@
+/* O painel do botão de figurinha (0.5.0): Emojis | Figurinhas | GIFs. */
+
+.emoji {
+  font-family: 'Noto Color Emoji', sans-serif;
+  font-style: normal;
+  line-height: 1;
+}
+
+.painel {
+  position: absolute;
+  right: var(--space-5);
+  bottom: calc(100% + 6px);
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  width: min(420px, calc(100vw - 16px));
+  height: min(440px, 60vh);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background-color: var(--surface-raised);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+}
+
+.painel__abas {
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.painel__aba {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.painel__aba.is-active {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.painel__aba:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.painel__aba small {
+  padding: 3px 5px;
+  border-radius: 5px;
+  background-color: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.painel__corpo,
+.painel__corpo > * {
+  min-height: 0;
+}
+
+.painel__emojis,
+.painel__figurinhas {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.painel__trilho {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background-color: var(--surface-side);
+}
+
+.painel__trilho button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 21px;
+}
+
+.painel__trilho button:hover,
+.painel__trilho button.is-active {
+  background-color: var(--accent-soft);
+}
+
+.painel__conteudo {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 12px 0;
+}
+
+.painel__topo {
+  display: flex;
+  gap: 8px;
+}
+
+.painel__busca {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.painel__busca:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.painel__tom {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 19px;
+}
+
+.painel__tons {
+  display: flex;
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  z-index: 2;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background-color: var(--surface-raised);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 40%);
+}
+
+.painel__tons[hidden] {
+  display: none;
+}
+
+.painel__tons button {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 22px;
+}
+
+.painel__tons button:hover {
+  background-color: var(--surface-hover);
+}
+
+.painel__lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+.painel__titulo {
+  margin: 6px 0 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.painel__grade {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.painel__emoji {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  font-size: 27px;
+}
+
+.painel__emoji:hover,
+.painel__emoji:focus-visible {
+  background-color: var(--surface-hover);
+}
+
+.painel__carregando {
+  padding: 16px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Celular: sobe de baixo, na largura toda. */
+@media (max-width: 720px) {
+  .painel {
+    right: 0;
+    left: 0;
+    width: auto;
+    height: min(360px, 55vh);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .painel__grade {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}

@@ -119,7 +119,7 @@ export function renderChat(props: ChatProps): ChatParts {
       messagesSlot,
       callBarSlot,
       replySlot,
-      renderComposer({ channelName: channel.name, onSend }),
+      renderComposer({ channelName: channel.name, onSend, painel: {} }),
     ]),
     messagesSlot,
     callBarSlot,

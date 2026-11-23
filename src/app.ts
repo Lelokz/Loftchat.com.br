@@ -2184,6 +2184,7 @@ export function mountApp(
                   channelName: friendDisplayName(state, friendUid),
                   hashPrefix: false,
                   onSend: handleSend,
+                  painel: {},
                 }),
           );
         }

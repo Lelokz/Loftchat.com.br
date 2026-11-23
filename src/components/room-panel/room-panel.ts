@@ -45,7 +45,7 @@ export function renderRoomPanel(props: RoomPanelProps): RoomPanelParts {
   const chat = el('div', { class: 'room-panel__chat', role: 'tabpanel', 'aria-label': NOMES.chat }, [
     messagesSlot,
     replySlot,
-    renderComposer({ channelName: props.canal, hashPrefix: false, placeholder: 'Mensagem na sala', onSend: props.onSend }),
+    renderComposer({ channelName: props.canal, hashPrefix: false, placeholder: 'Mensagem na sala', onSend: props.onSend, painel: {} }),
   ]);
   const outroSlot = el('div', { class: 'members__body column-scroll scroll-area', role: 'tabpanel' });
 

@@ -52,10 +52,10 @@ export const APP_FONTS: Record<AppFontId, { label: string; family: string }> = {
   nunito: { label: 'Nunito (padrão)', family: 'var(--font-nunito)' },
   leitura: {
     label: 'Leitura fácil',
-    family: "'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+    family: "'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, 'Noto Color Emoji', sans-serif",
   },
-  sistema: { label: 'Do sistema', family: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" },
-  classica: { label: 'Clássica', family: "'Lora', Georgia, serif" },
+  sistema: { label: 'Do sistema', family: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Color Emoji', sans-serif" },
+  classica: { label: 'Clássica', family: "'Lora', Georgia, 'Noto Color Emoji', serif" },
 };
 
 /** Tamanho do texto das mensagens, em px. */

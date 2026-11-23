@@ -43,6 +43,12 @@ export function ligarAndroid(): void {
       sairDaTelaCheia.click();
       return;
     }
+    // O painel de emojis e figurinhas (0.5.0) aberto: VOLTAR fecha ele.
+    const painel = document.querySelector<HTMLElement>('.painel:not([hidden])');
+    if (painel !== null) {
+      painel.closest('.composer')?.dispatchEvent(new Event('loft:fechar-painel'));
+      return;
+    }
     const janelas = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
     const deCima = janelas[janelas.length - 1];
     if (deCima !== undefined) {

@@ -1,4 +1,5 @@
 import './styles/fonts.css';
+import './styles/emoji.css';
 import './styles/tokens.css';
 import './styles/reset.css';
 import './styles/layout.css';

@@ -2,7 +2,9 @@ import './composer.css';
 
 import { el, iconEl } from '../../../lib/dom';
 import { firestoreErrorMessage } from '../../../lib/firestore-errors';
-import { sendIcon } from '../../../lib/icons';
+import { sendIcon, stickerIcon } from '../../../lib/icons';
+import { renderPainel } from '../../painel-midia/painel-midia';
+import type { PainelProps } from '../../painel-midia/painel-midia';
 
 export interface ComposerProps {
   /** Nome do canal (ou da pessoa, no PV), só para o placeholder. */
@@ -16,6 +18,8 @@ export interface ComposerProps {
   placeholder?: string;
   /** Grava a mensagem. Rejeita em caso de falha, e a rejeição vira erro na tela. */
   onSend: (body: string) => Promise<void>;
+  /** 0.5.0: o painel Emojis | Figurinhas (sem isto, o botão do adesivo não aparece). */
+  painel?: Omit<PainelProps, 'aoEmoji'>;
 }
 
 /** Teto de crescimento do campo antes de virar rolagem interna. */
@@ -32,6 +36,7 @@ export function renderComposer({
   hashPrefix = true,
   placeholder,
   onSend,
+  painel: opcoesDoPainel,
 }: ComposerProps): HTMLElement {
   const input = el('textarea', {
     class: 'composer__input',
@@ -113,10 +118,66 @@ export function renderComposer({
 
   sendButton.addEventListener('click', () => void submit());
 
-  return el('div', { class: 'composer' }, [
+  /* --- painel Emojis | Figurinhas (0.5.0) ---------------------------------- */
+
+  /** Põe o emoji onde está o cursor. No celular não abre o teclado (ele cobriria o painel). */
+  function porEmoji(emoji: string): void {
+    const inicio = input.selectionStart ?? input.value.length;
+    const fim = input.selectionEnd ?? inicio;
+    input.value = input.value.slice(0, inicio) + emoji + input.value.slice(fim);
+    const depois = inicio + emoji.length;
+    input.setSelectionRange(depois, depois);
+    autoGrow();
+    if (!window.matchMedia('(pointer: coarse)').matches) input.focus();
+  }
+
+  const painel = opcoesDoPainel === undefined ? null : renderPainel({ ...opcoesDoPainel, aoEmoji: porEmoji });
+  const botaoPainel =
+    painel === null
+      ? null
+      : el('button', { class: 'composer__tool', type: 'button', title: 'Emojis e figurinhas', 'aria-expanded': 'false' }, [
+          iconEl(stickerIcon(20)),
+          el('span', { class: 'sr-only' }, ['Emojis e figurinhas']),
+        ]);
+
+  const element = el('div', { class: 'composer' }, [
     errorBox,
-    // Anexar e gravar áudio voltam quando existirem de verdade: botão que não
-    // faz nada parecia quebrado (revisão 23/11/2026).
-    el('div', { class: 'composer__row' }, [input, sendButton]),
+    el('div', { class: 'composer__row' }, [input, botaoPainel ?? false, sendButton]),
+    painel?.element ?? false,
   ]);
+
+  if (painel !== null && botaoPainel !== null) {
+    const fechar = (): void => {
+      painel.fechar();
+      botaoPainel.classList.remove('is-active');
+      botaoPainel.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', foraDoPainel, true);
+      document.removeEventListener('keydown', escDoPainel, true);
+    };
+    function foraDoPainel(evento: Event): void {
+      const alvo = evento.target as Node;
+      if (!painel!.element.contains(alvo) && !botaoPainel!.contains(alvo)) fechar();
+    }
+    function escDoPainel(evento: KeyboardEvent): void {
+      if (evento.key !== 'Escape') return;
+      evento.stopPropagation();
+      fechar();
+    }
+    botaoPainel.addEventListener('click', () => {
+      if (painel.aberto()) {
+        fechar();
+        return;
+      }
+      painel.abrir();
+      botaoPainel.classList.add('is-active');
+      botaoPainel.setAttribute('aria-expanded', 'true');
+      document.addEventListener('pointerdown', foraDoPainel, true);
+      document.addEventListener('keydown', escDoPainel, true);
+    });
+    // Mandou a mensagem: o painel fecha.
+    sendButton.addEventListener('click', fechar);
+    element.addEventListener('loft:fechar-painel', fechar);
+  }
+
+  return element;
 }

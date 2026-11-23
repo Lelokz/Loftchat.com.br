@@ -92,6 +92,17 @@ export const hangupIcon = (size?: number): string =>
 export const sendIcon = (size?: number): string =>
   svg('<path d="m3.5 3.5 17 8.5-17 8.5 3-8.5-3-8.5Z"/><path d="M6.5 12h14"/>', size);
 
+/** Figurinha: adesivo com a pontinha dobrada (0.5.0) — abre Emojis | Figurinhas. */
+export const stickerIcon = (size?: number): string =>
+  svg(
+    '<path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/>' +
+      '<path d="M14 21v-5a2 2 0 0 1 2-2h5"/><path d="M8.5 9.5h.01M14.5 9.5h.01"/><path d="M8.5 13.5a4 4 0 0 0 4.5 1"/>',
+    size,
+  );
+
+/** Anexar (0.5.0): o + que manda imagem, GIF e vídeo. */
+export const attachIcon = (size?: number): string => svg('<path d="M12 5v14M5 12h14"/>', size);
+
 export const fileIcon = (size?: number): string =>
   svg('<path d="M14 3v4.5a1 1 0 0 0 1 1h4.5"/><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8l-5-5Z"/>', size);
 

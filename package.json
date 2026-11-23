@@ -27,6 +27,8 @@
     "@capacitor/android": "8.6.2",
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.6.2",
+    "@fontsource/noto-color-emoji": "5.3.2",
+    "emojibase-data": "18.0.0",
     "firebase": "^12.17.1"
   }
 }

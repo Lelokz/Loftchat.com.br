@@ -43,8 +43,8 @@ interface NameFont {
 
 export const NAME_FONTS: Record<NameFontId, NameFont> = {
   nunito: { label: 'Nunito', family: 'var(--font-nunito)', weight: 700, upper: false },
-  classica: { label: 'Clássica', family: "'Lora', Georgia, serif", weight: 600, upper: false },
-  pixelada: { label: 'Pixelada', family: "'Silkscreen', monospace", weight: 400, upper: false },
+  classica: { label: 'Clássica', family: "'Lora', Georgia, 'Noto Color Emoji', serif", weight: 600, upper: false },
+  pixelada: { label: 'Pixelada', family: "'Silkscreen', 'Noto Color Emoji', monospace", weight: 400, upper: false },
   forte: { label: 'Forte', family: 'var(--font-nunito)', weight: 900, upper: true },
 };
 
