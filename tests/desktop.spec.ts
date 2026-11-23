@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  activeGroupId,
+  createAccountViaRest,
   createGroupThroughUi,
   limparTudo,
   newAccount,
@@ -14,8 +16,10 @@ import {
   signInThroughUi,
   signUpFromInviteUi,
   signUpThroughUi,
+  resolveTokens,
 } from './helpers';
 import type { TestAccount } from './helpers';
+import { avisar, canaisDoGrupo, comoDono, lerComoDono, ligarCarteiroLocal } from './carteiro-local';
 import { MEDIA_ARGS } from '../playwright.config';
 
 /**
@@ -86,6 +90,8 @@ test.beforeEach(async () => {
       LOFT_DADOS: dados,
       // O tom de teste toca num alto-falante de mentira, que não é o padrão.
       LOFT_AUDIO_TESTE: '1',
+      // As notificações ficam guardadas para o teste, nunca na tela de verdade.
+      LOFT_AVISOS_TESTE: '1',
       ...(semFalso
         ? { PULSE_SOURCE: 'loft-teste-mudo.monitor', PULSE_SINK: 'loft-teste-mudo' }
         : {}),
@@ -561,4 +567,81 @@ test.describe('som do PC no Linux', () => {
     await janela.getByRole('button', { name: 'Parar de transmitir' }).click();
     await expect.poll(() => idsDoNo('vencord-screen-share').length, { timeout: 10_000 }).toBe(0);
   });
+});
+
+test('notificações no PC: fechar deixa na bandeja, avisa mensagem nova e o clique abre a conversa', async () => {
+  test.setTimeout(180_000);
+  const desligarCarteiro = await ligarCarteiroLocal();
+  try {
+    const beto = newAccount('Beto PC');
+    const ana = newAccount('Ana PC');
+    accounts.push(beto, ana);
+    await createAccountViaRest(ana);
+    await signUpThroughUi(janela, beto);
+    await resolveTokens(beto);
+    await createGroupThroughUi(janela, 'Turma do PC');
+    const grupo = await activeGroupId(janela);
+    const canais = await canaisDoGrupo(grupo);
+    const geral = canais.find((c) => c.nome === 'geral')!;
+    const anuncios = canais.find((c) => c.nome === 'anúncios')!;
+    await comoDono(`memberships/${grupo}_${ana.uid}`, { groupId: grupo, memberId: ana.uid!, role: 'member' });
+    await comoDono(`users/${ana.uid}`, { uid: ana.uid!, displayName: ana.displayName });
+
+    // O programa se anotou como aparelho "pc" da conta.
+    await expect
+      .poll(async () => JSON.stringify((await lerComoDono(`aparelhos/${beto.uid}`)) ?? {}), { timeout: 20_000 })
+      .toContain('"pc"');
+
+    const mandar = async (id: string, canal: string, texto: string): Promise<void> => {
+      await comoDono(`messages/${id}`, {
+        groupId: grupo,
+        channelId: canal,
+        authorId: ana.uid!,
+        kind: 'text',
+        body: texto,
+        sentAt: new Date().toISOString(),
+      });
+      expect((await avisar(ana.idToken!, { tipo: 'grupo', id })).status).toBe(202);
+    };
+    const avisos = (): Promise<{ titulo: string; corpo: string; rota: string }[]> =>
+      app.evaluate(() => (globalThis as unknown as { avisosDeTeste: { titulo: string; corpo: string; rota: string }[] }).avisosDeTeste);
+
+    // Olhando o #geral com a janela na frente: mensagem do #geral não avisa.
+    if (await janela.evaluate(() => document.hasFocus())) {
+      await mandar(`pc1${Date.now()}`, geral.id, 'aqui no geral');
+      await expect.poll(async () => JSON.stringify((await lerComoDono(`avisos/${beto.uid}`)) ?? {})).toContain('aqui no geral');
+      await janela.waitForTimeout(1500);
+      expect(await avisos()).toHaveLength(0);
+    }
+
+    // Fechar a janela: o programa continua (na bandeja), só escondido.
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
+    await expect
+      .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => w.isVisible())))
+      .toEqual([false]);
+
+    // Mensagem nova com a janela escondida: notificação com nome, onde, hora e texto.
+    await mandar(`pc2${Date.now()}`, anuncios.id, 'reunião amanhã às 19h');
+    await expect.poll(avisos, { timeout: 20_000 }).toHaveLength(1);
+    const [aviso] = await avisos();
+    expect(aviso!.titulo).toBe(ana.displayName);
+    expect(aviso!.corpo).toMatch(/^Turma do PC · #anúncios · \d{2}:\d{2}\nreunião amanhã às 19h$/);
+    expect(aviso!.rota).toBe(`grupo/${grupo}/${anuncios.id}`);
+
+    // O clique na notificação: a janela volta e abre o #anúncios.
+    await app.evaluate(({ BrowserWindow }, rota) => {
+      const w = BrowserWindow.getAllWindows()[0]!;
+      w.show();
+      w.webContents.send('loft:abrir-aviso', rota);
+    }, aviso!.rota);
+    await expect
+      .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible()))
+      .toBe(true);
+    await expect(janela.locator('.chat__title').first()).toContainText(
+      'anúncios',
+      { timeout: 15_000 },
+    );
+  } finally {
+    desligarCarteiro();
+  }
 });

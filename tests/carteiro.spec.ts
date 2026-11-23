@@ -1,6 +1,3 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { join } from 'node:path';
-
 import { expect, test } from '@playwright/test';
 
 import {
@@ -13,6 +10,7 @@ import {
   signUpThroughUi,
 } from './helpers';
 import type { TestAccount } from './helpers';
+import { avisar, campos, comoDono, FS, lerComoDono, ligarCarteiroLocal } from './carteiro-local';
 
 /**
  * CARTEIRO DAS NOTIFICAÇÕES (0.4.0): o carteiro roda aqui (wrangler dev),
@@ -21,48 +19,15 @@ import type { TestAccount } from './helpers';
  */
 
 const FS_HOST = process.env['FIRESTORE_EMULATOR_HOST'];
-const FS = `http://${FS_HOST}/v1/projects/loft-3d6c0f/databases/(default)/documents`;
-const PORTA = 8799;
-const CARTEIRO = `http://127.0.0.1:${PORTA}`;
-const HD = '/mnt/cab1286d-6765-4c73-9c77-8d3119b4b644/Arquivo/Loft-desktop/carteiro';
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 const accounts: TestAccount[] = [];
-let carteiro: ChildProcess | undefined;
+let desligarCarteiro: (() => void) | undefined;
 
 test.describe.configure({ mode: 'serial' });
 test.skip(FS_HOST === undefined, 'só no emulador');
 
 type Valor = string | number | Record<string, unknown>;
-
-function campos(dados: Record<string, Valor>): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(dados).map(([k, v]) => [
-      k,
-      typeof v === 'string'
-        ? { stringValue: v }
-        : typeof v === 'number'
-          ? { integerValue: String(v) }
-          : { mapValue: { fields: campos(v as Record<string, Valor>) } },
-    ]),
-  );
-}
-
-/** Escreve como DONO do projeto (passa por cima das regras), como o carteiro faz. */
-async function comoDono(caminho: string, dados: Record<string, Valor>): Promise<void> {
-  const r = await fetch(`${FS}/${caminho}`, {
-    method: 'PATCH',
-    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
-    body: JSON.stringify({ fields: campos(dados) }),
-  });
-  expect(r.ok, `gravar ${caminho}`).toBe(true);
-}
-
-async function lerComoDono(caminho: string): Promise<Record<string, Record<string, unknown>> | null> {
-  const r = await fetch(`${FS}/${caminho}`, { headers: { authorization: 'Bearer owner' } });
-  if (r.status === 404) return null;
-  return ((await r.json()) as { fields: Record<string, Record<string, unknown>> }).fields;
-}
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 async function envios(): Promise<Record<string, string>[]> {
   const r = await fetch(`${FS}/testeCarteiro?pageSize=100`, { headers: { authorization: 'Bearer owner' } });
@@ -70,46 +35,17 @@ async function envios(): Promise<Record<string, string>[]> {
   return docs.map((d) => Object.fromEntries(Object.entries(d.fields).map(([k, v]) => [k, v.stringValue])));
 }
 
-async function avisar(conta: TestAccount | null, corpo: unknown): Promise<Response> {
-  return fetch(`${CARTEIRO}/avisar`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(conta === null ? {} : { authorization: `Bearer ${conta.idToken}` }),
-    },
-    body: JSON.stringify(corpo),
-  });
+function avisarComo(conta: TestAccount | null, corpo: unknown): Promise<Response> {
+  return avisar(conta === null ? null : (conta.idToken ?? null), corpo);
 }
 
 test.beforeAll(async () => {
   test.setTimeout(90_000);
-  carteiro = spawn(
-    join(process.cwd(), 'carteiro/node_modules/.bin/wrangler'),
-    [
-      'dev',
-      '--ip', '127.0.0.1',
-      '--port', String(PORTA),
-      '--var', `EMULADOR:${FS_HOST}`,
-      '--var', 'SEGREDO_FOTO:segredo-de-teste',
-      '--persist-to', `${HD}/estado-dev`,
-      '--log-level', 'warn',
-    ],
-    {
-      cwd: join(process.cwd(), 'carteiro'),
-      env: { ...process.env, XDG_CONFIG_HOME: `${HD}/config`, WRANGLER_SEND_METRICS: 'false', WRANGLER_LOG_PATH: `${HD}/logs` },
-      stdio: 'ignore',
-    },
-  );
-  for (let i = 0; i < 120; i += 1) {
-    const ok = await fetch(`${CARTEIRO}/`).then((r) => r.ok).catch(() => false);
-    if (ok) return;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error('o carteiro local não ligou');
+  desligarCarteiro = await ligarCarteiroLocal();
 });
 
 test.afterAll(async () => {
-  carteiro?.kill('SIGTERM');
+  desligarCarteiro?.();
   await limparTudo(accounts, 'carteiro — limpeza');
 });
 
@@ -136,13 +72,13 @@ test('carteiro: avisa quem é do grupo e do PV, com o texto cortado e a foto', a
   await comoDono(`messages/m1${g}`, { groupId: g, channelId: canal, authorId: a, kind: 'text', body: longo, sentAt: agora });
 
   // Sem login, com pedido torto e com a mensagem de outra pessoa: recusado.
-  expect((await avisar(null, { tipo: 'grupo', id: `m1${g}` })).status).toBe(401);
-  expect((await avisar(ana, { tipo: 'outro', id: `m1${g}` })).status).toBe(400);
-  expect((await avisar(beto, { tipo: 'grupo', id: `m1${g}` })).status).toBe(403);
-  expect((await avisar(ana, { tipo: 'grupo', id: 'naoExiste' })).status).toBe(404);
+  expect((await avisarComo(null, { tipo: 'grupo', id: `m1${g}` })).status).toBe(401);
+  expect((await avisarComo(ana, { tipo: 'outro', id: `m1${g}` })).status).toBe(400);
+  expect((await avisarComo(beto, { tipo: 'grupo', id: `m1${g}` })).status).toBe(403);
+  expect((await avisarComo(ana, { tipo: 'grupo', id: 'naoExiste' })).status).toBe(404);
 
   // A Ana avisa: vai para o celular do Beto e para o PC dele; o Caio (fora do grupo) não recebe.
-  expect((await avisar(ana, { tipo: 'grupo', id: `m1${g}` })).status).toBe(202);
+  expect((await avisarComo(ana, { tipo: 'grupo', id: `m1${g}` })).status).toBe(202);
   await expect.poll(async () => (await envios()).filter((e) => e['mensagem'] === `m1${g}`).length).toBe(1);
   const [envio] = (await envios()).filter((e) => e['mensagem'] === `m1${g}`);
   expect(envio!['para']).toBe(b);
@@ -167,17 +103,17 @@ test('carteiro: avisa quem é do grupo e do PV, com o texto cortado e a foto', a
   expect((await fetch(envio!['foto']!.replace(/a=[^&]+/, 'a=falsa'))).status).toBe(403);
 
   // Repetir o mesmo aviso não manda de novo.
-  expect((await avisar(ana, { tipo: 'grupo', id: `m1${g}` })).status).toBe(200);
+  expect((await avisarComo(ana, { tipo: 'grupo', id: `m1${g}` })).status).toBe(200);
 
   // Mensagem velha (mais de 2 minutos): recusado.
   const velha = new Date(Date.now() - 10 * 60_000).toISOString();
   await comoDono(`messages/m2${g}`, { groupId: g, channelId: canal, authorId: a, kind: 'text', body: 'oi', sentAt: velha });
-  expect((await avisar(ana, { tipo: 'grupo', id: `m2${g}` })).status).toBe(409);
+  expect((await avisarComo(ana, { tipo: 'grupo', id: `m2${g}` })).status).toBe(409);
 
   // PV: só o outro da dupla recebe, "no seu privado".
   const dupla = a < b ? `${a}_${b}` : `${b}_${a}`;
   await comoDono(`dmMessages/d1${g}`, { threadId: dupla, authorId: a, kind: 'text', body: 'oi Beto', sentAt: new Date().toISOString() });
-  expect((await avisar(ana, { tipo: 'pv', id: `d1${g}` })).status).toBe(202);
+  expect((await avisarComo(ana, { tipo: 'pv', id: `d1${g}` })).status).toBe(202);
   await expect.poll(async () => (await envios()).filter((e) => e['mensagem'] === `d1${g}`).length).toBe(1);
   const [pv] = (await envios()).filter((e) => e['mensagem'] === `d1${g}`);
   expect(pv!['para']).toBe(b);

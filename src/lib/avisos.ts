@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteField, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 
+import { loftDesktop } from './desktop';
 import { auth, db, USING_EMULATOR } from './firebase';
 
 /**
@@ -18,6 +19,9 @@ export const CARTEIRO = USING_EMULATOR
 
 const CHAVE_APARELHO = 'loft:aparelho';
 const CHAVE_LIGADO = 'loft:avisos';
+const EVENTO_MUDOU = 'loft:avisos-mudou';
+/** Aviso mais velho que isso (o PC estava fechado) não aparece. */
+const IDADE_MAX_MS = 2 * 60_000;
 
 function guardado(chave: string): string | null {
   try {
@@ -46,9 +50,19 @@ function idDoAparelho(): string {
   return novo;
 }
 
+/** Este aparelho recebe avisos? Só o app e o programa; o site não. */
+export function recebeAvisos(): boolean {
+  return Capacitor.isNativePlatform() || loftDesktop()?.avisar !== undefined;
+}
+
 /** Configurações → Notificações. Ligado até a pessoa desligar. */
 export function avisosLigados(): boolean {
   return guardado(CHAVE_LIGADO) !== 'nao';
+}
+
+export function mudarAvisos(ligado: boolean): void {
+  guardar(CHAVE_LIGADO, ligado ? 'sim' : 'nao');
+  window.dispatchEvent(new Event(EVENTO_MUDOU));
 }
 
 /* ------------------------------ o carteiro ------------------------------ */
@@ -84,7 +98,7 @@ interface PluginAvisos {
 
 const nativo = registerPlugin<PluginAvisos>('Avisos');
 
-/* ------------------------------ ligar e desligar ------------------------------ */
+/* ------------------------------ a lista de aparelhos ------------------------------ */
 
 async function anotarAparelho(uid: string, dados: { tipo: 'android'; token: string } | { tipo: 'pc' }): Promise<void> {
   await setDoc(doc(db, 'aparelhos', uid), { lista: { [idDoAparelho()]: dados } }, { merge: true });
@@ -92,6 +106,7 @@ async function anotarAparelho(uid: string, dados: { tipo: 'android'; token: stri
 
 /** Tira este aparelho da lista (sair da conta, ou desligar os avisos). */
 export async function esquecerEsteAparelho(uid: string): Promise<void> {
+  if (!recebeAvisos()) return;
   try {
     await updateDoc(doc(db, 'aparelhos', uid), { [`lista.${idDoAparelho()}`]: deleteField() });
   } catch {
@@ -100,10 +115,30 @@ export async function esquecerEsteAparelho(uid: string): Promise<void> {
   if (Capacitor.isNativePlatform()) await nativo.limpar().catch(() => undefined);
 }
 
+/* ------------------------------ ligar ------------------------------ */
+
 export interface Avisos {
   /** O app diz qual conversa está aberta (`canal:<id>`, `pv:<uid>` ou ''). */
   conversa(id: string): void;
   parar(): void;
+}
+
+interface Aviso {
+  mensagem?: string;
+  de?: string;
+  onde?: string;
+  texto?: string;
+  quando?: string;
+  conversa?: string;
+  abrir?: string;
+  foto?: string;
+}
+
+function hora(iso: string | undefined): string {
+  const data = new Date(iso ?? '');
+  return Number.isNaN(data.getTime())
+    ? ''
+    : data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 /**
@@ -111,25 +146,79 @@ export interface Avisos {
  * (`grupo/<g>/<c>` ou `pv/<uid>`) quando a pessoa toca numa notificação.
  */
 export function ligarAvisos(uid: string, abrir: (rota: string) => void): Avisos {
-  const ouvintes: Promise<{ remove: () => Promise<void> }>[] = [];
   let aberta = '';
+  const sempre: (() => void)[] = [];
+  let enquantoLigado: (() => void)[] = [];
+
+  const desligar = (): void => {
+    for (const parar of enquantoLigado) parar();
+    enquantoLigado = [];
+  };
+
+  /* Celular. */
+  const ligarNoAndroid = (): void => {
+    void nativo
+      .ligar()
+      .then(({ token, permitido }) =>
+        // Sem permissão de notificar: não adianta o carteiro mandar para cá.
+        token === '' || !permitido ? esquecerEsteAparelho(uid) : anotarAparelho(uid, { tipo: 'android', token }),
+      )
+      .catch(() => undefined);
+    const ouvinte = nativo.addListener('token', ({ token }) => {
+      void anotarAparelho(uid, { tipo: 'android', token }).catch(() => undefined);
+    });
+    enquantoLigado.push(() => void ouvinte.then((o) => o.remove()));
+  };
+
+  /* PC: o carteiro escreve o último aviso em `avisos/{uid}`. */
+  const ligarNoPc = (): void => {
+    const desktop = loftDesktop();
+    if (desktop?.avisar === undefined) return;
+    void anotarAparelho(uid, { tipo: 'pc' }).catch(() => undefined);
+    let ultimo = '';
+    const parar = onSnapshot(
+      doc(db, 'avisos', uid),
+      (instantaneo) => {
+        const aviso = instantaneo.get('ultimo') as Aviso | undefined;
+        const id = aviso?.mensagem;
+        if (aviso === undefined || id === undefined || id === ultimo) return;
+        ultimo = id;
+        if (!(Date.now() - Date.parse(aviso.quando ?? '') < IDADE_MAX_MS)) return;
+        const olhando = document.hasFocus() && document.visibilityState === 'visible' && aviso.conversa === aberta;
+        if (olhando) return;
+        void desktop.avisar?.({
+          titulo: aviso.de ?? 'Loftchat',
+          corpo: `${aviso.onde ?? ''} · ${hora(aviso.quando)}\n${aviso.texto ?? ''}`,
+          rota: aviso.abrir ?? '',
+          foto: aviso.foto ?? '',
+        });
+      },
+      () => undefined,
+    );
+    enquantoLigado.push(parar);
+  };
+
+  const ligar = (): void => {
+    desligar();
+    if (!avisosLigados()) {
+      void esquecerEsteAparelho(uid);
+      return;
+    }
+    if (Capacitor.isNativePlatform()) ligarNoAndroid();
+    else ligarNoPc();
+  };
 
   if (Capacitor.isNativePlatform()) {
-    ouvintes.push(nativo.addListener('abrir', ({ abrir: rota }) => abrir(rota)));
-    if (avisosLigados()) {
-      void nativo
-        .ligar()
-        .then(({ token, permitido }) =>
-          // Sem permissão de notificar: não adianta o carteiro mandar para cá.
-          token === '' || !permitido ? esquecerEsteAparelho(uid) : anotarAparelho(uid, { tipo: 'android', token }),
-        )
-        .catch(() => undefined);
-      ouvintes.push(
-        nativo.addListener('token', ({ token }) => {
-          if (avisosLigados()) void anotarAparelho(uid, { tipo: 'android', token }).catch(() => undefined);
-        }),
-      );
-    }
+    const ouvinte = nativo.addListener('abrir', ({ abrir: rota }) => abrir(rota));
+    sempre.push(() => void ouvinte.then((o) => o.remove()));
+  }
+  const tirarClique = loftDesktop()?.aoAbrirAviso?.((rota) => abrir(rota));
+  if (tirarClique !== undefined) sempre.push(tirarClique);
+
+  if (recebeAvisos()) {
+    window.addEventListener(EVENTO_MUDOU, ligar);
+    sempre.push(() => window.removeEventListener(EVENTO_MUDOU, ligar));
+    ligar();
   }
 
   return {
@@ -139,7 +228,8 @@ export function ligarAvisos(uid: string, abrir: (rota: string) => void): Avisos 
       if (Capacitor.isNativePlatform()) void nativo.conversa({ id }).catch(() => undefined);
     },
     parar() {
-      for (const o of ouvintes) void o.then((x) => x.remove());
+      desligar();
+      for (const parar of sempre) parar();
     },
   };
 }

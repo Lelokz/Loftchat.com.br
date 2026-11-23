@@ -33,4 +33,11 @@ contextBridge.exposeInMainWorld('loftDesktop', {
   aoAbrirConvite: (ouvinte) => {
     ipcRenderer.on('loft:convite', (_evento, codigo) => ouvinte(String(codigo)));
   },
+  // Notificações de mensagem (0.4.0).
+  avisar: (aviso) => ipcRenderer.invoke('loft:aviso', aviso),
+  aoAbrirAviso: (ouvinte) => {
+    const repassar = (_evento, rota) => ouvinte(String(rota));
+    ipcRenderer.on('loft:abrir-aviso', repassar);
+    return () => ipcRenderer.removeListener('loft:abrir-aviso', repassar);
+  },
 });

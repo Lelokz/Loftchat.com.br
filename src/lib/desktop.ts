@@ -41,6 +41,10 @@ export interface LoftDesktop {
   procurarAtualizacao?(): Promise<string | null>;
   /** Etapa 9b: um link `loftchat://convite/…` chegou com o programa aberto. */
   aoAbrirConvite?(ouvinte: (codigo: string) => void): void;
+  /** 0.4.0: mostra a notificação do sistema de uma mensagem nova. */
+  avisar?(aviso: { titulo: string; corpo: string; rota: string; foto: string }): Promise<void>;
+  /** A pessoa clicou numa notificação: a rota da conversa. Devolve como parar de ouvir. */
+  aoAbrirAviso?(ouvinte: (rota: string) => void): () => void;
 }
 
 /** O nome que o venmic dá ao microfone virtual (desktop/main.mjs). */

@@ -11,7 +11,20 @@
  * dados em outra pasta (`LOFT_DADOS`). No programa instalado, nunca.
  */
 
-import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, net, protocol, session, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  Menu,
+  nativeImage,
+  net,
+  Notification,
+  protocol,
+  session,
+  shell,
+  Tray,
+} from 'electron';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
@@ -297,6 +310,84 @@ function ligarCompartilhamentoDeTela() {
   });
 }
 
+/*
+ * NOTIFICAÇÕES E BANDEJA (0.4.0). Fechar a janela deixa o Loftchat no canto
+ * da barra de tarefas, como o Discord, para continuar avisando. "Sair" (no
+ * ícone da bandeja) fecha de verdade.
+ */
+let saindo = false;
+let bandeja = null;
+const ICONE = join(import.meta.dirname, 'icone.png');
+/** Nos testes da janela: guarda os avisos em vez de mostrar no sistema. */
+const AVISOS_DE_TESTE = !app.isPackaged && process.env.LOFT_AVISOS_TESTE === '1';
+globalThis.avisosDeTeste = [];
+const avisosAbertos = new Set();
+
+function mostrarJanela() {
+  if (!janela) return;
+  if (janela.isMinimized()) janela.restore();
+  janela.show();
+  janela.focus();
+}
+
+function ligarBandeja() {
+  const tamanho = process.platform === 'win32' ? 16 : 24;
+  bandeja = new Tray(nativeImage.createFromPath(ICONE).resize({ width: tamanho, height: tamanho }));
+  bandeja.setToolTip('Loftchat');
+  bandeja.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Abrir o Loftchat', click: mostrarJanela },
+      { type: 'separator' },
+      {
+        label: 'Sair',
+        click: () => {
+          saindo = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+  bandeja.on('click', mostrarJanela);
+}
+
+/** A foto de quem mandou, só se vier do carteiro do Loftchat. */
+async function fotoDoAviso(endereco) {
+  if (!/^https:\/\/loftchat-carteiro\.[a-z0-9-]+\.workers\.dev\/foto\//.test(endereco)) return null;
+  try {
+    const resposta = await net.fetch(endereco);
+    if (!resposta.ok) return null;
+    const imagem = nativeImage.createFromBuffer(Buffer.from(await resposta.arrayBuffer()));
+    return imagem.isEmpty() ? null : imagem;
+  } catch {
+    return null;
+  }
+}
+
+function ligarAvisos() {
+  ipcMain.handle('loft:aviso', async (evento, aviso) => {
+    if (!doLoft(evento.senderFrame?.url)) return;
+    const titulo = String(aviso?.titulo ?? '').slice(0, 100);
+    const corpo = String(aviso?.corpo ?? '').slice(0, 400);
+    const rota = String(aviso?.rota ?? '').slice(0, 200);
+    const foto = await fotoDoAviso(String(aviso?.foto ?? ''));
+    if (AVISOS_DE_TESTE) {
+      globalThis.avisosDeTeste.push({ titulo, corpo, rota, comFoto: foto !== null });
+      return;
+    }
+    if (!Notification.isSupported()) return;
+    const notificacao = new Notification({ title: titulo, body: corpo, icon: foto ?? ICONE });
+    // Guardada até fechar: sem isso o clique se perde (o Node recolhe o objeto).
+    avisosAbertos.add(notificacao);
+    notificacao.on('close', () => avisosAbertos.delete(notificacao));
+    notificacao.on('click', () => {
+      avisosAbertos.delete(notificacao);
+      mostrarJanela();
+      janela?.webContents.send('loft:abrir-aviso', rota);
+    });
+    notificacao.show();
+  });
+}
+
 function criarJanela() {
   janela = new BrowserWindow({
     width: 1280,
@@ -320,6 +411,13 @@ function criarJanela() {
   });
 
   janela.once('ready-to-show', () => janela.show());
+
+  // Fechar esconde (o Loftchat segue na bandeja); "Sair" fecha de verdade.
+  janela.on('close', (evento) => {
+    if (saindo || bandeja === null) return;
+    evento.preventDefault();
+    janela.hide();
+  });
 
   // Link de fora do Loft abre no navegador, nunca dentro da janela.
   janela.webContents.setWindowOpenHandler(({ url }) => {
@@ -346,8 +444,7 @@ if (!app.requestSingleInstanceLock()) {
   // a página (o mesmo caminho de colar o link em "Entrar num grupo").
   app.on('second-instance', (_evento, argv) => {
     if (!janela) return;
-    if (janela.isMinimized()) janela.restore();
-    janela.focus();
+    mostrarJanela();
     const convite = conviteDosArgumentos(argv);
     if (convite !== null) janela.webContents.send('loft:convite', convite);
   });
@@ -361,6 +458,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
+    // Windows: as notificações saem com o nome e o ícone do Loftchat (o mesmo id do instalador).
+    if (process.platform === 'win32') app.setAppUserModelId('br.com.loftchat');
     servirChat();
 
     // Microfone, notificação etc. só para o próprio Loft.
@@ -372,8 +471,15 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     ligarCompartilhamentoDeTela();
+    ligarAvisos();
     criarJanela();
+    ligarBandeja();
     ligarAtualizacao();
+  });
+
+  // Qualquer saída de verdade (Sair da bandeja, atualização, desligar o PC) passa daqui.
+  app.on('before-quit', () => {
+    saindo = true;
   });
 
   app.on('window-all-closed', () => app.quit());

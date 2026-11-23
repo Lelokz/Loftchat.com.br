@@ -6,4 +6,6 @@
 # Sem gerenciador de janelas o Electron não lista tela nem janela nenhuma para
 # compartilhar (o seletor da janela do Loft vem vazio). O metacity resolve.
 # A tela some, o SOM NÃO: os testes da janela já abrem tudo mudo.
-exec xvfb-run -a -s "-screen 0 1920x1080x24" sh -c 'metacity --replace >/dev/null 2>&1 & sleep 1; exec "$@"' sh "$@"
+# D-Bus PRÓPRIO (0.4.0): o ícone da bandeja e as notificações da janela de
+# teste não aparecem na barra de tarefas de verdade.
+exec dbus-run-session -- xvfb-run -a -s "-screen 0 1920x1080x24" sh -c 'metacity --replace >/dev/null 2>&1 & sleep 1; exec "$@"' sh "$@"
