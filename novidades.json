@@ -1,5 +1,15 @@
 [
   {
+    "versao": "0.5.5",
+    "data": "2026-11-23",
+    "itens": [
+      "Mensagem de voz! Com o campo vazio, o botão de enviar vira um microfone: toque para gravar, 🗑 joga fora e ➤ manda. No PC, Esc joga fora e Enter manda.",
+      "Enquanto grava, aparecem o tempo e as ondas da sua voz. Cada áudio pode ter até 5 minutos.",
+      "No chat, o áudio tem ▶/⏸, as ondas (toque ou arraste nelas para pular um trecho), o tempo e a velocidade 1x, 1,5x ou 2x. O áudio continua tocando mesmo quando chega mensagem nova.",
+      "Funciona nos grupos, no Privado e no chat da sala de voz. A notificação aparece como \"🎤 Mensagem de voz\"."
+    ]
+  },
+  {
     "versao": "0.5.0",
     "data": "2026-11-23",
     "itens": [

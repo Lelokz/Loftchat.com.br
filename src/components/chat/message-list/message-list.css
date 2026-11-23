@@ -263,38 +263,6 @@
   opacity: 0.75;
 }
 
-/* --- áudio: barras estáticas (sem animação) ------------------------------- */
-
-.attachment--audio {
-  min-width: 240px;
-}
-
-.waveform {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 1;
-  height: 22px;
-}
-
-.waveform__bar {
-  flex: 1;
-  border-radius: var(--radius-full);
-  background-color: var(--border-strong);
-}
-
-.message--mine .waveform__bar {
-  background-color: color-mix(in srgb, var(--accent-on) 55%, transparent);
-}
-
-/* Alturas fixas em padrão repetido — é um desenho, não um sinal real. */
-.waveform__bar:nth-child(6n + 1) { height: 40%; }
-.waveform__bar:nth-child(6n + 2) { height: 75%; }
-.waveform__bar:nth-child(6n + 3) { height: 100%; }
-.waveform__bar:nth-child(6n + 4) { height: 55%; }
-.waveform__bar:nth-child(6n + 5) { height: 85%; }
-.waveform__bar:nth-child(6n)     { height: 30%; }
-
 /* --- topo do histórico ---------------------------------------------------- */
 
 .messages__top {
@@ -497,10 +465,6 @@
 :root[data-mensagens='lista'] .message--mine .attachment__trailing {
   color: var(--text-muted);
   opacity: 1;
-}
-
-:root[data-mensagens='lista'] .message--mine .waveform__bar {
-  background-color: var(--border-strong);
 }
 
 /* Compacto: menos ar. */

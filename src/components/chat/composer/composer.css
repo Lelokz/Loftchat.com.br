@@ -161,3 +161,102 @@
   outline: 2px dashed var(--accent);
   outline-offset: -6px;
 }
+
+/* --- Mensagem de voz (0.5.5): gravando ------------------------------------ */
+
+.gravando-voz {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-raised);
+}
+
+.gravando-voz__ponto {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--danger);
+  animation: gravando-pisca 1.2s ease-in-out infinite;
+}
+
+.gravando-voz.is-limite .gravando-voz__ponto {
+  animation: none;
+  opacity: 0.5;
+}
+
+@keyframes gravando-pisca {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gravando-voz__ponto {
+    animation: none;
+  }
+}
+
+.gravando-voz__tempo {
+  flex: none;
+  color: var(--danger);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* As ondas ao vivo: as mais novas entram pela direita. */
+.gravando-voz__ondas {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 0;
+  height: 26px;
+  overflow: hidden;
+  color: var(--text-secondary);
+}
+
+.gravando-voz__ondas i {
+  display: block;
+  flex: none;
+  width: 3px;
+  border-radius: 2px;
+  background-color: currentColor;
+}
+
+.gravando-voz__dica {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* No celular não tem teclado físico: sem a dica de Esc/Enter. */
+@media (pointer: coarse) {
+  .gravando-voz__dica {
+    display: none;
+  }
+}
+
+.composer__lixo {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.composer__lixo:hover {
+  border-color: var(--danger);
+  background-color: transparent;
+  color: var(--danger);
+}
+
+.composer__envio-previa {
+  display: grid;
+  place-items: center;
+}

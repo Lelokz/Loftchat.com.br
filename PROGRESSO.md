@@ -2,6 +2,32 @@
 
 Estado em 15/11/2026.
 
+## Mensagem de voz (23/11/2026) — versão 0.5.5
+
+Foto aprovada ("pode, ficou legal"): campo vazio → o Enviar vira microfone;
+toque para gravar (não segurar, igual no PC e no celular).
+
+- **Gravador** (`src/lib/gravador.ts`): MediaRecorder em Opus 32 kbps
+  (WebM no Chromium; Ogg/MP4 se for o que o aparelho grava), volume medido
+  10×/s para as ondas ao vivo, resumo de 48 ondas (0–100) que vai NA
+  mensagem (`attachment.ondas`) — o balão desenha sem baixar o áudio.
+  Limite 5 min (para sozinho e espera mandar); menos de 0,7 s não vai.
+- **Composer**: `aoVoz`; gravando, a linha vira 🗑 + barra (ponto, tempo,
+  ondas, dica Esc/Enter só com teclado) + ➤. Sair da conversa no meio joga
+  fora; o VOLTAR do Android também.
+- **Balão** (`src/components/voz/`): UM tocador para o app inteiro, fora da
+  lista (a lista é refeita a cada mensagem — o áudio não pode parar por
+  isso). ▶/⏸, 28 barras (14 no celular), clicar/arrastar pula, setas ±5 s,
+  1x/1,5x/2x, tocar outro para o anterior, arquivo vencido vira aviso.
+  A duração vem da mensagem (o WebM do MediaRecorder não traz duração).
+- **Carteiro**: tipo `audio` (até 5 MB, audio/webm|ogg|mp4|aac|mpeg); a
+  entrega agora aceita qualquer tipo de `TIPOS` (antes uma lista escrita à
+  mão — o áudio dava 404). Notificação "🎤 Mensagem de voz".
+- Regras do Firebase: nada muda (o tipo da mensagem não é conferido lá).
+- Teste `tests/voz.spec.ts` (microfone falso, mudo): gravar, jogar fora,
+  curto demais, mandar, banco (audio, duração, 48 ondas), o outro ouvir,
+  velocidade, mensagem nova sem parar o áudio, pular, celular cabendo.
+
 ## Mídia, figurinhas, emojis e YouTube (23/11/2026) — versão 0.5.0
 
 Fotos aprovadas ("mete bala"; painel com Recentes em cima e Favoritas

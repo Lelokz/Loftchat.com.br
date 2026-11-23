@@ -175,3 +175,13 @@ export const paletteIcon = (size?: number): string =>
       '<path d="M7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01M17 11h.01"/>',
     size,
   );
+
+/** Lixeira (0.5.5): jogar fora a mensagem de voz que está gravando. */
+export const trashIcon = (size?: number): string =>
+  svg('<path d="M4 7h16M9.5 7V4.5h5V7M6 7l1 13h10l1-13M10 11v5M14 11v5"/>', size);
+
+/** Tocar / pausar (0.5.5): o balão da mensagem de voz. Preenchidos. */
+export const playIcon = (size = 16): string =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" focusable="false"><path d="M7 4.5v15l12.5-7.5z"/></svg>`;
+export const pauseIcon = (size = 16): string =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" focusable="false"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg>`;

@@ -2,7 +2,7 @@ import "./message-list.css";
 
 import { avatarEl, el, iconEl } from "../../../lib/dom";
 import { nameColorId } from "../../../lib/person-theme";
-import { clipIcon, fileIcon, micIcon } from "../../../lib/icons";
+import { clipIcon, fileIcon } from "../../../lib/icons";
 import {
   formatBytes,
   formatDayLabel,
@@ -12,6 +12,7 @@ import {
 } from "../../../lib/format";
 import { dadosDoYouTube, idDoYouTube, linkDoYouTube, thumbDoYouTube } from "../../../lib/youtube";
 import { abrirVisualizador } from "../../visualizador/visualizador";
+import { renderVoz } from "../../voz/voz";
 import type {
   Attachment,
   Member,
@@ -80,8 +81,6 @@ function authorOf(authors: Map<MemberId, Member>, authorId: MemberId): Member {
   };
 }
 
-/** Quantas barrinhas o "áudio" estático desenha. Puramente decorativo. */
-const WAVEFORM_BARS = 22;
 
 /** Janela de agrupamento: mensagens seguidas do mesmo autor dentro disso viram um bloco. */
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
@@ -584,7 +583,7 @@ function renderContent(message: MessageBase): HTMLElement {
 
     case "audio":
       return el("div", { class: "message__content" }, [
-        message.attachment && renderAudio(message.attachment),
+        message.attachment && renderVoz(message.attachment),
         message.body !== "" &&
           el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
@@ -661,26 +660,3 @@ function renderFile(attachment: Attachment): HTMLElement {
   ]);
 }
 
-/**
- * Balão de áudio estático: ícone, barras fixas e duração.
- * Não existe <audio> aqui — nesta etapa nada toca.
- */
-function renderAudio(attachment: Attachment): HTMLElement {
-  const bars = el(
-    "span",
-    { class: "waveform", "aria-hidden": "true" },
-    Array.from({ length: WAVEFORM_BARS }, () =>
-      el("span", { class: "waveform__bar" }),
-    ),
-  );
-
-  return el("div", { class: "attachment attachment--audio" }, [
-    iconEl(micIcon(18), "icon attachment__icon"),
-    bars,
-    el("span", { class: "attachment__meta" }, [
-      attachment.durationMs === undefined
-        ? "--:--"
-        : formatDuration(attachment.durationMs),
-    ]),
-  ]);
-}

@@ -6,6 +6,7 @@ import { renderNoChannel } from '../empty-state/empty-state';
 import { renderComposer } from './composer/composer';
 import type { Channel } from '../../types/models';
 import type { Figurinha } from '../../lib/figurinhas';
+import type { Gravacao } from '../../lib/gravador';
 
 export interface ChatProps {
   /** Canal de TEXTO ativo; `null` quando o grupo não tem canais. */
@@ -14,6 +15,8 @@ export interface ChatProps {
   /** 0.5.0: imagem, GIF e vídeo (ver ComposerProps). */
   aoArquivos?: (arquivos: File[], legenda: string) => void;
   aoFigurinha?: (figurinha: Figurinha) => void;
+  /** 0.5.5: mensagem de voz. */
+  aoVoz?: (gravacao: Gravacao) => void;
   /** Gavetas do mobile. Os botões existem sempre; o CSS os esconde no desktop. */
   onOpenChannels: () => void;
   onOpenMembers: () => void;
@@ -130,6 +133,7 @@ export function renderChat(props: ChatProps): ChatParts {
         destino: `canal:${channel.id}`,
         ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
         ...(props.aoFigurinha === undefined ? {} : { aoFigurinha: props.aoFigurinha }),
+      ...(props.aoVoz === undefined ? {} : { aoVoz: props.aoVoz }),
       }),
     ]),
     messagesSlot,

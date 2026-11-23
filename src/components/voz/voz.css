@@ -1,0 +1,96 @@
+/* Mensagem de voz (0.5.5): o balão com ▶, ondas, tempo e velocidade. */
+
+.voz {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(300px, 52vw);
+  max-width: 100%;
+  padding: 2px 0;
+}
+
+.voz__play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.message--mine .voz__play {
+  background-color: var(--accent-on);
+  color: var(--accent);
+}
+
+.voz__ondas {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 30px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.voz__ondas i {
+  display: block;
+  flex: none;
+  width: 3px;
+  border-radius: 2px;
+  background-color: currentColor;
+  opacity: 0.35;
+}
+
+.voz__ondas i.ja {
+  opacity: 1;
+}
+
+.voz__ondas:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.voz__tempo {
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.voz__vel {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background-color: rgb(127 127 127 / 25%);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.voz__vel[hidden] {
+  display: none;
+}
+
+/* Mensagens em lista (sem balão colorido): o ▶ das minhas volta à cor normal. */
+:root[data-mensagens='lista'] .message--mine .voz__play {
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+
+/* Celular: metade das barras, para caber no balão. */
+@media (max-width: 480px) {
+  .voz__ondas i:nth-child(even) {
+    display: none;
+  }
+
+  .voz__total {
+    display: none;
+  }
+}

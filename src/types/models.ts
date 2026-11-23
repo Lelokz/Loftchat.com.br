@@ -282,6 +282,8 @@ export interface Attachment {
   largura?: number;
   altura?: number;
   capaUrl?: string;
+  /** 0.5.5: mensagem de voz — as ondas (48 valores de 0 a 100) para o balão desenhar sem baixar o áudio. */
+  ondas?: number[];
 }
 
 /**

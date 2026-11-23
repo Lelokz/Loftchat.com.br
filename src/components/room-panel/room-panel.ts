@@ -3,6 +3,7 @@ import './room-panel.css';
 import { el } from '../../lib/dom';
 import { renderComposer } from '../chat/composer/composer';
 import type { Figurinha } from '../../lib/figurinhas';
+import type { Gravacao } from '../../lib/gravador';
 
 /** Abas do painel da direita com a sala de voz na tela (etapa 8b). */
 export type AbaDaSala = 'chat' | 'membros' | 'fixadas';
@@ -19,6 +20,8 @@ export interface RoomPanelProps {
   aoArquivos?: (arquivos: File[], legenda: string) => void;
   destino?: string;
   aoFigurinha?: (figurinha: Figurinha) => void;
+  /** 0.5.5: mensagem de voz. */
+  aoVoz?: (gravacao: Gravacao) => void;
 }
 
 export interface RoomPanelParts {
@@ -59,6 +62,7 @@ export function renderRoomPanel(props: RoomPanelProps): RoomPanelParts {
       ...(props.destino === undefined ? {} : { destino: props.destino }),
       ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
       ...(props.aoFigurinha === undefined ? {} : { aoFigurinha: props.aoFigurinha }),
+      ...(props.aoVoz === undefined ? {} : { aoVoz: props.aoVoz }),
     }),
   ]);
   const outroSlot = el('div', { class: 'members__body column-scroll scroll-area', role: 'tabpanel' });

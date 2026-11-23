@@ -2,7 +2,7 @@
  * ARQUIVOS (0.5.0): imagem, GIF, vídeo e figurinha, guardados no R2 da
  * Cloudflare (grátis até 10 GB guardados; baixar é sempre grátis).
  *
- * POST /arquivo?tipo=imagem|gif|video|capa|figurinha   (com login; o corpo é o arquivo)
+ * POST /arquivo?tipo=imagem|gif|video|capa|figurinha|audio   (com login; o corpo é o arquivo)
  * GET  /arquivo/<chave>                                 (público, com suporte a pedaço — vídeo avança)
  *
  * LIMPEZA (todo dia): some o que tem mais de 60 dias; passando de 8 GB
@@ -42,6 +42,8 @@ export const TIPOS: Record<string, { maximo: number; aceita: RegExp }> = {
   video: { maximo: 50 * MB, aceita: /^video\/(mp4|webm|quicktime|3gpp|x-matroska)$/ },
   capa: { maximo: 1 * MB, aceita: /^image\/(webp|jpeg)$/ },
   figurinha: { maximo: 1 * MB, aceita: /^image\/(webp|png|gif)$/ },
+  // Mensagem de voz (0.5.5): até 5 minutos em Opus dá ~2 MB; 5 MB sobra.
+  audio: { maximo: 5 * MB, aceita: /^audio\/(webm|ogg|mp4|aac|mpeg)$/ },
 };
 
 const LIMITE_GUARDADO = 9.5 * GB;
@@ -124,7 +126,8 @@ export async function receberArquivo(req: Request, balde: Balde, uid: string): P
 
 /** Entrega um arquivo. Aceita pedaço (Range), que é o que deixa o vídeo avançar. */
 export async function entregarArquivo(req: Request, balde: Balde, chave: string): Promise<Response> {
-  if (!/^(imagem|gif|video|capa|figurinha)\/[A-Za-z0-9_-]{1,64}\/[a-z0-9]{20}$/.test(chave)) {
+  const [tipo, ...resto] = chave.split('/');
+  if (tipo === undefined || !Object.hasOwn(TIPOS, tipo) || !/^[A-Za-z0-9_-]{1,64}\/[a-z0-9]{20}$/.test(resto.join('/'))) {
     return new Response('não existe', { status: 404, headers: CORS });
   }
   const pedaco = req.headers.get('range');

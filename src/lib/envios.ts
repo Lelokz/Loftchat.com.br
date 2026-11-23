@@ -1,4 +1,5 @@
-import { ArquivoRecusado, mandarArquivo, prepararArquivo } from './midia';
+import { ArquivoRecusado, mandarArquivo, prepararArquivo, subirArquivo } from './midia';
+import type { Gravacao } from './gravador';
 import type { Midia } from './firestore';
 
 /**
@@ -70,5 +71,42 @@ export async function mandarArquivos(
       envios.delete(id);
       avisar();
     }
+  }
+}
+
+/** MENSAGEM DE VOZ (0.5.5): sobe o áudio (com a porcentagem na fila) e grava a mensagem. */
+export async function mandarVoz(
+  destino: string,
+  gravacao: Gravacao,
+  enviar: (midia: Midia) => Promise<void>,
+  aoErro: (texto: string) => void,
+): Promise<void> {
+  const id = proximo++;
+  envios.set(id, { id, destino, previa: '', progresso: 0, nome: 'Mensagem de voz' });
+  avisar();
+  try {
+    const guardado = await subirArquivo(gravacao.blob, gravacao.formato, 'audio', (fracao) => {
+      const atual = envios.get(id);
+      if (atual === undefined) return;
+      envios.set(id, { ...atual, progresso: fracao });
+      avisar();
+    });
+    await enviar({
+      kind: 'audio',
+      attachment: {
+        url: guardado.url,
+        chave: guardado.chave,
+        fileName: 'voz',
+        mimeType: gravacao.formato,
+        sizeBytes: gravacao.blob.size,
+        durationMs: gravacao.duracaoMs,
+        ondas: gravacao.ondas,
+      },
+    });
+  } catch (erro) {
+    aoErro(erro instanceof Error ? erro.message : 'Não deu para mandar a mensagem de voz.');
+  } finally {
+    envios.delete(id);
+    avisar();
   }
 }

@@ -109,7 +109,8 @@ import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
 import { ligarAvisos } from './lib/avisos';
 import { criarNaoLidas } from './lib/nao-lidas';
-import { mandarArquivos } from './lib/envios';
+import { mandarArquivos, mandarVoz } from './lib/envios';
+import type { Gravacao } from './lib/gravador';
 import { ligarFigurinhas, usouFigurinha } from './lib/figurinhas';
 import type { Figurinha } from './lib/figurinhas';
 import type { Midia } from './lib/firestore';
@@ -778,6 +779,27 @@ export function mountApp(
     void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
   };
 
+  /* MENSAGEM DE VOZ (0.5.5): sobe o áudio e grava a mensagem (grupo, PV ou sala). */
+  const handleVoz = (gravacao: Gravacao): void => {
+    const state = store.getState();
+    if (state.activeDmUid !== null) {
+      const amigo = state.activeDmUid;
+      void mandarVoz(`pv:${amigo}`, gravacao, (midia) => sendDmMessage(user.uid, amigo, '', undefined, midia), avisarErroDoArquivo);
+      return;
+    }
+    if (state.activeGroupId === null || state.activeChannelId === null) return;
+    const grupo = state.activeGroupId;
+    const canal = state.activeChannelId;
+    void mandarVoz(`canal:${canal}`, gravacao, (midia) => sendMessage(grupo, canal, user.uid, '', undefined, midia), avisarErroDoArquivo);
+  };
+  const handleVozSala = (gravacao: Gravacao): void => {
+    const state = store.getState();
+    const grupo = state.voice?.groupId ?? null;
+    const canal = state.roomChatChannelId;
+    if (grupo === null || canal === null) return;
+    void mandarVoz(`canal:${canal}`, gravacao, (midia) => sendMessage(grupo, canal, user.uid, '', undefined, midia), avisarErroDoArquivo);
+  };
+
   /* FIGURINHA (0.5.0): vai como mensagem pequena, sem balão, e entra nas recentes. */
   const figurinhaComoMidia = (f: Figurinha): Midia => ({
     kind: 'sticker',
@@ -1308,6 +1330,7 @@ export function mountApp(
         onSend: handleSendSala,
         aoArquivos: handleArquivosSala,
         aoFigurinha: handleFigurinhaSala,
+        aoVoz: handleVozSala,
         ...(state.roomChatChannelId === null ? {} : { destino: `canal:${state.roomChatChannelId}` }),
       });
       painelDaSalaNovo = true;
@@ -2244,6 +2267,7 @@ export function mountApp(
                   painel: {},
                   aoArquivos: handleArquivos,
                   aoFigurinha: handleFigurinha,
+                  aoVoz: handleVoz,
                   destino: `pv:${friendUid}`,
                 }),
           );
@@ -2362,6 +2386,7 @@ export function mountApp(
           onSend: handleSend,
           aoArquivos: handleArquivos,
           aoFigurinha: handleFigurinha,
+          aoVoz: handleVoz,
           onOpenChannels: () => setDrawer('left'),
           onOpenMembers: () => setDrawer('right'),
           onTogglePanel: alternarPainel,

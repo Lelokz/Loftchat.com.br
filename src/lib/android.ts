@@ -43,6 +43,12 @@ export function ligarAndroid(): void {
       sairDaTelaCheia.click();
       return;
     }
+    // Gravando mensagem de voz (0.5.5): VOLTAR joga fora, como a lixeira.
+    const lixeira = document.querySelector<HTMLButtonElement>('.gravando-voz .composer__lixo');
+    if (lixeira !== null) {
+      lixeira.click();
+      return;
+    }
     // O painel de emojis e figurinhas (0.5.0) aberto: VOLTAR fecha ele.
     const painel = document.querySelector<HTMLElement>('.painel:not([hidden])');
     if (painel !== null) {
