@@ -632,6 +632,24 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    /* ------------------------- aparelhos e avisos ------------------------ */
+    // Notificações (0.4.0). `aparelhos/{uid}` = onde a pessoa quer receber
+    // aviso (celular com o token do Google, ou PC). `avisos/{uid}` = o último
+    // aviso para o PC, escrito só pelo carteiro (conta de serviço).
+
+    match /aparelhos/{userId} {
+      allow read, delete: if signedIn() && userId == uid();
+      allow create, update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['lista'])
+        && request.resource.data.lista is map
+        && request.resource.data.lista.size() <= 10;
+    }
+
+    match /avisos/{userId} {
+      allow read, delete: if signedIn() && userId == uid();
+      allow create, update: if false;
+    }
+
     /* ----------------------------- messages ----------------------------- */
     // `groupId` é denormalizado na mensagem justamente para esta regra: uma
     // consulta (exists da membership) em vez de duas (get do canal + exists),

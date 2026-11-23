@@ -1,0 +1,13 @@
+# O CARTEIRO das notificações (versão 0.4.0). Roda na Cloudflare (grátis).
+# Publicar: cd carteiro && npm run publicar   (ver LEIA.md)
+name = "loftchat-carteiro"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+preview_urls = false
+
+[vars]
+PROJETO = "loft-3d6c0f"
+
+[observability]
+enabled = true

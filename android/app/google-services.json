@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "76150757543",
+    "project_id": "loft-3d6c0f",
+    "storage_bucket": "loft-3d6c0f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:76150757543:android:469107baaf2d0f0155a382",
+        "android_client_info": {
+          "package_name": "br.com.loftchat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUcXPpJYUAGLkAiKQ-enEYR4pwex691Co"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
