@@ -2,6 +2,28 @@
 
 Estado em 15/11/2026.
 
+## Não lidas (23/11/2026) — versão 0.4.5
+
+Foto e plano aprovados ("mete bala"). Bolinha vermelha com número
+(`src/components/bolinha/`) no canto de baixo do ícone das abas (grupo,
+pasta fechada, Privado — nunca na aba aberta), na ponta do canal de texto e da
+conversa do privado (nome em destaque), "9+" a partir de 10.
+
+- `lidas/{uid}`: `marcas` (`c_<canal>` / `p_<amigo>` → até onde leu) e
+  `desde` (quando a conta começou a contar; conversa nunca aberta conta dali).
+  Vale na conta: leu no PC, some no celular.
+- Canal ganhou `ultimaEm`/`ultimaDe`, anotados por quem manda (depois do
+  envio, sem travar o envio). Regra nova: qualquer membro, só esses dois
+  campos, só para a frente, `ultimaDe` = o próprio uid. PV usa o
+  `lastMessageAt` que já existia.
+- `src/lib/nao-lidas.ts`: um ouvinte de canais por grupo; só CONTA
+  (`getCountFromServer` com limit 10 = 1 leitura) quando a última mensagem é
+  mais nova que a marca e não é minha. Conversa aberta e janela visível →
+  marca lida até a última.
+- Índices novos (sentAt crescente) para as duas contagens.
+- Teste: `tests/nao-lidas.spec.ts` (canal, aba, outro aparelho já lido, 9+,
+  mensagem minha não conta, privado, e as regras).
+
 ## Notificações de mensagem (23/11/2026) — versão 0.4.0
 
 Plano aprovado: opção A (carteiro na Cloudflare, grátis, sem cartão) + FCM no

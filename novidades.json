@@ -1,5 +1,16 @@
 [
   {
+    "versao": "0.4.5",
+    "data": "2026-11-23",
+    "itens": [
+      "Mensagens não lidas: uma bolinha vermelha com o número aparece na aba do grupo, no canal e na aba Privado quando chega mensagem que você ainda não viu.",
+      "O canal ou a conversa com mensagem nova fica com o nome em destaque.",
+      "Abrir a conversa apaga a bolinha. Mensagem sua nunca conta.",
+      "O que você já leu vale em todo lugar: leu no PC, some no celular também.",
+      "Passou de 9, aparece \"9+\"."
+    ]
+  },
+  {
     "versao": "0.4.0",
     "data": "2026-11-23",
     "itens": [
