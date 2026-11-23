@@ -1,5 +1,19 @@
 [
   {
+    "versao": "0.3.0",
+    "data": "2026-11-23",
+    "itens": [
+      "Desfazer amizade e Bloquear agora perguntam antes. No celular, um toque fora do lugar desfazia a amizade sem querer.",
+      "Links mandados no chat agora são clicáveis e abrem no navegador.",
+      "Acabaram os botões repetidos: um Fechar só nas janelas, Renomear grupo ficou só em Configurações do grupo e o Diagnóstico da conexão saiu do menu da chamada.",
+      "Saíram o clipe e o microfone do campo de mensagem, que ainda não faziam nada.",
+      "Mensagens de erro sempre em português.",
+      "A aba Privado ganhou ícone próprio, e no privado o botão do painel fica no canto, como nos grupos.",
+      "No celular: a lista de amigos não esconde mais o @ embaixo dos botões, e o código do convite cabe na tela.",
+      "Apagar um grupo agora limpa tudo, inclusive o que sobrava da sala de voz."
+    ]
+  },
+  {
     "versao": "0.2.5",
     "data": "2026-11-23",
     "itens": [
