@@ -1,5 +1,17 @@
 [
   {
+    "versao": "0.3.5",
+    "data": "2026-11-23",
+    "itens": [
+      "Celular pequeno: a barra de cima agora cabe. O nome do grupo aparece inteiro e o + não fica mais por cima dele.",
+      "Botões maiores no celular, mais fáceis de acertar com o dedo.",
+      "Celular com a letra aumentada: o painel de membros não sai mais da tela.",
+      "Celulares Xiaomi não pintam mais o Loftchat de escuro por conta própria.",
+      "A engrenagem das Configurações agora parece uma engrenagem (antes parecia um sol).",
+      "Novo em Configurações → Sobre: \"Mandar informações da tela\". Se o Loftchat ficar estranho no seu celular, toque ali e a gente arruma para o seu aparelho."
+    ]
+  },
+  {
     "versao": "0.3.0",
     "data": "2026-11-23",
     "itens": [
