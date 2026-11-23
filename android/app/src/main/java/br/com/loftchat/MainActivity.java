@@ -16,6 +16,9 @@ import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    /** O app está na tela? (as notificações de mensagem perguntam: ServicoDosAvisos) */
+    static volatile boolean naFrente = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // O "Em chamada" (etapa 10b), antes do super: o Capacitor carrega os
@@ -24,6 +27,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PluginDaTela.class);
         registerPlugin(PluginDaTransmissao.class);
         registerPlugin(PluginDoAtualizador.class);
+        registerPlugin(PluginDosAvisos.class);
         super.onCreate(savedInstanceState);
 
         // A página continua com prioridade alta com o app atrás: a voz e a
@@ -88,7 +92,14 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        naFrente = true;
         esconderBarraDeCima();
+    }
+
+    @Override
+    public void onPause() {
+        naFrente = false;
+        super.onPause();
     }
 
     @Override

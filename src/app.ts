@@ -107,6 +107,7 @@ import type { PinnedMessage, ReplyTo } from './types/models';
 import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
+import { ligarAvisos } from './lib/avisos';
 
 export interface AppHandle {
   element: HTMLElement;
@@ -2622,10 +2623,35 @@ export function mountApp(
     },
     () => store.disconnectVoice(),
   );
+  /*
+   * NOTIFICAÇÕES (0.4.0): tocar numa notificação abre a conversa dela; e a
+   * conversa que está aberta não gera aviso.
+   */
+  const abrirConversa = (rota: string): void => {
+    const [tipo, a, b] = rota.split('/');
+    setDrawer(null);
+    if (tipo === 'pv' && a !== undefined && a !== '') {
+      store.setView('home');
+      store.openDm(a);
+    } else if (tipo === 'grupo' && a !== undefined && b !== undefined && b !== '') {
+      store.setView('group');
+      store.focusGroup(a, b);
+      if (store.getState().activeGroupId === a) store.setActiveChannel(b);
+    }
+  };
+  const conversaAberta = (state: AppState): string => {
+    if (state.view === 'home') return state.activeDmUid === null ? '' : `pv:${state.activeDmUid}`;
+    if (state.centerView === 'chat') return state.activeChannelId === null ? '' : `canal:${state.activeChannelId}`;
+    return state.roomChatChannelId === null ? '' : `canal:${state.roomChatChannelId}`;
+  };
+  const avisos = ligarAvisos(user.uid, abrirConversa);
+
   const unsubscribe = store.subscribe((state) => {
     render(state);
     acompanharChamada.aoMudar();
+    avisos.conversa(conversaAberta(state));
   });
+  avisos.conversa(conversaAberta(store.getState()));
   render(store.getState());
 
   return {
@@ -2656,6 +2682,7 @@ export function mountApp(
       pararFundoDoCanal?.();
       paintChatBackground(document.documentElement, null);
       acompanharChamada.desligar();
+      avisos.parar();
       store.dispose();
     },
   };

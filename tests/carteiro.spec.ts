@@ -3,7 +3,15 @@ import { join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { createAccountViaRest, limparTudo, newAccount } from './helpers';
+import {
+  activeGroupId,
+  createAccountViaRest,
+  createGroupThroughUi,
+  limparTudo,
+  newAccount,
+  sendMessageThroughUi,
+  signUpThroughUi,
+} from './helpers';
 import type { TestAccount } from './helpers';
 
 /**
@@ -213,4 +221,28 @@ test('regras: aparelhos só a própria pessoa; avisos só o carteiro escreve', a
     body: JSON.stringify({ fields: campos({ lista: { aPc: { tipo: 'pc' } } }) }),
   });
   expect(umPc.status).toBe(200);
+});
+
+test('pela tela: mandar no grupo chama o carteiro e o outro membro recebe', async ({ page }) => {
+  const dona = newAccount('Dona tela');
+  const outro = newAccount('Outro tela');
+  accounts.push(dona, outro);
+  await createAccountViaRest(outro);
+
+  await page.goto('/');
+  await signUpThroughUi(page, dona);
+  await createGroupThroughUi(page, 'Turma da tela');
+  const grupo = await activeGroupId(page);
+  await comoDono(`memberships/${grupo}_${outro.uid}`, { groupId: grupo, memberId: outro.uid!, role: 'member' });
+  await comoDono(`aparelhos/${outro.uid}`, { lista: { aCel: { tipo: 'android', token: 'token-do-outro' } } });
+
+  await sendMessageThroughUi(page, 'oi turma, chegou?');
+  await expect
+    .poll(async () => (await envios()).find((e) => e['para'] === outro.uid && e['texto'] === 'oi turma, chegou?'), {
+      timeout: 20_000,
+    })
+    .toBeDefined();
+  const envio = (await envios()).find((e) => e['texto'] === 'oi turma, chegou?');
+  expect(envio!['onde']).toBe('Turma da tela · #geral');
+  expect(envio!['de']).toBe(dona.displayName);
 });

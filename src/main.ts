@@ -16,6 +16,7 @@ import {
 import type { User } from 'firebase/auth';
 
 import { mountApp } from './app';
+import { esquecerEsteAparelho } from './lib/avisos';
 import type { AppHandle } from './app';
 import { renderAuthScreen } from './components/auth/auth-screen';
 import { renderChooseUsername } from './components/auth/choose-username';
@@ -143,7 +144,11 @@ function handleSignOut(): void {
   // Saiu da conta: a aparência dela não fica para quem entrar depois.
   previewAppearance(null);
   setAccountAppearance(DEFAULT_APPEARANCE);
-  void signOut(auth);
+  // Este aparelho para de receber os avisos dessa conta (no máximo 3 s de espera).
+  const uid = auth.currentUser?.uid;
+  const esquecer = uid === undefined ? Promise.resolve() : esquecerEsteAparelho(uid);
+  const limite = new Promise<void>((pronto) => setTimeout(pronto, 3000));
+  void Promise.race([esquecer, limite]).finally(() => signOut(auth));
 }
 
 /** Erro num listener do Firestore: registra e devolve a pessoa para uma tela sã. */

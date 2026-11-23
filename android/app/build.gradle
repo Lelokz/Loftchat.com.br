@@ -66,6 +66,8 @@ dependencies {
     implementation project(':capacitor-android')
     // Canal de mensagens com a página (tela do celular, etapa 10c).
     implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+    // Notificações de mensagem (0.4.0): o aviso do Google (FCM).
+    implementation "com.google.firebase:firebase-messaging:25.0.1"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

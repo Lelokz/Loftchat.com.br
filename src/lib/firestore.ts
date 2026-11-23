@@ -42,6 +42,7 @@ import {
 import type { DocumentData, Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
+import { avisarCarteiro } from './avisos';
 import { isPermissionDenied } from './firestore-errors';
 import { pairId } from './friends';
 import { initials } from './format';
@@ -646,7 +647,7 @@ export async function sendMessage(
   const body = rawBody.trim();
   if (body === '') return;
 
-  await withTimeout(
+  const nova = await withTimeout(
     addDoc(collection(db, 'messages'), {
       groupId,
       channelId,
@@ -658,6 +659,7 @@ export async function sendMessage(
       ...(replyTo === undefined ? {} : { replyTo }),
     }),
   );
+  avisarCarteiro('grupo', nova.id);
 }
 
 /** Quanto do texto citado (resposta ou fixada) é copiado para dentro do documento novo. */
@@ -1189,7 +1191,8 @@ export async function sendDmMessage(
   const sentAt = nowIso();
   const batch = writeBatch(db);
 
-  batch.set(doc(collection(db, 'dmMessages')), {
+  const nova = doc(collection(db, 'dmMessages'));
+  batch.set(nova, {
     threadId,
     authorId: me,
     kind: 'text',
@@ -1228,6 +1231,7 @@ export async function sendDmMessage(
     }
     throw error;
   }
+  avisarCarteiro('pv', nova.id);
 }
 
 /** Edita o TEXTO de uma mensagem privada. Só o autor, e só o texto — mesma disciplina de `editMessage`. */
