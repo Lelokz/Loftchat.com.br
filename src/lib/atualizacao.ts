@@ -52,7 +52,8 @@ export interface EstadoDaAtualizacao {
 
 const REPOSITORIO = 'Lelokz/Loftchat.com.br';
 const NOME_DO_APK = 'Loftchat-Android.apk';
-const QUATRO_HORAS = 4 * 60 * 60 * 1000;
+/** De quanto em quanto tempo procura versão nova com o app aberto (o Leo: "no máximo 5 minutos"). */
+const CINCO_MINUTOS = 5 * 60 * 1000;
 
 interface Atualizador {
   instalar(opcoes: { url: string }): Promise<void>;
@@ -121,7 +122,7 @@ async function buscarNotas(versao: string): Promise<void> {
   if (notas !== null && estado.nova === versao) mudar({ notas });
 }
 
-/** Procura agora (abrir o app, a cada 4 horas e o botão "Procurar atualizações"). */
+/** Procura agora (abrir o app, a cada 5 minutos, ao voltar para o app e o botão "Procurar atualizações"). */
 export async function procurarAtualizacao(): Promise<void> {
   if (estado.onde === 'site' || estado.procurando) return;
   mudar({ procurando: true, erro: null });
@@ -206,10 +207,18 @@ export function ligarAtualizacao(): void {
     void desktop.atualizacaoPronta?.().then((versao) => {
       if (versao) pronta(versao);
     });
-    // O programa procura sozinho ao abrir e a cada 4 horas (main.mjs).
+    // O programa procura sozinho ao abrir e a cada 5 minutos (main.mjs).
     return;
   }
 
   void procurarAtualizacao();
-  window.setInterval(() => void procurarAtualizacao(), QUATRO_HORAS);
+  window.setInterval(() => void procurarAtualizacao(), CINCO_MINUTOS);
+  // Em segundo plano o Android congela o relógio do app: ao voltar para a
+  // tela, procura de novo (no máximo uma vez por minuto).
+  let ultimaVez = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || Date.now() - ultimaVez < 60_000) return;
+    ultimaVez = Date.now();
+    void procurarAtualizacao();
+  });
 }

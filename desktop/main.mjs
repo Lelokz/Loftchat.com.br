@@ -123,12 +123,12 @@ function integrarNoLinux() {
  * ATUALIZAÇÃO AUTOMÁTICA (etapa 9d), pelas Releases do GitHub (o endereço
  * sai do `publish` do package.json, gravado no pacote pelo electron-builder).
  *
- * Ao abrir e a cada 4 horas: procura versão nova e baixa por trás. Pronta,
+ * Ao abrir e a cada 5 minutos: procura versão nova e baixa por trás. Pronta,
  * o chat mostra a faixa "Atualização pronta / Reiniciar" (sem pop-up). Se a
  * pessoa não reiniciar, ela entra sozinha quando o programa fechar.
  * Windows (NSIS por usuário) e Linux (AppImage) instalam sem pedir senha.
  */
-const QUATRO_HORAS = 4 * 60 * 60 * 1000;
+const CINCO_MINUTOS = 5 * 60 * 1000;
 let atualizacaoPronta = null; // a versão baixada, ou null
 
 function ligarAtualizacao() {
@@ -154,7 +154,10 @@ function ligarAtualizacao() {
   autoUpdater.on('error', (erro) => console.warn('[atualização]', erro?.message ?? erro));
   const procurar = () => autoUpdater.checkForUpdates().catch(() => null);
   void procurar();
-  setInterval(() => void procurar(), QUATRO_HORAS);
+  setInterval(() => {
+    // Já baixada e esperando reiniciar: não precisa ficar procurando.
+    if (atualizacaoPronta === null) void procurar();
+  }, CINCO_MINUTOS);
 
   ipcMain.handle('loft:atualizacao-estado', () => atualizacaoPronta);
   // Botão "Procurar atualizações" (Configurações → Sobre): a versão achada,
