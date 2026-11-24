@@ -71,7 +71,7 @@ function section(people: Member[], ownerId: MemberId | null): HTMLElement | fals
             tabindex: 0,
           },
           [
-            avatarEl(member.initials, 'sm', '', member.photo),
+            avatarEl(member.initials, 'sm', '', member.photo, member.id),
             el('span', { class: 'member__text' }, [
               el('span', { class: 'member__name', title: member.displayName }, [member.displayName]),
               // O status da pessoa (etapa 2d), se ela pôs um e ainda vale.

@@ -279,3 +279,20 @@
   --card-veu-escuro: #fbfaffdd;
   --backdrop: #1c153066;
 }
+
+/*
+ * VISUAL DO SITE (0.7.5): fundo com brilho, colunas de vidro e a minha
+ * mensagem em degradê. Calculado a partir das cores de CADA tema (e da cor
+ * de destaque escolhida), então vale para todos, inclusive o Claro.
+ */
+:root {
+  --fundo-app:
+    radial-gradient(1100px 700px at 30% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+    radial-gradient(900px 700px at 105% 110%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+    var(--surface-sunken);
+  --vidro: color-mix(in srgb, var(--surface-side) 58%, transparent);
+  --vidro-claro: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  --vidro-traco: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --meu-balao: linear-gradient(135deg, color-mix(in srgb, var(--accent), #fff 12%), color-mix(in srgb, var(--accent), #000 14%));
+  --meu-brilho: 0 10px 28px color-mix(in srgb, var(--accent) 35%, transparent);
+}

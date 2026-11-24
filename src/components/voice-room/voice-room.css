@@ -13,7 +13,7 @@
   min-height: 0;
   min-width: 0;
   padding: var(--space-4) var(--space-5) var(--space-5);
-  background-color: var(--surface-chat);
+  background-color: transparent;
 }
 
 /* --- cabeçalho ------------------------------------------------------------ */

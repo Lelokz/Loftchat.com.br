@@ -2573,7 +2573,8 @@ test("bloco do mesmo autor atravessando a meia-noite e partido pelo separador", 
     segunda,
     "a mensagem depois do separador precisa recomecar bloco",
   ).toHaveClass(/message--start/);
-  await expect(segunda.locator(".message__author")).toBeVisible();
+  // Minhas mensagens mostram só a hora em cima (0.7.5); o nome é o meu.
+  await expect(segunda.locator(".message__meta")).toBeVisible();
   await expect(segunda.locator(".message__time")).toBeVisible();
 });
 

@@ -112,7 +112,7 @@ function agora(salas: SalaAgora[], onEntrar: (channelId: ChannelId) => void): HT
         { class: 'group-panel__people' },
         sala.pessoas.map((p) =>
           el('li', { class: 'group-panel__person', 'data-profile-uid': p.uid, tabindex: 0 }, [
-            avatarEl(p.initials, 'sm', '', p.photo),
+            avatarEl(p.initials, 'sm', '', p.photo, p.uid),
             el('span', { class: 'group-panel__person-name' }, [p.displayName]),
             p.muted && el('span', { class: 'group-panel__muted', title: 'Microfone desligado' }, [iconEl(micIcon(13))]),
           ]),

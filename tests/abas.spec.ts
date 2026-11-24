@@ -129,7 +129,7 @@ test('pastas: criar, pôr grupos, abrir e fechar na barra, arrastar a pasta inte
 
   // A pasta fica no lugar do primeiro grupo dela; fechada, os grupos não aparecem.
   await expect.poll(itens).toEqual(['Alfa', 'Pasta Escola', 'Delta']);
-  const pasta = page.getByRole('button', { name: 'Pasta Escola' });
+  const pasta = page.getByRole('button', { name: 'Pasta Escola', exact: true });
   await expect(pasta).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('button', { name: 'Bravo', exact: true })).toHaveCount(0);
 

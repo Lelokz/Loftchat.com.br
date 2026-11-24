@@ -53,14 +53,29 @@ export function iconEl(svg: string, className = 'icon'): HTMLSpanElement {
 }
 
 /** Avatar circular de iniciais. `size` casa com as classes em tokens/layout. */
+/**
+ * CORES DAS PESSOAS (0.7.5, visual do site): sem foto, as iniciais ficam
+ * sobre uma cor só daquela pessoa, sempre a mesma (sai do id da conta).
+ * Tons fortes que leem bem com letra branca em qualquer tema.
+ */
+const CORES_DAS_PESSOAS = ['#7b3fe4', '#c2467e', '#2f8f7a', '#c2761f', '#3d6fd1', '#b23a48', '#1f8a9e', '#8a5cf0'];
+
+export function corDaPessoa(semente: string): string {
+  let h = 0;
+  for (let i = 0; i < semente.length; i++) h = (h * 31 + semente.charCodeAt(i)) >>> 0;
+  return CORES_DAS_PESSOAS[h % CORES_DAS_PESSOAS.length]!;
+}
+
 export function avatarEl(
   text: string,
   size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'sm',
   extraClass = '',
   photo?: string,
+  /** O id da pessoa (ou do grupo): dá a cor das iniciais. */
+  semente?: string,
 ): HTMLSpanElement {
   const comFoto = photo !== undefined && photo !== '';
-  return el(
+  const avatar = el(
     'span',
     {
       class: `avatar avatar--${size}${comFoto ? ' avatar--foto' : ''}${extraClass ? ` ${extraClass}` : ''}`,
@@ -70,4 +85,9 @@ export function avatarEl(
     // nunca em HTML.
     [comFoto ? el('img', { class: 'avatar__img', src: photo, alt: '', draggable: 'false' }) : text],
   );
+  if (!comFoto && semente !== undefined && semente !== '') {
+    avatar.classList.add('avatar--cor');
+    avatar.style.backgroundColor = corDaPessoa(semente);
+  }
+  return avatar;
 }

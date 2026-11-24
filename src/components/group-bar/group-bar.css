@@ -7,8 +7,9 @@
   min-width: 0;
   height: var(--topbar-h);
   padding: 0 var(--space-3) 0 var(--space-4);
-  background-color: var(--surface-rail);
-  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--surface-rail) 55%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--vidro-traco);
 }
 
 .group-bar__brand {
@@ -81,9 +82,11 @@
 }
 
 .group-bar__tab.is-active {
-  background-color: var(--surface-chat);
+  background-color: var(--vidro-claro);
   color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 13%, transparent),
+    0 0 24px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .group-bar__name {
@@ -97,6 +100,11 @@
   border-radius: 8px;
   background-color: var(--surface-side);
   color: var(--text-secondary);
+}
+
+/* Iniciais sobre a cor do grupo: letra branca, aberta ou não. */
+.group-bar__avatar.avatar--cor {
+  color: #fff;
 }
 
 .group-bar__tab.is-active .group-bar__avatar {

@@ -542,27 +542,29 @@ function comFundo(fundo: FundoDoChat): HTMLElement[] {
  */
 function previaDoChat(): HTMLElement {
   const deles = el('div', { class: 'message message--start' }, [
-    el('span', { class: 'message__avatar' }, [avatarEl('AN', 'sm')]),
-    el('div', { class: 'message__bubble' }, [
+    el('span', { class: 'message__avatar' }, [avatarEl('AN', 'sm', '', undefined, 'ana')]),
+    el('div', { class: 'message__corpo' }, [
       el('div', { class: 'message__meta' }, [
         el('span', { class: 'message__author', 'data-name-color': 'verde' }, ['Ana']),
         el('span', { class: 'message__time' }, ['20:14']),
       ]),
-      el('p', { class: 'message__text' }, ['Alguém online pra uma partida?']),
+      el('div', { class: 'message__bubble' }, [el('p', { class: 'message__text' }, ['Alguém online pra uma partida?'])]),
     ]),
   ]);
   const deles2 = el('div', { class: 'message message--end' }, [
     el('span', { class: 'message__avatar' }),
-    el('div', { class: 'message__bubble' }, [el('p', { class: 'message__text' }, ['Pode ser depois das 20h'])]),
+    el('div', { class: 'message__corpo' }, [
+      el('div', { class: 'message__bubble' }, [el('p', { class: 'message__text' }, ['Pode ser depois das 20h'])]),
+    ]),
   ]);
   const minha = el('div', { class: 'message message--mine message--start message--end' }, [
-    el('span', { class: 'message__avatar message__avatar--mine' }, [avatarEl('VC', 'sm')]),
-    el('div', { class: 'message__bubble' }, [
+    el('span', { class: 'message__avatar message__avatar--mine' }, [avatarEl('VC', 'sm', '', undefined, 'voce')]),
+    el('div', { class: 'message__corpo' }, [
       el('div', { class: 'message__meta' }, [
         el('span', { class: 'message__author' }, ['Você']),
         el('span', { class: 'message__time' }, ['20:15']),
       ]),
-      el('p', { class: 'message__text' }, ['Bora! Entro na voz em 5 minutos.']),
+      el('div', { class: 'message__bubble' }, [el('p', { class: 'message__text' }, ['Bora! Entro na voz em 5 minutos.'])]),
     ]),
   ]);
   return el('div', { class: 'settings__field' }, [

@@ -93,9 +93,9 @@ export function botoesDaJanela(): HTMLElement | null {
     return b;
   };
   const caixa = el('div', { class: 'janela-botoes' }, [
-    botao('min', 'Minimizar', MINIMIZAR),
+    botao('min', 'Minimizar janela', MINIMIZAR),
     botao('max', maximizada ? 'Restaurar' : 'Maximizar', maximizada ? RESTAURAR : MAXIMIZAR),
-    botao('fechar', 'Fechar', FECHAR),
+    botao('fechar', 'Fechar janela', FECHAR),
   ]);
   return caixa;
 }

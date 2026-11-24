@@ -207,10 +207,12 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
  * escuro da lista de cores do cartão, para as letras claras lerem bem.
  */
 export function grupoAvatar(group: Group, size: 'sm' | 'xl' = 'sm', extra = 'group-bar__avatar'): HTMLElement {
-  const avatar = avatarEl(group.initials, size, `${extra} avatar--quadrado`, group.photo);
+  // Sem cor escolhida, o grupo ganha uma cor própria (sai do id), como as pessoas.
+  const avatar = avatarEl(group.initials, size, `${extra} avatar--quadrado`, group.photo, group.id);
   if (group.photo === undefined && group.accentId !== undefined) {
-    avatar.style.backgroundColor = CARD_COLORS[cardColorId(group.accentId)].fim;
-    avatar.style.color = 'var(--text-primary)';
+    const cor = cardColorId(group.accentId);
+    // O tom forte da cor (o "claro" usa o escuro, para a letra branca ler).
+    avatar.style.backgroundColor = cor === 'claro' ? CARD_COLORS[cor].fim : CARD_COLORS[cor].base;
   }
   return avatar;
 }

@@ -93,7 +93,7 @@ export function renderDmChat(props: DmChatProps): DmChatParts {
 
   const header = el('header', { class: 'chat__header' }, [
     backButton,
-    avatarEl(friend.initials, 'sm', 'dm-chat__avatar', friend.photo),
+    avatarEl(friend.initials, 'sm', 'dm-chat__avatar', friend.photo, friend.uid),
     el('div', { class: 'dm-chat__identity' }, [
       el('h1', { class: 'chat__title dm-chat__name' }, [friend.displayName]),
       friend.username === undefined || friend.username === ''

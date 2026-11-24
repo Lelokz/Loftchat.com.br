@@ -107,7 +107,7 @@ function voiceRoster(people: VoicePresenceView[]): HTMLElement {
     { class: 'channel__roster' },
     people.map((person) =>
       el('li', { class: 'channel__peer', title: person.displayName, 'data-profile-uid': person.uid }, [
-        avatarEl(person.initials, 'xs', '', person.photo),
+        avatarEl(person.initials, 'xs', '', person.photo, person.uid),
         el('span', { class: 'channel__peer-name' }, [person.displayName]),
         person.muted &&
           el('span', { class: 'channel__peer-muted', title: 'Microfone desligado' }, [

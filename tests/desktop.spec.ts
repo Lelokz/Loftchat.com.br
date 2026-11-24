@@ -286,7 +286,7 @@ test.describe('seletor: transmitir pela janela', () => {
     // No programa o link de convite é o do SITE público (etapa 9a), nunca o app://.
     expect(await link.inputValue()).toMatch(/^https:\/\/loftchat\.com\.br\/convite\//);
     const convite = new URL(await link.inputValue()).pathname;
-    await janela.getByRole('button', { name: 'Fechar' }).first().click();
+    await janela.getByRole('button', { name: 'Fechar', exact: true }).first().click();
 
     const contexto = await browser.newContext();
     const navegador = await contexto.newPage();

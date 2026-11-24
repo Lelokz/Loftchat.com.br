@@ -62,6 +62,10 @@
 
 .messages__day-label {
   flex: none;
+  padding: 2px 12px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: var(--radius-full);
+  background-color: var(--vidro-claro);
   font-size: var(--font-size-sm);
   color: var(--text-muted);
 }
@@ -85,8 +89,15 @@
  */
 .message__avatar {
   flex: none;
-  width: var(--avatar-sm);
+  width: 36px;
+  margin-right: 4px;
   padding-top: 2px;
+}
+
+.message__avatar .avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 12.5px;
 }
 
 /*
@@ -102,43 +113,60 @@
   margin-top: var(--space-3);
 }
 
-.message__bubble {
+/*
+ * D (0.7.5): nome e hora FORA do balão, em cima; o balão leva só o
+ * conteúdo. O "corpo" segura os dois e limita a largura (65%).
+ */
+.message__corpo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
   max-width: 65%;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+}
+
+.message--mine .message__corpo {
+  margin-left: auto; /* empurra para a direita sem mexer na calha da esquerda */
+  align-items: flex-end;
+}
+
+.message__bubble {
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 18px;
   background-color: var(--surface-bubble);
   box-shadow: var(--shadow-bubble);
 }
 
-/* Só a ÚLTIMA mensagem do bloco leva o canto "de bico" — o bloco lê como um só. */
-.message--end .message__bubble {
-  border-bottom-left-radius: var(--radius-sm);
+/* O "bico" fica no canto do nome: em cima, na primeira do bloco. */
+.message--start .message__bubble {
+  border-top-left-radius: 6px;
 }
 
 .message--mine .message__bubble {
-  margin-left: auto; /* empurra para a direita sem mexer na calha da esquerda */
-  background-color: var(--accent);
-  border-color: var(--accent);
+  background: var(--meu-balao);
+  border-color: color-mix(in srgb, #fff 14%, transparent);
+  box-shadow: var(--meu-brilho);
   color: var(--accent-on);
 }
 
-.message--mine.message--end .message__bubble {
-  border-bottom-left-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-sm);
+.message--mine.message--start .message__bubble {
+  border-top-left-radius: 18px;
+  border-top-right-radius: 6px;
 }
 
 .message__meta {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  margin-bottom: 2px;
+  margin: 0 2px 4px;
 }
 
 .message__author {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 /* Cor do nome escolhida pela pessoa (etapa 2d, lib/person-theme.ts). */
@@ -155,11 +183,9 @@
   color: var(--text-muted);
 }
 
-/* Dentro do meu balão o texto secundário precisa vir da cor de contraste. */
-.message--mine .message__author,
-.message--mine .message__time {
-  color: var(--accent-on);
-  opacity: 0.75;
+/* Nas minhas (balão à direita), só a hora em cima: o nome é o meu. */
+.message--mine .message__author {
+  display: none;
 }
 
 .message__text {
@@ -406,16 +432,33 @@
 }
 
 /* Balão à esquerda: o meu fica do lado de todo mundo, ainda na cor de destaque. */
-:root[data-meu-lado='esquerda'] .message--mine .message__bubble {
+:root[data-meu-lado='esquerda'] .message--mine .message__corpo {
   margin-left: 0;
+  align-items: flex-start;
 }
 
-:root[data-meu-lado='esquerda'] .message--mine.message--end .message__bubble {
-  border-bottom-left-radius: var(--radius-sm);
-  border-bottom-right-radius: var(--radius-lg);
+:root[data-meu-lado='esquerda'] .message--mine .message__author,
+:root[data-mensagens='lista'] .message--mine .message__author {
+  display: inline;
+}
+
+:root[data-meu-lado='esquerda'] .message--mine.message--start .message__bubble {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 18px;
 }
 
 /* Lista: cada mensagem é uma linha de texto, sem caixa. */
+:root[data-mensagens='lista'] .message__corpo {
+  flex: 1 1 auto;
+  max-width: none;
+  margin-left: 0;
+  align-items: stretch;
+}
+
+:root[data-mensagens='lista'] .message__meta {
+  margin: 0 var(--space-1);
+}
+
 :root[data-mensagens='lista'] .message__bubble,
 :root[data-mensagens='lista'] .message--mine .message__bubble {
   flex: 1 1 auto;

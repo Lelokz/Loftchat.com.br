@@ -322,10 +322,12 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
                 class: isMine ? "message__avatar message__avatar--mine" : "message__avatar",
                 "data-profile-uid": message.authorId,
               },
-          [continued ? false : avatarEl(author.initials, "sm", "", author.photo)],
+          [continued ? false : avatarEl(author.initials, "sm", "", author.photo, message.authorId)],
         ),
 
-        el("div", { class: "message__bubble" }, [
+        // D (0.7.5): nome e hora FICAM FORA do balão, em cima dele; o balão
+        // leva só o conteúdo (citação, texto/mídia, "editado").
+        el("div", { class: "message__corpo" }, [
           // Nome e horário só na primeira mensagem do bloco.
           !continued &&
             el("div", { class: "message__meta" }, [
@@ -349,6 +351,7 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
                 formatTime(message.sentAt),
               ]),
             ]),
+          el("div", { class: "message__bubble" }, [
           // A citação vem ANTES do texto: é o contexto do que se vai ler.
           message.replyTo !== undefined &&
             citation(message.replyTo, messages, props.atStart, props.onJumpTo),
@@ -361,6 +364,7 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
             el("span", { class: "message__edited", title: `Editada às ${formatTime(message.editedAt)}` }, [
               "editado",
             ]),
+          ]),
         ]),
       ],
     );

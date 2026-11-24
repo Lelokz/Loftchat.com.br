@@ -123,6 +123,13 @@ hr {
   user-select: none;
 }
 
+/* Iniciais sobre a cor da pessoa (0.7.5): letra branca, sem borda. */
+.avatar--cor {
+  border-color: transparent;
+  color: #fff;
+  font-weight: 800;
+}
+
 .avatar--xs {
   width: var(--avatar-xs);
   height: var(--avatar-xs);

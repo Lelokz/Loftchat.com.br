@@ -76,7 +76,7 @@ button.session-footer__identity:hover {
 
 .coluna-pe > .session-footer {
   padding: 6px 4px 6px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--vidro-traco);
   border-radius: 14px;
-  background-color: var(--surface-rail);
+  background-color: var(--vidro-claro);
 }

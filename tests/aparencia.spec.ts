@@ -32,7 +32,8 @@ test('tema, cor, fonte e tamanho: prévia, desfazer, salvar e ao vivo no outro a
   await resolveTokens(eu);
   await createGroupThroughUi(pc, 'Cores');
   await sendMessageThroughUi(pc, 'mensagem para medir');
-  const fundoDoChatAntes = await corDeFundo(pc, '.chat');
+  // O chat é transparente desde a 0.7.5 (aparece o fundo do app, que segue o tema).
+  const fundoDoChatAntes = await corDeFundo(pc, '.app');
 
   // --- prévia e desfazer ---
   await pc.getByRole('button', { name: 'Configurações', exact: true }).click();
@@ -77,7 +78,7 @@ test('tema, cor, fonte e tamanho: prévia, desfazer, salvar e ao vivo no outro a
   await pc.keyboard.press('Escape');
   await expect(tela).toBeHidden();
   expect(await tema(pc)).toBe('claro');
-  expect(await corDeFundo(pc, '.chat')).not.toBe(fundoDoChatAntes);
+  expect(await corDeFundo(pc, '.app')).not.toBe(fundoDoChatAntes);
   await expect(pc.locator('.message__text').first()).toHaveCSS('font-size', '18px');
   expect(await pc.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain('Atkinson');
   // O verde, já com o texto branco por cima (contraste garantido).

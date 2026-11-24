@@ -10,7 +10,7 @@
   gap: var(--space-1);
   height: var(--header-h);
   padding: 0 var(--space-3);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--vidro-traco);
 }
 
 .group-panel__tab {
@@ -28,8 +28,9 @@
 }
 
 .group-panel__tab.is-active {
-  background-color: var(--surface-chat);
+  background-color: var(--vidro-claro);
   color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--vidro-traco);
 }
 
 /* Bolinha vermelha na aba Agora quando alguém está transmitindo. */

@@ -13,8 +13,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background-color: var(--surface-side);
-  border-right: 1px solid var(--border);
+  background-color: var(--vidro);
+  backdrop-filter: blur(14px);
+  border-right: 1px solid var(--vidro-traco);
 }
 
 .channels__header {
@@ -79,8 +80,9 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
+  min-height: 36px;
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   color: var(--text-secondary);
   font-size: var(--font-size-md);
   text-align: left;
@@ -93,9 +95,10 @@
 
 /* Canal de TEXTO que estou lendo. */
 .channel.is-active {
-  background-color: var(--accent-soft);
-  color: var(--accent-text);
-  font-weight: 500;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 34%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
+  box-shadow: inset 3px 0 0 var(--accent-text);
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 /*
@@ -119,13 +122,32 @@
 .channel__on-air {
   margin-left: auto;
   flex: none;
-  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
   border-radius: var(--radius-full);
-  background-color: var(--accent-soft);
+  background-color: color-mix(in srgb, var(--danger) 16%, transparent);
   color: var(--danger);
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.04em;
+}
+
+/* A bolinha do AO VIVO. */
+.channel__on-air::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* Quem está na sala: anel verde em volta da foto. */
+.channel__peer .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface-side),
+    0 0 0 3.5px #3ecf8e;
 }
 
 .channel__on-air + .channel__live {
