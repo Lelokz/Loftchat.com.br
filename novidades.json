@@ -1,5 +1,16 @@
 [
   {
+    "versao": "0.7.5",
+    "data": "2026-11-24",
+    "itens": [
+      "Visual novo, no clima do site: fundo escuro com um brilho na cor do seu tema e colunas de vidro.",
+      "Cada pessoa e cada grupo agora tem a sua cor nas iniciais, sempre a mesma em todo lugar.",
+      "Mensagens: o nome e a hora ficam em cima do balão; as suas vêm num degradê da cor de destaque.",
+      "Canais com destaque no aberto, \"AO VIVO\" com bolinha e um anel verde em quem está na sala.",
+      "Caixa de escrever maior, de vidro, com o botão de mandar em destaque."
+    ]
+  },
+  {
     "versao": "0.7.0",
     "data": "2026-11-24",
     "itens": [

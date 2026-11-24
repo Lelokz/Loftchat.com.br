@@ -2,6 +2,26 @@
 
 Estado em 15/11/2026.
 
+## Visual no nível do site (24/11/2026) — versão 0.7.5
+
+O Leo: o app era bem inferior às imagens do site. Maquete aprovada por foto
+("ficou bom"), aplicada no código:
+
+- tokens.css: `--fundo-app` (brilho da cor de destaque sobre `--surface-sunken`),
+  `--vidro`, `--vidro-claro`, `--vidro-traco`, `--meu-balao`, `--meu-brilho` —
+  calculados das cores de CADA tema (vale no Claro também).
+- `.app` com o fundo; chat, sala e amigos transparentes; colunas de vidro
+  (opacas no celular, onde viram gaveta por cima do chat).
+- Mensagens: `.message__corpo` segura nome/hora (FORA do balão) + o balão (só
+  o conteúdo); minhas só com a hora em cima, em degradê. Modo lista e balão à
+  esquerda ajustados.
+- `avatarEl(..., semente)` + `corDaPessoa` (dom.ts): iniciais sobre uma cor
+  fixa por conta/grupo.
+- Botões da janela renomeados ("Minimizar janela", "Fechar janela") — o
+  "Fechar" das janelinhas era confundido com eles.
+- Lição: um `sed` de linha inteira pegou as regras das gavetas do celular e
+  quebrou 20 testes; trocar só trechos únicos e olhar o diff antes.
+
 ## Cartão embaixo, janela própria e atualização em 5 minutos (24/11/2026) — versão 0.7.0
 
 - Cartão (foto, nome, @, engrenagem, sair) no PÉ da coluna da esquerda no PC
