@@ -3,6 +3,7 @@ import { menuIcon } from './lib/icons';
 import { renderChannelList } from './components/channel-list/channel-list';
 import type { VoicePresenceView } from './components/channel-list/channel-list';
 import { renderCallBar } from './components/call-bar/call-bar';
+import { renderSessionFooter } from './components/session-footer/session-footer';
 import type { CallBarProps } from './components/call-bar/call-bar';
 import { renderChat } from './components/chat/chat';
 import type { ChatParts } from './components/chat/chat';
@@ -943,7 +944,17 @@ export function mountApp(
       me,
       onSignOut,
       onOpenSettings: () => handleOpenSettings(),
+      cartao: isMobileLayout(),
     });
+  }
+
+  /**
+   * O PÉ DA COLUNA DA ESQUERDA, no PC (24/11/2026, como no Discord): a faixa
+   * da chamada (se houver) e, embaixo dela, o meu cartão — nome, @,
+   * Configurações e sair. No celular o cartão continua na barra de cima.
+   */
+  function peDaColuna(faixa: HTMLElement | null): HTMLElement {
+    return el('div', { class: 'coluna-pe' }, [faixa, renderSessionFooter(me, onSignOut, () => handleOpenSettings())]);
   }
 
   /**
@@ -1037,6 +1048,7 @@ export function mountApp(
     if (bar !== undefined) {
       parts.callBarSlot.replaceChildren(renderCallBar(bar, isMobileLayout() ? 'mobile' : 'desktop'));
     }
+    if (!isMobileLayout()) parts.element.append(peDaColuna(parts.callBarSlot));
     return parts.element;
   }
 
@@ -1089,7 +1101,7 @@ export function mountApp(
 
   function buildChannelList(state: AppState): HTMLElement {
     const callBar = buildCallBar(state);
-    return renderChannelList({
+    const coluna = renderChannelList({
       naoLidas: (id) => naoLidas.canal(id),
       group: activeGroup(state) ?? null,
       channels: state.channels,
@@ -1115,8 +1127,12 @@ export function mountApp(
       // No mobile a faixa vai para cima do composer, e SÓ para lá: dois
       // `.callbar` no DOM ao mesmo tempo mudariam o documento do desktop, que
       // precisa continuar idêntico.
-      ...(callBar === undefined || isMobileLayout() ? {} : { callBar }),
+      // No PC a faixa vai para o pé da coluna, junto do meu cartão.
     });
+    if (!isMobileLayout()) {
+      coluna.append(peDaColuna(callBar === undefined ? null : renderCallBar(callBar, 'desktop')));
+    }
+    return coluna;
   }
 
   /**

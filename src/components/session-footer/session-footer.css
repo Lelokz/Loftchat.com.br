@@ -58,3 +58,25 @@ button.session-footer__identity:hover {
   background-color: var(--surface-hover);
   color: var(--danger);
 }
+
+/* --- pé da coluna da esquerda (PC, 24/11/2026) ----------------------------
+   Como no Discord: a faixa da chamada (quando há) e o meu cartão embaixo,
+   em dois cartões. Ver `peDaColuna` em app.ts. */
+.coluna-pe {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: auto var(--space-2) var(--space-2);
+}
+
+.coluna-pe:has(> .home-column__callbar:empty) {
+  gap: 0;
+}
+
+.coluna-pe > .session-footer {
+  padding: 6px 4px 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background-color: var(--surface-rail);
+}

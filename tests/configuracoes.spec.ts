@@ -320,9 +320,9 @@ test('foto, banner e fundo: escolher, ajustar (arrastar e zoom), salvar pequeno,
   expect(arte.fields?.['banner']?.stringValue).toMatch(/^data:image\/webp;base64,/);
   expect(arte.fields?.['cardBg']?.stringValue).toMatch(/^data:image\/webp;base64,/);
 
-  // A foto aparece no meu cartão da barra de cima.
+  // A foto aparece no meu cartão, no pé da coluna da esquerda (PC, 0.7.0).
   await a.page.keyboard.press('Escape');
-  await expect(a.page.locator('.group-bar .session-footer .avatar img')).toBeVisible();
+  await expect(a.page.locator('.coluna-pe .session-footer .avatar img')).toBeVisible();
 
   // O amigo vê foto, banner e fundo no cartão do PV.
   await b.page.reload();

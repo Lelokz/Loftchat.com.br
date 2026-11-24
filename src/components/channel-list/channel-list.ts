@@ -213,7 +213,7 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
 
     el('div', { class: 'channels__body column-scroll scroll-area' }, body),
 
-    // O meu cartão (nome, @, sair) mora na barra de cima desde a proposta A.
+    // O meu cartão e a faixa da chamada: no pé da coluna (app.ts, peDaColuna).
     props.callBar !== undefined && renderCallBar(props.callBar, 'desktop'),
   ]);
 }

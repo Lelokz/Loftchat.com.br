@@ -40,6 +40,13 @@ export interface GroupBarProps {
   onCreateGroup: (anchor: HTMLElement) => void;
   onSignOut: () => void;
   onOpenSettings: () => void;
+  /**
+   * O meu cartão na barra de cima — só no celular. No PC ele mora no pé da
+   * coluna da esquerda, como no Discord (24/11/2026).
+   */
+  cartao?: boolean;
+  /** Os botões da janela (minimizar, maximizar, fechar), no fim da barra. */
+  botoesDaJanela?: HTMLElement | null;
 }
 
 /**
@@ -190,7 +197,8 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
   return el('nav', { class: 'group-bar', 'aria-label': 'Grupos' }, [
     brand,
     lista,
-    renderSessionFooter(me, onSignOut, onOpenSettings),
+    props.cartao !== false && renderSessionFooter(me, onSignOut, onOpenSettings),
+    props.botoesDaJanela ?? null,
   ]);
 }
 
