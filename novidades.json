@@ -1,5 +1,17 @@
 [
   {
+    "versao": "0.7.0",
+    "data": "2026-11-24",
+    "itens": [
+      "No PC, o seu cartão (foto, nome, @ e Configurações) agora fica embaixo, à esquerda. Em chamada, a faixa da chamada aparece logo acima dele.",
+      "Barra de cima própria no PC: os botões de minimizar, maximizar e fechar ficam no próprio Loftchat, nas cores do seu tema. Arraste pela barra para mover a janela e dê dois cliques para maximizar.",
+      "Janela com cantos arredondados no Linux (no Windows 11 o próprio sistema arredonda).",
+      "Ícone da bandeja em preto e branco, com uma bolinha vermelha quando chega mensagem.",
+      "Nova seção Configurações → Janela e bandeja: escolha a barra (do Loftchat ou do sistema), os cantos, o ícone da bandeja e o que acontece ao fechar a janela.",
+      "Versão nova agora aparece em até 5 minutos, com o Loftchat aberto. No celular, ele procura também sempre que você volta para o app."
+    ]
+  },
+  {
     "versao": "0.6.5",
     "data": "2026-11-24",
     "itens": [

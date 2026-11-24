@@ -2,6 +2,29 @@
 
 Estado em 15/11/2026.
 
+## Cartão embaixo, janela própria e atualização em 5 minutos (24/11/2026) — versão 0.7.0
+
+- Cartão (foto, nome, @, engrenagem, sair) no PÉ da coluna da esquerda no PC
+  (`peDaColuna` em app.ts), com a faixa da chamada em cima — como no
+  Discord; no topo ele ficava entre o chat e o painel da direita (o Leo
+  achou horrível). No celular continua na barra de cima.
+- Janela própria (desktop/main.mjs, src/lib/janela.ts): `frame: false`, os
+  botões no fim da `.group-bar` (`-webkit-app-region: drag`, dois cliques
+  maximiza); nas telas sem barra (entrar, convite) uma faixa solta no topo.
+  Linux com cantos redondos = janela transparente + `#app` com raio 12px,
+  e faixas invisíveis nas bordas para redimensionar (o programa muda o
+  tamanho pelas coordenadas da tela). Windows: sem transparência (o 11
+  arredonda sozinho e redimensiona normal).
+- Bandeja: casinha preta e branca (preta se a barra do Windows for clara),
+  bolinha vermelha com não lida (`avisarBandeja`). Imagens em
+  desktop/bandeja/ — TROCAR quando o ícone novo existir (adiado a pedido).
+- Configurações → Janela e bandeja (só no PC): barra, cantos (Linux),
+  bandeja (P&B/cor/esconder), ao fechar (bandeja/sair). Guardado em
+  `janela.json` na pasta de dados do programa; barra e cantos pedem reiniciar.
+- Atualização: procura a cada 5 minutos (PC e celular) e, no celular,
+  também ao voltar para o app (o Android congela o relógio em segundo plano).
+- Teste novo no desktop.spec.ts (botões, maximizar, puxar a borda, seção).
+
 ## Grupo depois do Privado + Configurações em janela (24/11/2026) — versão 0.6.5
 
 O Leo: depois de falar com alguém no PV, ir para um grupo e escrever, a
