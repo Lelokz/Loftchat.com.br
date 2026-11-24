@@ -31,6 +31,7 @@ import { emSite } from './lib/router';
 import { ligarAndroid } from './lib/android';
 import { ligarFaixaDeAtualizacao } from './components/update-bar/update-bar';
 import { ligarAtualizacao } from './lib/atualizacao';
+import { ligarJanela } from './lib/janela';
 import { authErrorMessage } from './lib/auth-errors';
 import { auth } from './lib/firebase';
 import { getInvite, isMemberOf, joinGroup, upsertUserProfile } from './lib/firestore';
@@ -527,6 +528,7 @@ ligarAndroid();
 // Programa e app Android: procurar atualização e a faixa "Atualização
 // disponível / Atualizar" (lib/atualizacao.ts). No site não há o que atualizar.
 ligarAtualizacao();
+void ligarJanela();
 ligarFaixaDeAtualizacao();
 
 onAuthStateChanged(auth, (user) => {

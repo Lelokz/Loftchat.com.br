@@ -38,8 +38,8 @@ export function renderNotificacoesSection(): HTMLElement[] {
       ? []
       : [
           el('p', { class: 'settings__help' }, [
-            'Fechar a janela deixa o Loftchat no canto da barra de tarefas, para continuar avisando. ',
-            'Para fechar de vez, clique no ícone dele ali e em Sair.',
+            'Fechar a janela deixa o Loftchat no canto da barra de tarefas, para continuar avisando ',
+            '(dá para mudar em Janela e bandeja). Para fechar de vez, clique no ícone dele ali e em Sair.',
           ]),
         ]),
   ];

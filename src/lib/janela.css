@@ -1,0 +1,114 @@
+/* A janela do programa no PC (0.7.0) — ver janela.ts. */
+
+/* --- a barra de cima é a barra da janela ---------------------------------- */
+html.janela-propria .group-bar {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+html.janela-propria .group-bar :is(button, a, input, li, [role='button']) {
+  -webkit-app-region: no-drag;
+}
+
+.janela-botoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+.janela-botoes > button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: transparent;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.janela-botoes > button:hover,
+.janela-botoes > button:focus-visible {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.janela-botoes > .janela-botoes__fechar:hover,
+.janela-botoes > .janela-botoes__fechar:focus-visible {
+  background-color: #c4423f;
+  color: #fff;
+}
+
+/* Telas sem a barra do chat (entrar, convite): uma faixa no topo. */
+.janela-flutuante {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  height: 40px;
+  padding: 4px 6px;
+  -webkit-app-region: drag;
+  pointer-events: none;
+}
+
+.janela-flutuante > .janela-botoes {
+  pointer-events: auto;
+}
+
+body:has(.group-bar) .janela-flutuante {
+  display: none;
+}
+
+/* --- cantos redondos (Linux: janela transparente) ------------------------- */
+html.janela-redonda,
+html.janela-redonda body {
+  background: transparent;
+}
+
+html.janela-redonda #app {
+  height: 100%;
+  background-color: var(--surface-chat);
+}
+
+html.janela-redonda:not(.janela-maximizada) #app {
+  border-radius: 12px;
+  overflow: hidden;
+  outline: 1px solid rgb(255 255 255 / 9%);
+  outline-offset: -1px;
+}
+
+html.janela-redonda:not(.janela-maximizada) ::backdrop {
+  border-radius: 12px;
+}
+
+/* As faixas invisíveis de puxar as bordas (só com a janela solta). */
+.janela-bordas {
+  display: contents;
+}
+
+html.janela-maximizada .janela-bordas {
+  display: none;
+}
+
+.janela-borda {
+  position: fixed;
+  z-index: 2147483000;
+  -webkit-app-region: no-drag;
+}
+
+.janela-borda--n { top: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.janela-borda--s { bottom: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.janela-borda--l { right: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.janela-borda--o { left: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.janela-borda--nl { top: 0; right: 0; width: 10px; height: 10px; cursor: nesw-resize; }
+.janela-borda--so { bottom: 0; left: 0; width: 10px; height: 10px; cursor: nesw-resize; }
+.janela-borda--no { top: 0; left: 0; width: 10px; height: 10px; cursor: nwse-resize; }
+.janela-borda--sl { bottom: 0; right: 0; width: 10px; height: 10px; cursor: nwse-resize; }

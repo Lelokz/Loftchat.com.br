@@ -35,6 +35,19 @@ contextBridge.exposeInMainWorld('loftDesktop', {
   },
   // Notificações de mensagem (0.4.0).
   avisar: (aviso) => ipcRenderer.invoke('loft:aviso', aviso),
+  // Janela e bandeja (0.7.0): botões da barra de cima, escolhas deste PC,
+  // bolinha da bandeja e puxar as bordas (Linux com cantos redondos).
+  janelaEscolhas: () => ipcRenderer.invoke('loft:janela-escolhas'),
+  janelaEscolher: (chave, valor) => ipcRenderer.invoke('loft:janela-escolher', String(chave), String(valor)),
+  janelaReiniciar: () => ipcRenderer.invoke('loft:janela-reiniciar'),
+  janelaAcao: (acao) => ipcRenderer.send('loft:janela-acao', String(acao)),
+  aoEstadoDaJanela: (ouvinte) => {
+    ipcRenderer.on('loft:janela-estado', (_evento, estado) => ouvinte({ maximizada: Boolean(estado?.maximizada) }));
+  },
+  bandejaPonto: (tem) => ipcRenderer.send('loft:bandeja-ponto', Boolean(tem)),
+  janelaPuxar: (borda, x, y) => ipcRenderer.send('loft:janela-puxar', String(borda), Number(x), Number(y)),
+  janelaPuxando: (x, y) => ipcRenderer.send('loft:janela-puxando', Number(x), Number(y)),
+  janelaSoltar: () => ipcRenderer.send('loft:janela-soltar'),
   aoAbrirAviso: (ouvinte) => {
     const repassar = (_evento, rota) => ouvinte(String(rota));
     ipcRenderer.on('loft:abrir-aviso', repassar);

@@ -29,6 +29,7 @@
       "main.mjs",
       "preload.cjs",
       "icone.png",
+    "bandeja/*.png",
       "app/**/*",
       "!node_modules/@vencord/venmic/{addon,cmake,include,CMakeLists.txt,*.md,flake.lock,flake.nix}"
     ],

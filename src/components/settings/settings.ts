@@ -5,7 +5,8 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
+import { renderJanelaSection, temSecaoJanela } from './janela-section';
 import { renderNotificacoesSection } from './notificacoes-section';
 import { renderVoiceSection } from './voice-section';
 import { renderSobreSection } from './sobre-section';
@@ -86,7 +87,7 @@ export interface SettingsOptions {
   fundoCanal?: { id: string; label: string };
 }
 
-export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'sobre';
+export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -285,6 +286,8 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('voz', 'Voz e áudio', micIcon(18)),
     itemDoMenu('notificacoes', 'Notificações', bellIcon(18)),
     el('span', { class: 'settings__nav-label' }, ['Loftchat']),
+    // Só no programa do PC (no celular não tem janela nem bandeja).
+    temSecaoJanela() && itemDoMenu('janela', 'Janela e bandeja', windowIcon(18)),
     itemDoMenu('sobre', 'Sobre o Loftchat', logoIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
     versao,
@@ -945,6 +948,8 @@ export function openSettings(options: SettingsOptions): void {
       conteudo.replaceChildren(...secaoDeVoz.elementos);
     } else if (secao === 'notificacoes') {
       conteudo.replaceChildren(...renderNotificacoesSection());
+    } else if (secao === 'janela') {
+      conteudo.replaceChildren(...renderJanelaSection());
     } else if (secao === 'sobre') {
       secaoSobre = renderSobreSection(() => salvo.displayName);
       conteudo.replaceChildren(...secaoSobre.elementos);

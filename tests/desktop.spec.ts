@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import { execFileSync, spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -668,4 +668,60 @@ test('Configurações → Notificações: desligar tira o PC da lista, ligar põ
   await chave.click();
   await expect(chave).toHaveAttribute('aria-checked', 'true');
   await expect.poll(lista, { timeout: 20_000 }).toContain('"pc"');
+});
+
+test('janela própria (0.7.0): botões, maximizar, puxar a borda e Configurações → Janela e bandeja', async () => {
+  test.setTimeout(150_000);
+  // Antes de entrar: a faixa do topo com os 3 botões; janela sem a barra do sistema.
+  await expect(janela.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible({ timeout: 30_000 });
+  const raiz = janela.locator('html');
+  await expect(raiz).toHaveClass(/janela-propria/);
+  if (process.platform === 'linux') await expect(raiz).toHaveClass(/janela-redonda/);
+  await expect(janela.locator('.janela-flutuante .janela-botoes__fechar')).toBeVisible();
+
+  // Puxar a borda da direita 120px aumenta a janela (Linux com cantos redondos).
+  if (process.platform === 'linux') {
+    const antes = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBounds());
+    const caixa = (await janela.locator('.janela-borda--l').boundingBox())!;
+    const x = caixa.x + caixa.width / 2;
+    const y = caixa.y + caixa.height / 2;
+    await janela.mouse.move(x, y);
+    await janela.mouse.down();
+    for (let i = 1; i <= 6; i++) await janela.mouse.move(x + i * 20, y);
+    await janela.mouse.up();
+    await expect
+      .poll(async () => (await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBounds())).width)
+      .toBeGreaterThan(antes.width + 60);
+  }
+
+  const conta = newAccount('Janela PC');
+  accounts.push(conta);
+  await signUpThroughUi(janela, conta);
+  await createGroupThroughUi(janela, 'Grupo da janela');
+
+  // Dentro do app: os botões no fim da barra de cima (a faixa solta some).
+  const barra = janela.locator('.group-bar .janela-botoes');
+  await expect(barra).toBeVisible();
+  await expect(janela.locator('.janela-flutuante')).toBeHidden();
+  await barra.getByRole('button', { name: 'Maximizar' }).click();
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMaximized())).toBe(true);
+  await expect(raiz).toHaveClass(/janela-maximizada/);
+  await barra.getByRole('button', { name: 'Restaurar' }).click();
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMaximized())).toBe(false);
+
+  // Configurações → Janela e bandeja: muda na hora e guarda no arquivo do PC.
+  await janela.locator('.coluna-pe').getByRole('button', { name: 'Configurações' }).click();
+  const d = janela.getByRole('dialog', { name: 'Configurações' });
+  await d.getByRole('button', { name: 'Janela e bandeja' }).click();
+  await expect(d.getByRole('heading', { name: 'Janela e bandeja' })).toBeVisible();
+  await d.getByRole('radio', { name: 'Colorido' }).click();
+  await expect(d.getByRole('radio', { name: 'Colorido' })).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(() => JSON.parse(readFileSync(join(dados, 'janela.json'), 'utf8')).bandeja).toBe('cor');
+  // Barra do sistema pede reiniciar.
+  await expect(d.getByRole('button', { name: 'Reiniciar agora' })).toBeHidden();
+  await d.getByRole('radio', { name: 'Do sistema' }).click();
+  await expect(d.getByRole('button', { name: 'Reiniciar agora' })).toBeVisible();
+  await d.getByRole('radio', { name: 'Do Loftchat (padrão)' }).click();
+  await expect(d.getByRole('button', { name: 'Reiniciar agora' })).toBeHidden();
+  await janela.screenshot({ path: 'test-results/janela/configuracoes.png' });
 });

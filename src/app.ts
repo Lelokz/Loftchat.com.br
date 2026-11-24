@@ -4,6 +4,7 @@ import { renderChannelList } from './components/channel-list/channel-list';
 import type { VoicePresenceView } from './components/channel-list/channel-list';
 import { renderCallBar } from './components/call-bar/call-bar';
 import { renderSessionFooter } from './components/session-footer/session-footer';
+import { avisarBandeja, botoesDaJanela, duploCliqueNaBarra, quandoAJanelaLigar } from './lib/janela';
 import type { CallBarProps } from './components/call-bar/call-bar';
 import { renderChat } from './components/chat/chat';
 import type { ChatParts } from './components/chat/chat';
@@ -917,6 +918,12 @@ export function mountApp(
   /* --- render das colunas ------------------------------------------------ */
 
   function buildGroupBar(state: AppState): HTMLElement {
+    const barra = renderGroupBarComJanela(state);
+    duploCliqueNaBarra(barra);
+    return barra;
+  }
+
+  function renderGroupBarComJanela(state: AppState): HTMLElement {
     return renderGroupBar({
       groups: sortGroups(state.groups, ordemDosGrupos),
       groupLabels: rotulosDosGrupos,
@@ -945,6 +952,7 @@ export function mountApp(
       onSignOut,
       onOpenSettings: () => handleOpenSettings(),
       cartao: isMobileLayout(),
+      botoesDaJanela: botoesDaJanela(),
     });
   }
 
@@ -2767,6 +2775,10 @@ export function mountApp(
     return state.roomChatChannelId === null ? '' : `canal:${state.roomChatChannelId}`;
   };
   const avisos = ligarAvisos(user.uid, abrirConversa);
+  // A janela do PC sabe como nasceu: a barra de cima ganha os botões.
+  void quandoAJanelaLigar().then((info) => {
+    if (info !== null && root.isConnected) render(store.getState());
+  });
   const pararFigurinhas = ligarFigurinhas(user.uid);
 
   /*
@@ -2778,6 +2790,9 @@ export function mountApp(
   let desenhoMarcado = false;
   const naoLidas = criarNaoLidas(user.uid, () => {
     versaoDasBolinhas += 1;
+    // Bolinha vermelha no ícone da bandeja (PC): tem alguma não lida?
+    const st = store.getState();
+    avisarBandeja(naoLidas.privado() > 0 || st.groups.some((g) => naoLidas.grupo(g.id) > 0));
     if (desenhoMarcado) return;
     desenhoMarcado = true;
     setTimeout(() => {

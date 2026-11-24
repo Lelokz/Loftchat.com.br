@@ -18,6 +18,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  nativeTheme,
   net,
   Notification,
   protocol,
@@ -333,9 +334,66 @@ function mostrarJanela() {
   janela.focus();
 }
 
-function ligarBandeja() {
+/*
+ * JANELA E BANDEJA (0.7.0) — escolhas DESTE computador (Configurações →
+ * Janela e bandeja), num arquivo na pasta de dados do programa:
+ *   barra:    'loftchat' (a barra de cima do próprio chat, com os botões da
+ *             janela) | 'sistema' (a do Linux/Windows)
+ *   cantos:   'redondos' | 'retos' (Linux; no Windows 11 o sistema já arredonda)
+ *   bandeja:  'pb' (preto e branco) | 'cor' | 'esconder'
+ *   aoFechar: 'bandeja' (continua avisando) | 'sair'
+ * Barra e cantos só mudam ao reiniciar (a janela nasce com eles).
+ */
+const ESCOLHAS_VALIDAS = {
+  barra: ['loftchat', 'sistema'],
+  cantos: ['redondos', 'retos'],
+  bandeja: ['pb', 'cor', 'esconder'],
+  aoFechar: ['bandeja', 'sair'],
+};
+const ESCOLHAS_PADRAO = { barra: 'loftchat', cantos: 'redondos', bandeja: 'pb', aoFechar: 'bandeja' };
+let escolhas = { ...ESCOLHAS_PADRAO };
+/** Como a janela NASCEU (barra e cantos): mudar só vale depois de reiniciar. */
+let janelaNasceu = { barra: 'loftchat', transparente: false };
+const arquivoDasEscolhas = () => join(app.getPath('userData'), 'janela.json');
+
+function lerEscolhas() {
+  try {
+    const lido = JSON.parse(readFileSync(arquivoDasEscolhas(), 'utf8'));
+    for (const [chave, opcoes] of Object.entries(ESCOLHAS_VALIDAS)) {
+      if (opcoes.includes(lido?.[chave])) escolhas[chave] = lido[chave];
+    }
+  } catch {
+    // Primeira vez (ou arquivo estragado): fica o padrão.
+  }
+}
+
+let temNaoLida = false;
+const BANDEJA = join(import.meta.dirname, 'bandeja');
+
+/** A imagem da bandeja: preto e branco (claro ou escuro, conforme a barra de tarefas) ou colorida; bolinha vermelha com mensagem nova. */
+function imagemDaBandeja() {
   const tamanho = process.platform === 'win32' ? 16 : 24;
-  bandeja = new Tray(nativeImage.createFromPath(ICONE).resize({ width: tamanho, height: tamanho }));
+  // No Windows a barra de tarefas pode ser clara: aí a casinha é preta.
+  const tom =
+    process.platform === 'win32' && !nativeTheme.shouldUseDarkColorsForSystemIntegratedUI ? 'escuro' : 'claro';
+  const nome = escolhas.bandeja === 'cor' ? 'cor' : `pb-${tom}`;
+  const arquivo = join(BANDEJA, `${nome}${temNaoLida ? '-ponto' : ''}.png`);
+  return nativeImage.createFromPath(arquivo).resize({ width: tamanho, height: tamanho, quality: 'best' });
+}
+
+function atualizarBandeja() {
+  if (escolhas.bandeja === 'esconder') {
+    bandeja?.destroy();
+    bandeja = null;
+    return;
+  }
+  if (bandeja === null) ligarBandeja();
+  else bandeja.setImage(imagemDaBandeja());
+}
+
+function ligarBandeja() {
+  if (escolhas.bandeja === 'esconder') return;
+  bandeja = new Tray(imagemDaBandeja());
   bandeja.setToolTip('Loftchat');
   bandeja.setContextMenu(
     Menu.buildFromTemplate([
@@ -351,6 +409,84 @@ function ligarBandeja() {
     ]),
   );
   bandeja.on('click', mostrarJanela);
+}
+
+/** Os pedidos do chat sobre a janela: botões, escolhas, bolinha da bandeja e redimensionar (Linux transparente). */
+function ligarJanela() {
+  const daJanela = (evento) => doLoft(evento.senderFrame?.url) && evento.sender === janela?.webContents;
+  ipcMain.handle('loft:janela-escolhas', () => ({
+    escolhas: { ...escolhas },
+    nasceu: { ...janelaNasceu },
+    plataforma: process.platform,
+    maximizada: janela ? janela.isMaximized() || janela.isFullScreen() : false,
+  }));
+  ipcMain.handle('loft:janela-escolher', (evento, chave, valor) => {
+    if (!daJanela(evento) || !Object.hasOwn(ESCOLHAS_VALIDAS, chave) || !ESCOLHAS_VALIDAS[chave].includes(valor)) {
+      return null;
+    }
+    escolhas[chave] = valor;
+    writeFileSync(arquivoDasEscolhas(), JSON.stringify(escolhas, null, 1));
+    if (chave === 'bandeja') atualizarBandeja();
+    return { ...escolhas };
+  });
+  ipcMain.handle('loft:janela-reiniciar', (evento) => {
+    if (!daJanela(evento)) return;
+    saindo = true;
+    app.relaunch();
+    app.quit();
+  });
+  ipcMain.on('loft:janela-acao', (evento, acao) => {
+    if (!daJanela(evento) || !janela) return;
+    if (acao === 'min') janela.minimize();
+    else if (acao === 'max') {
+      if (janela.isFullScreen()) janela.setFullScreen(false);
+      else if (janela.isMaximized()) janela.unmaximize();
+      else janela.maximize();
+    } else if (acao === 'fechar') janela.close();
+  });
+  ipcMain.on('loft:bandeja-ponto', (evento, tem) => {
+    if (!daJanela(evento) || Boolean(tem) === temNaoLida) return;
+    temNaoLida = Boolean(tem);
+    if (bandeja !== null) bandeja.setImage(imagemDaBandeja());
+  });
+
+  /*
+   * Redimensionar pelas bordas na janela transparente do Linux: o sistema
+   * não dá borda para puxar, então o chat tem faixas invisíveis nas beiradas
+   * e manda onde o mouse está (coordenadas da tela). O tamanho sai de onde
+   * começou + quanto o mouse andou.
+   */
+  let puxando = null;
+  ipcMain.on('loft:janela-puxar', (evento, borda, x, y) => {
+    if (!daJanela(evento) || !janela || !janelaNasceu.transparente || janela.isMaximized()) return;
+    if (typeof borda !== 'string' || !/^(n|s|l|o|nl|no|sl|so)$/.test(borda)) return;
+    puxando = { borda, x: Number(x), y: Number(y), inicio: janela.getBounds() };
+  });
+  ipcMain.on('loft:janela-puxando', (evento, x, y) => {
+    if (!daJanela(evento) || !janela || puxando === null) return;
+    const dx = Math.round(Number(x) - puxando.x);
+    const dy = Math.round(Number(y) - puxando.y);
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    const [minL, minA] = janela.getMinimumSize();
+    const b = { ...puxando.inicio };
+    const { borda } = puxando;
+    if (borda.includes('l')) b.width = Math.max(minL, puxando.inicio.width + dx);
+    if (borda.includes('o')) {
+      b.width = Math.max(minL, puxando.inicio.width - dx);
+      b.x = puxando.inicio.x + puxando.inicio.width - b.width;
+    }
+    if (borda.startsWith('s')) b.height = Math.max(minA, puxando.inicio.height + dy);
+    if (borda.startsWith('n')) {
+      b.height = Math.max(minA, puxando.inicio.height - dy);
+      b.y = puxando.inicio.y + puxando.inicio.height - b.height;
+    }
+    janela.setBounds(b);
+  });
+  ipcMain.on('loft:janela-soltar', () => {
+    puxando = null;
+  });
+  // Windows: a barra de tarefas mudou de clara para escura (ou o contrário).
+  nativeTheme.on('updated', () => bandeja?.setImage(imagemDaBandeja()));
 }
 
 /** A foto de quem mandou, só se vier do carteiro do Loftchat. */
@@ -392,6 +528,11 @@ function ligarAvisos() {
 }
 
 function criarJanela() {
+  const propria = escolhas.barra === 'loftchat';
+  // Cantos redondos no Linux = janela transparente com o chat arredondado
+  // por CSS. No Windows 11 o próprio sistema arredonda a janela sem barra.
+  const transparente = propria && process.platform === 'linux' && escolhas.cantos === 'redondos';
+  janelaNasceu = { barra: escolhas.barra, transparente };
   janela = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -399,7 +540,10 @@ function criarJanela() {
     minHeight: 500,
     title: 'Loftchat',
     icon: join(import.meta.dirname, 'icone.png'),
-    backgroundColor: '#140f26',
+    frame: !propria,
+    transparent: transparente,
+    hasShadow: !transparente,
+    backgroundColor: transparente ? '#00000000' : '#140f26',
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -415,9 +559,23 @@ function criarJanela() {
 
   janela.once('ready-to-show', () => janela.show());
 
+  // A barra de cima do chat precisa saber se a janela está maximizada (o
+  // botão do meio muda, e os cantos somem encostados na borda).
+  const contarEstado = () =>
+    janela?.webContents.send('loft:janela-estado', { maximizada: janela.isMaximized() || janela.isFullScreen() });
+  for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) janela.on(ev, contarEstado);
+  janela.webContents.on('did-finish-load', contarEstado);
+
   // Fechar esconde (o Loftchat segue na bandeja); "Sair" fecha de verdade.
   janela.on('close', (evento) => {
-    if (saindo || bandeja === null) return;
+    if (saindo || bandeja === null || escolhas.aoFechar === 'sair') {
+      // Fechar de vez (ou sem bandeja para voltar): sai do programa.
+      if (!saindo && process.platform !== 'darwin') {
+        saindo = true;
+        app.quit();
+      }
+      return;
+    }
     evento.preventDefault();
     janela.hide();
   });
@@ -475,6 +633,8 @@ if (!app.requestSingleInstanceLock()) {
 
     ligarCompartilhamentoDeTela();
     ligarAvisos();
+    lerEscolhas();
+    ligarJanela();
     criarJanela();
     ligarBandeja();
     ligarAtualizacao();

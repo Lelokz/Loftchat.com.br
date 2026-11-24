@@ -1,4 +1,5 @@
 import type { ScreenAudioExtra } from './voice-engine';
+import type { EscolhasDaJanela, InfoDaJanela } from './janela';
 
 /**
  * O Loft rodando dentro da JANELA de computador (desktop/, Electron).
@@ -43,6 +44,16 @@ export interface LoftDesktop {
   aoAbrirConvite?(ouvinte: (codigo: string) => void): void;
   /** 0.4.0: mostra a notificação do sistema de uma mensagem nova. */
   avisar?(aviso: { titulo: string; corpo: string; rota: string; foto: string }): Promise<void>;
+  /** 0.7.0: janela e bandeja (ver src/lib/janela.ts e desktop/main.mjs). */
+  janelaEscolhas?(): Promise<InfoDaJanela>;
+  janelaEscolher?(chave: string, valor: string): Promise<EscolhasDaJanela | null>;
+  janelaReiniciar?(): Promise<void>;
+  janelaAcao?(acao: 'min' | 'max' | 'fechar'): void;
+  aoEstadoDaJanela?(ouvinte: (estado: { maximizada: boolean }) => void): void;
+  bandejaPonto?(tem: boolean): void;
+  janelaPuxar?(borda: string, x: number, y: number): void;
+  janelaPuxando?(x: number, y: number): void;
+  janelaSoltar?(): void;
   /** A pessoa clicou numa notificação: a rota da conversa. Devolve como parar de ouvir. */
   aoAbrirAviso?(ouvinte: (rota: string) => void): () => void;
 }

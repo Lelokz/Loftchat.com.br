@@ -1435,3 +1435,23 @@
     transform: scale(0.98);
   }
 }
+
+/* Janela e bandeja (0.7.0): aviso para reiniciar quando a barra/cantos mudam. */
+.settings__reiniciar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background-color: var(--accent-soft);
+}
+
+.settings__reiniciar[hidden] {
+  display: none;
+}
+
+.settings__reiniciar .settings__button {
+  align-self: center;
+}

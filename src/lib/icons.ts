@@ -177,6 +177,9 @@ export const paletteIcon = (size?: number): string =>
   );
 
 /** Lixeira (0.5.5): jogar fora a mensagem de voz que está gravando. */
+export const windowIcon = (size?: number): string =>
+  svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/><path d="M15 6.5h.01M18 6.5h.01"/>', size);
+
 export const trashIcon = (size?: number): string =>
   svg('<path d="M4 7h16M9.5 7V4.5h5V7M6 7l1 13h10l1-13M10 11v5M14 11v5"/>', size);
 
