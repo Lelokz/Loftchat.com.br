@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 
 import {
+  activeGroupId,
+  createGroupThroughUi,
   limparTudo,
   newAccount,
   patchDocViaRest,
@@ -124,6 +126,39 @@ test('mensagem no PV chega em tempo real, e a conversa não nasce só de abrir',
 
   const depois = await readDocViaRest(a.account, `dmThreads/${par}`);
   expect(depois.status, 'a primeira mensagem cria a conversa').toBe(200);
+
+  await a.context.close();
+  await b.context.close();
+});
+
+test('depois de falar no PV, a mensagem do GRUPO vai para o grupo (não para o PV)', async ({
+  browser,
+}) => {
+  // Bug de 24/11/2026: o PV continuava "guardado" ao ir para um grupo, e
+  // tudo o que se mandava no grupo (texto, áudio, foto, figurinha) caía no PV.
+  test.setTimeout(120_000);
+  const a = await signedIn(browser, 'dm-grupo-a');
+  const b = await signedIn(browser, 'dm-grupo-b');
+  await createGroupThroughUi(a.page, 'Grupo depois do PV');
+  const grupo = await activeGroupId(a.page);
+  await becomeFriends(a, b);
+
+  await openDmWith(a.page, b.account.displayName);
+  await sendMessageThroughUi(a.page, 'isso vai no pv');
+  await expect(a.page.getByText('isso vai no pv').first()).toBeVisible({ timeout: 15_000 });
+
+  await a.page.locator(`.group-bar__button[data-group-id="${grupo}"]`).click();
+  await expect(a.page.locator('.channels__group-name')).toHaveText('Grupo depois do PV');
+  await sendMessageThroughUi(a.page, 'isso vai no grupo');
+  await expect(a.page.locator('.message', { hasText: 'isso vai no grupo' })).toBeVisible({ timeout: 15_000 });
+
+  // No PV (dos dois lados) só a primeira.
+  await openDmWith(a.page, b.account.displayName);
+  await expect(a.page.getByText('isso vai no pv').first()).toBeVisible({ timeout: 15_000 });
+  await expect(a.page.getByText('isso vai no grupo')).toHaveCount(0);
+  await openDmWith(b.page, a.account.displayName);
+  await expect(b.page.getByText('isso vai no pv').first()).toBeVisible({ timeout: 15_000 });
+  await expect(b.page.getByText('isso vai no grupo')).toHaveCount(0);
 
   await a.context.close();
   await b.context.close();

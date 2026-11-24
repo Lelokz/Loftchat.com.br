@@ -43,7 +43,7 @@ export interface ContextMenuActions {
   removeMember(memberId: MemberId): void;
   /**
    * Apaga uma mensagem — de grupo OU de PV. Quem implementa decide qual,
-   * olhando se há um PV aberto (`state.activeDmUid`): as duas telas nunca
+   * olhando se há um PV NA TELA (`pvAberto` no app.ts): as duas telas nunca
    * estão visíveis ao mesmo tempo, então isso basta para desambiguar.
    */
   deleteMessage(messageId: string, sala?: boolean): void;

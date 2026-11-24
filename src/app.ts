@@ -129,6 +129,15 @@ const STICK_TO_BOTTOM_PX = 80;
 const HIGHLIGHT_MS = 1600;
 
 /** Identidade da sessão para o rodapé da coluna de canais. */
+/**
+ * O PV que está NA TELA agora — ou null. `activeDmUid` sozinho não basta: ele
+ * continua guardado quando a pessoa vai para um grupo (para o PV voltar igual),
+ * e aí mensagem, áudio, foto e figurinha iam para o PV em vez do grupo.
+ */
+function pvAberto(state: AppState): MemberId | null {
+  return state.view === 'home' ? state.activeDmUid : null;
+}
+
 function sessionMember(user: User, username: string): Member {
   const displayName = user.displayName ?? user.email ?? 'Sem nome';
   return {
@@ -493,11 +502,11 @@ export function mountApp(
   };
 
   /**
-   * Apaga mensagem de grupo OU de PV — a distinção é `state.activeDmUid`, o
+   * Apaga mensagem de grupo OU de PV — a distinção é `pvAberto` (PV na tela), o
    * mesmo critério usado no resto do app (as duas telas nunca convivem).
    */
   const handleDeleteMessage = (messageId: string, sala = false): void => {
-    const emDm = !sala && store.getState().activeDmUid !== null;
+    const emDm = !sala && pvAberto(store.getState()) !== null;
     openConfirmDialog({
       title: 'Apagar mensagem',
       description: emDm
@@ -516,7 +525,7 @@ export function mountApp(
   };
 
   /**
-   * Fixa OU desafixa — grupo ou PV, `state.activeDmUid` decide, mesmo
+   * Fixa OU desafixa — grupo ou PV, `pvAberto` decide, mesmo
    * critério do resto do app. Desafixar remove TODOS os ids daquele
    * `messageId` de uma vez (a corrida rara do PV — os dois participantes
    * fixando a mesma mensagem ao mesmo tempo — pode deixar mais de um
@@ -526,7 +535,7 @@ export function mountApp(
     const state = store.getState();
     const scopePins = sala
       ? state.roomPinnedMessages
-      : state.activeDmUid !== null
+      : pvAberto(state) !== null
         ? state.pinnedDmMessages
         : state.pinnedMessages;
     const existingIds = scopePins.filter((p) => p.messageId === messageId).map((p) => p.id);
@@ -558,8 +567,8 @@ export function mountApp(
       return;
     }
 
-    if (state.activeDmUid !== null) {
-      const friendUid = state.activeDmUid;
+    const friendUid = pvAberto(state);
+    if (friendUid !== null) {
       const alvo = state.dmMessages.find((m) => m.id === messageId);
       if (alvo === undefined) return;
       const nome =
@@ -663,7 +672,7 @@ export function mountApp(
 
   /**
    * Começa a responder a uma mensagem: a faixa aparece acima do composer.
-   * Grupo ou PV — `state.activeDmUid` decide onde procurar a mensagem e o
+   * Grupo ou PV — `pvAberto` decide onde procurar a mensagem e o
    * nome do autor, as duas telas nunca convivem.
    */
   const handleReplyToMessage = (messageId: string, sala = false): void => {
@@ -679,7 +688,7 @@ export function mountApp(
       return;
     }
 
-    if (state.activeDmUid !== null) {
+    if (pvAberto(state) !== null) {
       const alvo = state.dmMessages.find((m) => m.id === messageId);
       if (alvo === undefined) return;
       const nome =
@@ -740,8 +749,8 @@ export function mountApp(
       renderReplySlot();
     };
 
-    if (state.activeDmUid !== null) {
-      const friendUid = state.activeDmUid;
+    const friendUid = pvAberto(state);
+    if (friendUid !== null) {
       clearReply();
       await sendDmMessage(user.uid, friendUid, body, citando);
       return;
@@ -761,8 +770,8 @@ export function mountApp(
   const avisarErroDoArquivo = (texto: string): void => showToast(texto);
   const handleArquivos = (arquivos: File[], legenda: string): void => {
     const state = store.getState();
-    if (state.activeDmUid !== null) {
-      const amigo = state.activeDmUid;
+    const amigo = pvAberto(state);
+    if (amigo !== null) {
       void mandarArquivos(`pv:${amigo}`, arquivos, legenda, (midia, texto) => sendDmMessage(user.uid, amigo, texto, undefined, midia), avisarErroDoArquivo);
       return;
     }
@@ -782,8 +791,8 @@ export function mountApp(
   /* MENSAGEM DE VOZ (0.5.5): sobe o áudio e grava a mensagem (grupo, PV ou sala). */
   const handleVoz = (gravacao: Gravacao): void => {
     const state = store.getState();
-    if (state.activeDmUid !== null) {
-      const amigo = state.activeDmUid;
+    const amigo = pvAberto(state);
+    if (amigo !== null) {
       void mandarVoz(`pv:${amigo}`, gravacao, (midia) => sendDmMessage(user.uid, amigo, '', undefined, midia), avisarErroDoArquivo);
       return;
     }
@@ -808,9 +817,10 @@ export function mountApp(
   const handleFigurinha = (f: Figurinha): void => {
     void usouFigurinha(f).catch(() => undefined);
     const state = store.getState();
+    const amigo = pvAberto(state);
     const enviar =
-      state.activeDmUid !== null
-        ? sendDmMessage(user.uid, state.activeDmUid, '', undefined, figurinhaComoMidia(f))
+      amigo !== null
+        ? sendDmMessage(user.uid, amigo, '', undefined, figurinhaComoMidia(f))
         : state.activeGroupId !== null && state.activeChannelId !== null
           ? sendMessage(state.activeGroupId, state.activeChannelId, user.uid, '', undefined, figurinhaComoMidia(f))
           : Promise.resolve();
@@ -860,7 +870,7 @@ export function mountApp(
 
   /** Põe (ou tira) a faixa de resposta acima do composer — do chat ou do PV, o que estiver na tela. */
   function renderReplySlot(): void {
-    const slot = store.getState().activeDmUid !== null ? dmChat?.replySlot : chat?.replySlot;
+    const slot = pvAberto(store.getState()) !== null ? dmChat?.replySlot : chat?.replySlot;
     if (slot === undefined || slot === null) return;
     if (replyingTo === null) {
       slot.replaceChildren();
@@ -1637,7 +1647,7 @@ export function mountApp(
       jumpToMessage(messageId);
       return;
     }
-    if (store.getState().activeDmUid === null) pinsPanel?.close();
+    if (pvAberto(store.getState()) === null) pinsPanel?.close();
     jumpToMessage(messageId);
   }
 
