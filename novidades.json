@@ -1,5 +1,13 @@
 [
   {
+    "versao": "0.6.5",
+    "data": "2026-11-24",
+    "itens": [
+      "Consertado: depois de conversar com alguém no Privado e ir para um grupo, tudo o que você mandava no grupo (texto, áudio, foto, figurinha) caía no Privado. Agora vai sempre para a conversa que está na tela.",
+      "Configurações novas no PC: abrem numa janela no meio da tela, com o resto do Loftchat escurecido atrás, e o conteúdo fica centralizado em qualquer tamanho de monitor. No celular continuam em tela cheia."
+    ]
+  },
+  {
     "versao": "0.6.0",
     "data": "2026-11-23",
     "itens": [

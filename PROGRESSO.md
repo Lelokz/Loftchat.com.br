@@ -2,6 +2,26 @@
 
 Estado em 15/11/2026.
 
+## Grupo depois do Privado + Configurações em janela (24/11/2026) — versão 0.6.5
+
+O Leo: depois de falar com alguém no PV, ir para um grupo e escrever, a
+mensagem (qualquer tipo) ia para o PV; só fechando o Loftchat e falando
+primeiro no grupo funcionava. E as Configurações em tela cheia deixavam a
+metade direita vazia, com a barra de rolagem no meio da tela.
+
+- Causa do PV: `activeDmUid` continua guardado quando a `view` vira
+  `group` (de propósito, para o PV voltar igual), e TODAS as ações
+  (enviar, arquivos, voz, figurinha, responder, fixar, apagar) decidiam só
+  por ele. Agora decidem por `pvAberto(state)` = PV só se `view === 'home'`.
+  Teste novo em `dm.spec.ts` (falhava no código antigo).
+- Configurações: a rolagem tinha `max-width: 760px`. Agora ocupa a área
+  toda e o conteúdo fica no meio. No PC (≥1100×640) viram uma JANELA por
+  cima do app (1180×820 no máximo, cantos 18px, fundo escurecido e
+  desfocado), ideia do Leo vinda do Discord; aprovada por foto. Celular
+  igual.
+- A revisão por fotos (`zz-revisao.spec.ts`) ganhou o tamanho `pc-1920`
+  (o monitor do Leo): a revisão geral só ia até 1440 e por isso não pegou.
+
 ## Atualização do celular consertada (23/11/2026) — versão 0.6.0
 
 O Leo: nos celulares dos amigos a faixa de atualização não aparecia (só no
