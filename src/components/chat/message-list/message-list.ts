@@ -16,6 +16,7 @@ import {
 import { dadosDoYouTube, idDoYouTube, linkDoYouTube, thumbDoYouTube } from "../../../lib/youtube";
 import { abrirVisualizador } from "../../visualizador/visualizador";
 import { renderVoz } from "../../voz/voz";
+import { montarTranscricao } from "../../voz/transcricao";
 import { renderBalaoUnica } from "../../unica/balao";
 import type {
   Attachment,
@@ -369,7 +370,7 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
                   tipo: props.dataContext === "dm-message" ? "pv" : "grupo",
                   pessoas: authors,
                 })
-              : renderContent(message),
+              : renderContent(message, props.dataContext === "dm-message" ? "pv" : "grupo"),
           // Marca de editado, discreta e depois do texto.
           message.editedAt !== undefined &&
             props.editingId !== message.id &&
@@ -572,7 +573,7 @@ function cartaoDoYouTube(id: string): HTMLElement {
 
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
-function renderContent(message: MessageBase): HTMLElement {
+function renderContent(message: MessageBase, tipo: "pv" | "grupo" = "grupo"): HTMLElement {
   // 0.9.5: registro de ligação no PV.
   if (message.chamada !== undefined) {
     const c = message.chamada;
@@ -629,12 +630,16 @@ function renderContent(message: MessageBase): HTMLElement {
           el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
 
-    case "audio":
+    case "audio": {
+      // 0.10.5: o botão de transcrever vai dentro do balão; o texto, embaixo.
+      const voz = message.attachment && renderVoz(message.attachment);
       return el("div", { class: "message__content" }, [
-        message.attachment && renderVoz(message.attachment),
+        voz,
+        voz ? montarTranscricao(voz, message, tipo) : false,
         message.body !== "" &&
           el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
+    }
   }
 }
 

@@ -212,3 +212,6 @@ export const unicaIcon = (size?: number): string =>
 /** Cadeado (0.10.0): o aviso "não dá para baixar" da visualização única. */
 export const lockIcon = (size?: number): string =>
   svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>', size);
+
+/** Transcrição (0.10.5): linhas de texto — o botão do balão de voz. */
+export const transcreverIcon = (size?: number): string => svg('<path d="M4 7h11M4 12h16M4 17h9" stroke-width="2"/>', size);

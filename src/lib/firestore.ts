@@ -252,6 +252,14 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
     Object.assign(message, { unica: { vezes: Math.floor(unica.vezes) } });
   }
 
+  // 0.10.5: transcrição da mensagem de voz.
+  const transcricao = data['transcricao'] as { texto?: unknown; idioma?: unknown } | undefined;
+  if (typeof transcricao === 'object' && transcricao !== null && typeof transcricao.texto === 'string') {
+    Object.assign(message, {
+      transcricao: { texto: transcricao.texto.slice(0, 20_000), idioma: typeof transcricao.idioma === 'string' ? transcricao.idioma : '' },
+    });
+  }
+
   const reply = data['replyTo'];
   if (reply !== undefined && reply !== null && typeof reply === 'object') {
     const raw = reply as Record<string, unknown>;

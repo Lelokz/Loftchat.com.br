@@ -389,6 +389,8 @@ export interface MessageBase {
   chamada?: { duracaoMs?: number; perdida: boolean; comCamera: boolean };
   /** 0.10.0: visualização única — quantas vezes cada pessoa pode abrir (1 a 5). */
   unica?: { vezes: number };
+  /** 0.10.5: transcrição da mensagem de voz (só o carteiro grava). '' = sem fala. */
+  transcricao?: { texto: string; idioma: string };
 }
 
 /**

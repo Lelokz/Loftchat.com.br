@@ -1,0 +1,106 @@
+/* TRANSCRIÇÃO NO BALÃO DE VOZ (0.10.5) — maquete aprovada. */
+
+.transcricao__botao {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background-color: rgb(255 255 255 / 8%);
+  color: var(--text-secondary);
+}
+
+.transcricao__botao:hover {
+  background-color: rgb(255 255 255 / 14%);
+  color: var(--text-primary);
+}
+
+.transcricao__botao.is-ligado {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.message--mine .transcricao__botao {
+  background-color: rgb(255 255 255 / 18%);
+  color: #fff;
+}
+
+.message--mine .transcricao__botao.is-ligado {
+  background-color: rgb(255 255 255 / 34%);
+}
+
+.transcricao {
+  max-width: 360px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.transcricao[hidden] {
+  display: none;
+}
+
+.transcricao__texto {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.transcricao__vazia,
+.transcricao__aviso,
+.transcricao__erro {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  opacity: 0.75;
+}
+
+.transcricao__vazia {
+  font-style: italic;
+}
+
+.transcricao__erro {
+  color: var(--danger);
+  opacity: 1;
+}
+
+.message--mine .transcricao__erro {
+  color: #fff;
+}
+
+.transcricao__carregando {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.transcricao__carregando i {
+  display: block;
+  height: 9px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 8%) 0%, rgb(255 255 255 / 20%) 50%, rgb(255 255 255 / 8%) 100%);
+  background-size: 200% 100%;
+  animation: transcricao-brilho 1.2s linear infinite;
+}
+
+.transcricao__carregando i:first-child {
+  width: 92%;
+}
+
+.transcricao__carregando i:last-child {
+  width: 64%;
+}
+
+@keyframes transcricao-brilho {
+  from { background-position: 200% 0; }
+  to { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transcricao__carregando i {
+    animation: none;
+  }
+}

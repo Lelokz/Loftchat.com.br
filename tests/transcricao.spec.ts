@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
-import { createAccountViaRest, limparTudo, newAccount } from './helpers';
+import { createAccountViaRest, limparTudo, newAccount, resolveTokens, signUpThroughUi } from './helpers';
 import type { TestAccount } from './helpers';
 import { CARTEIRO, FS, comoDono, lerComoDono, ligarCarteiroLocal } from './carteiro-local';
 
@@ -106,4 +107,94 @@ test('transcrição: o carteiro transcreve, guarda na mensagem e segura quem é 
   // Mensagem que não é de voz: recusa.
   await comoDono('dmMessages/transcPv4', { threadId: fio, authorId: ana.uid!, kind: 'text', body: 'oi', sentAt: new Date().toISOString() });
   expect((await pedir(beto.idToken!, 'pv', 'transcPv4')).status).toBe(400);
+});
+
+async function abrirPv(page: Page, nome: string): Promise<void> {
+  await page.getByRole('button', { name: /^Privado/ }).first().click();
+  // No celular a tela de Amigos já abre sozinha.
+  if (!(await page.locator('.friends__row--clickable', { hasText: nome }).isVisible())) {
+    await page.getByRole('button', { name: 'Amigos', exact: true }).click();
+    await page.locator('.friends__tab[data-tab="amigos"]').click();
+  }
+  await page.locator('.friends__row--clickable', { hasText: nome }).click();
+  await expect(page.locator('.dm-chat__name')).toHaveText(nome, { timeout: 15_000 });
+}
+
+test('transcrição no app: botão, Transcrevendo…, texto para os dois, esconder só para mim e o aviso do limite', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const eva = newAccount('Eva transcrição');
+  const fabio = newAccount('Fabio transcrição');
+  contas.push(eva, fabio);
+  const ctxE = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const pe = await ctxE.newPage();
+  await pe.goto('/');
+  await signUpThroughUi(pe, eva);
+  await resolveTokens(eva);
+  const ctxF = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const pf = await ctxF.newPage();
+  await pf.goto('/');
+  await signUpThroughUi(pf, fabio);
+  await resolveTokens(fabio);
+
+  const fio = par(eva.uid!, fabio.uid!);
+  const amizade = await fetch(`${FS}/friendships/${fio}`, {
+    method: 'PATCH',
+    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      fields: {
+        members: { arrayValue: { values: [{ stringValue: eva.uid! }, { stringValue: fabio.uid! }] } },
+        from: { stringValue: eva.uid! },
+        to: { stringValue: fabio.uid! },
+        status: { stringValue: 'accepted' },
+        createdAt: { stringValue: new Date().toISOString() },
+      },
+    }),
+  });
+  expect(amizade.ok).toBe(true);
+  // Duas mensagens de voz da Eva: uma normal e uma que bate no "limite do dia".
+  for (const [id, tamanho, nome] of [['transcApp1', 5000, 'voz'], ['transcApp2', 5000, 'limite']] as const) {
+    const a = await subirAudio(eva.idToken!, tamanho);
+    await comoDono(`dmMessages/${id}`, {
+      threadId: fio,
+      authorId: eva.uid!,
+      kind: 'audio',
+      body: '',
+      sentAt: new Date(Date.now() - (id === 'transcApp1' ? 60_000 : 0)).toISOString(),
+      attachment: { url: a.url, chave: a.chave, fileName: nome, mimeType: 'audio/webm', sizeBytes: tamanho, durationMs: 4000 },
+    });
+  }
+  await pe.reload();
+  await pf.reload();
+  await abrirPv(pe, fabio.displayName);
+  await abrirPv(pf, eva.displayName);
+
+  // Fabio (celular) transcreve a primeira.
+  const vozF = pf.locator('.message').filter({ has: pf.locator('.voz') }).first();
+  const botaoF = vozF.getByRole('button', { name: 'Transcrever' });
+  await expect(botaoF).toBeVisible({ timeout: 30_000 });
+  await botaoF.click();
+  const texto = 'Transcrição de teste com 5000 bytes.';
+  await expect(vozF.locator('.transcricao__texto')).toHaveText(texto, { timeout: 30_000 });
+  await expect(vozF.getByRole('button', { name: 'Esconder texto' })).toBeVisible();
+  await pf.screenshot({ path: 'test-results/transcricao/1-celular.png' });
+
+  // Eva (que não pediu) também vê — fica na mensagem.
+  const vozE = pe.locator('.message').filter({ has: pe.locator('.voz') }).first();
+  await expect(vozE.locator('.transcricao__texto')).toHaveText(texto, { timeout: 30_000 });
+  await pe.screenshot({ path: 'test-results/transcricao/2-pc.png' });
+
+  // Eva esconde: só para ela.
+  await vozE.getByRole('button', { name: 'Esconder texto' }).click();
+  await expect(vozE.locator('.transcricao__texto')).toHaveCount(0);
+  await expect(vozE.getByRole('button', { name: 'Mostrar texto' })).toBeVisible();
+  await expect(vozF.locator('.transcricao__texto')).toHaveText(texto);
+  await vozE.getByRole('button', { name: 'Mostrar texto' }).click();
+  await expect(vozE.locator('.transcricao__texto')).toHaveText(texto);
+
+  // A segunda bate no limite do dia: aviso claro, sem texto.
+  const voz2 = pf.locator('.message').filter({ has: pf.locator('.voz') }).nth(1);
+  await voz2.getByRole('button', { name: 'Transcrever' }).click();
+  await expect(voz2.locator('.transcricao__erro')).toHaveText('O limite de transcrição de hoje acabou. Volta às 21h.', { timeout: 30_000 });
+  await ctxE.close();
+  await ctxF.close();
 });
