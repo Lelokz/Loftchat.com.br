@@ -35,6 +35,10 @@ export interface MenuItem {
   /** 0.10.0: item "rico" — ícone (SVG de icons.ts) e uma linha explicando. */
   icon?: string;
   hint?: string;
+  /** 0.11.0: abre um submenu ao lado (no celular, vira a folha com estes itens). */
+  submenu?: MenuItem[];
+  /** Título da folha do submenu no celular ("Silenciar #anúncios"). */
+  submenuTitulo?: string;
 }
 
 /** Onde ancorar: no cursor, ou colado a um elemento. */
@@ -58,6 +62,10 @@ export interface MenuExtras {
   emojis?: { lista: string[]; minhas: string[]; aoEscolher: (emoji: string) => void; aoMais: (perto: DOMRect) => void; iconeMais: string };
   /** Aberto por toque longo: vira uma folha embaixo da tela. */
   folha?: boolean;
+  /** Aberto por toque (submenu vira folha). */
+  toque?: boolean;
+  /** Título pequeno em cima (a folha do submenu: "Silenciar #anúncios"). */
+  titulo?: string;
 }
 
 export function openMenu(anchor: MenuAnchor, items: MenuItem[], extras: MenuExtras = {}): void {
@@ -70,6 +78,13 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[], extras: MenuExtr
 
   const buttons: HTMLButtonElement[] = [];
   const nodes: HTMLElement[] = [];
+  // 0.11.0: o submenu aberto agora (ao lado do item).
+  let filho: HTMLElement | null = null;
+  const fecharFilho = (): void => {
+    filho?.remove();
+    filho = null;
+  };
+  if (extras.titulo !== undefined) nodes.push(el('div', { class: 'context-menu__titulo' }, [extras.titulo]));
 
   for (const item of items) {
     if (item.separatorBefore === true && nodes.length > 0) {
@@ -95,6 +110,56 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[], extras: MenuExtr
           ],
     );
     if (item.icon !== undefined || item.hint !== undefined) button.classList.add('context-menu__item--rico');
+
+    if (item.submenu !== undefined && item.disabled !== true) {
+      const sub = item.submenu;
+      button.classList.add('context-menu__item--sub');
+      button.setAttribute('aria-haspopup', 'menu');
+      button.append(el('span', { class: 'context-menu__seta', 'aria-hidden': 'true' }, ['›']));
+      const abrirFilho = (): void => {
+        if (extras.toque === true || extras.folha === true) {
+          // No celular: troca pela folha do submenu.
+          close();
+          openMenu(anchor, sub, { folha: true, titulo: item.submenuTitulo ?? item.label });
+          return;
+        }
+        if (filho !== null && filho.dataset['de'] === item.label) return;
+        fecharFilho();
+        const r = button.getBoundingClientRect();
+        filho = el(
+          'div',
+          { class: 'context-menu context-menu--filho', role: 'menu', 'data-de': item.label },
+          sub.map((x) => {
+            const b = el('button', { class: 'context-menu__item', type: 'button', role: 'menuitem' }, [x.label]);
+            b.addEventListener('click', () => {
+              close();
+              x.onSelect();
+            });
+            return b;
+          }),
+        );
+        filho.style.visibility = 'hidden';
+        document.body.append(filho);
+        const larg = filho.offsetWidth;
+        const alt = filho.offsetHeight;
+        const x = r.right + 4 + larg <= innerWidth - MARGIN ? r.right + 4 : Math.max(MARGIN, r.left - larg - 4);
+        const y = Math.max(MARGIN, Math.min(innerHeight - alt - MARGIN, r.top - 5));
+        filho.style.left = `${x}px`;
+        filho.style.top = `${y}px`;
+        filho.style.visibility = '';
+      };
+      button.addEventListener('click', abrirFilho);
+      button.addEventListener('mouseenter', () => {
+        // Menu aberto por toque só troca pela folha com toque (num notebook com
+        // tela de toque, passar o mouse não pode fechar o menu sozinho).
+        if (extras.toque !== true && extras.folha !== true && matchMedia('(hover: hover)').matches) abrirFilho();
+      });
+      buttons.push(button);
+      nodes.push(button);
+      continue;
+    }
+    // Passar por outro item fecha o submenu aberto.
+    button.addEventListener('mouseenter', fecharFilho);
 
     if (item.disabled === true) {
       button.disabled = true;
@@ -151,6 +216,7 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[], extras: MenuExtr
   );
 
   function close(): void {
+    fecharFilho();
     menu.remove();
     document.removeEventListener('mousedown', onOutside, true);
     document.removeEventListener('keydown', onKey, true);
@@ -164,7 +230,7 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[], extras: MenuExtr
   }
 
   function onOutside(event: MouseEvent): void {
-    if (!menu.contains(event.target as Node)) close();
+    if (!menu.contains(event.target as Node) && filho?.contains(event.target as Node) !== true) close();
   }
 
   function move(delta: number): void {

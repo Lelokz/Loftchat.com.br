@@ -906,6 +906,18 @@ service cloud.firestore {
         && request.resource.data.lista.size() <= 10;
     }
 
+    /*
+     * SILENCIAR (0.11.0): o que cada pessoa silenciou (canal, grupo, PV → até
+     * quando). Só ela lê e escreve; o carteiro lê para não notificar.
+     */
+    match /silencios/{userId} {
+      allow read, delete: if signedIn() && userId == uid();
+      allow create, update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['mapa'])
+        && request.resource.data.mapa is map
+        && request.resource.data.mapa.size() <= 500;
+    }
+
     match /avisos/{userId} {
       allow read, delete: if signedIn() && userId == uid();
       allow create, update: if false;

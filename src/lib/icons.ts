@@ -235,3 +235,7 @@ export const downloadIcon = (size?: number): string => svg('<path d="M12 4v11m-5
 
 /** Alerta (0.11.0): o aviso de programa no cartão do arquivo. */
 export const alertIcon = (size?: number): string => svg('<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/>', size);
+
+/** Silenciado (0.11.0): o sino riscado. */
+export const bellOffIcon = (size?: number): string =>
+  svg('<path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 13A16 16 0 0 1 18 8a6 6 0 0 0-9.3-5"/><path d="M6.3 6.3A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="m2 2 20 20"/>', size);

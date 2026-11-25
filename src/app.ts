@@ -3,6 +3,9 @@ import { menuIcon } from './lib/icons';
 import { definirPermissaoDeTranscrever } from './components/voz/transcricao';
 import { definirPermissaoDeReagir } from './components/reacoes/reacoes';
 import { abrirEncaminhar } from './components/encaminhar/encaminhar';
+import { estaSilenciado, ligarSilencios, ouvirSilencios, reativar, silenciadoAte, textoDoSilencio } from './lib/silencios';
+import type { Alvo } from './lib/silencios';
+import { bellOffIcon } from './lib/icons';
 import type { Destino } from './components/encaminhar/encaminhar';
 import { renderChannelList } from './components/channel-list/channel-list';
 import type { VoicePresenceView } from './components/channel-list/channel-list';
@@ -333,7 +336,8 @@ export function mountApp(
   const onPointerDownOutside = (event: PointerEvent): void => {
     if (drawer === null) return;
     const target = event.target as HTMLElement | null;
-    if (target?.closest('.channels, .home-column, .group-bar, .members') !== null && target !== null) return;
+    // Menu (e a folha do celular) aberto a partir da gaveta não conta como "fora".
+    if (target?.closest('.channels, .home-column, .group-bar, .members, .context-menu') !== null && target !== null) return;
     setDrawer(null);
   };
   document.addEventListener('pointerdown', onPointerDownOutside);
@@ -1264,6 +1268,7 @@ export function mountApp(
       onReorderInFolder: reordenarNaPasta,
       activeGroupId: state.activeGroupId,
       naoLidas,
+      silenciado: (id) => estaSilenciado(`g_${id}`),
       homeActive: state.view === 'home',
       onOpenHome: () => {
         setDrawer(null);
@@ -1373,6 +1378,7 @@ export function mountApp(
   function buildHomeColumn(state: AppState): HTMLElement {
     const parts = renderHomeColumn({
       naoLidas: (uid) => naoLidas.pv(uid),
+      silenciado: (uid) => estaSilenciado(`p_${uid}`),
       dmThreads: state.dmThreads,
       dmThreadsLoaded: state.dmThreadsLoaded,
       activeDmUid: state.activeDmUid,
@@ -1454,6 +1460,7 @@ export function mountApp(
     const callBar = buildCallBar(state);
     const coluna = renderChannelList({
       naoLidas: (id) => naoLidas.canal(id),
+      silenciado: (id) => estaSilenciado(`c_${id}`) || (state.activeGroupId !== null && estaSilenciado(`g_${state.activeGroupId}`)),
       group: activeGroup(state) ?? null,
       // 0.8.5: canal que eu não vejo não aparece (o conteúdo o banco já fecha).
       channels: state.channels.filter((c) => posso(state, c.kind === 'voice' ? 'ver-sala' : 'ver-canal', c.id)),
@@ -3095,6 +3102,7 @@ export function mountApp(
     }
 
     aplicarLimitesDoCargo(state);
+    desenharSilencioNoTopo(state);
     desenharVerComo(state);
     // 0.8.5: o canal aberto ficou escondido para mim (cargo mudou, ou é o
     // primeiro canal e eu não vejo): vai para o primeiro que eu vejo.
@@ -3112,6 +3120,33 @@ export function mountApp(
    * 0.8.5: a caixa de mensagem do canal e a do chat da sala seguem o que o
    * cargo deixa (e o castigo). O banco cobra o mesmo.
    */
+  /** 0.11.0: "Silenciado até 21:30" no topo da conversa silenciada (clicar reativa). */
+  function desenharSilencioNoTopo(state: AppState): void {
+    const header = root.querySelector<HTMLElement>('main.chat .chat__header');
+    header?.querySelector('.silenciado-topo')?.remove();
+    if (header === null || header === undefined) return;
+    const amigo = pvAberto(state);
+    const alvos: Alvo[] =
+      amigo !== null
+        ? [`p_${amigo}`]
+        : state.view === 'group' && state.activeChannelId !== null
+          ? [`c_${state.activeChannelId}`, ...(state.activeGroupId !== null ? [`g_${state.activeGroupId}` as Alvo] : [])]
+          : [];
+    const alvo = alvos.find((a) => silenciadoAte(a) !== null);
+    if (alvo === undefined) return;
+    const ate = silenciadoAte(alvo)!;
+    const chip = el('button', { class: 'silenciado-topo', type: 'button', title: 'Reativar notificações' }, [
+      iconEl(bellOffIcon(14)),
+      el('span', { class: 'silenciado-topo__texto' }, [`Silenciado ${textoDoSilencio(ate)}`]),
+    ]);
+    chip.addEventListener('click', () => {
+      void reativar(alvo).then(() => showToast('Notificações reativadas.'));
+    });
+    const painel = header.querySelector('.chat__panel-button');
+    if (painel !== null) painel.before(chip);
+    else header.append(chip);
+  }
+
   function aplicarLimitesDoCargo(state: AppState): void {
     if (state.view !== 'group') return;
     // 0.10.5: "Usar transcrição" — o botão do balão de voz segue o cargo.
@@ -3371,6 +3406,13 @@ export function mountApp(
     deleteMessage: handleDeleteMessage,
     replyToMessage: handleReplyToMessage,
     forwardMessage: (id, tipo, sala) => void handleForwardMessage(id, tipo, sala),
+    markRead: (conversa) => naoLidas.marcarLida(conversa),
+    openProfile: (uid, anchor) => {
+      // O cartão abre colado na linha da conversa.
+      anchor.dataset['profileUid'] = uid;
+      abrirCartao(anchor);
+      delete anchor.dataset['profileUid'];
+    },
     editMessage: handleEditMessage,
     openDm: (uid) => store.openDm(uid),
     togglePinMessage: handleTogglePinMessage,
@@ -3555,7 +3597,7 @@ export function mountApp(
   let versaoDasBolinhas = 0;
   let bolinhasDesenhadas = 0;
   let desenhoMarcado = false;
-  const naoLidas = criarNaoLidas(user.uid, () => {
+  const bolinhasMudaram = (): void => {
     versaoDasBolinhas += 1;
     // Bolinha vermelha no ícone da bandeja (PC): tem alguma não lida?
     const st = store.getState();
@@ -3566,7 +3608,11 @@ export function mountApp(
       desenhoMarcado = false;
       if (root.isConnected) render(store.getState());
     }, 0);
-  });
+  };
+  const naoLidas = criarNaoLidas(user.uid, () => bolinhasMudaram());
+  // 0.11.0: o que eu silenciei — mudou, redesenha as bolinhas.
+  const pararSilencios = ligarSilencios(user.uid);
+  const pararOuvirSilencios = ouvirSilencios(() => bolinhasMudaram());
   const sincronizarNaoLidas = (state: AppState): void =>
     naoLidas.sincronizar(
       state.groups.map((g) => g.id),
@@ -3614,6 +3660,8 @@ export function mountApp(
       acompanharChamada.desligar();
       avisos.parar();
       naoLidas.parar();
+      pararSilencios();
+      pararOuvirSilencios();
       pararFigurinhas();
       store.dispose();
     },

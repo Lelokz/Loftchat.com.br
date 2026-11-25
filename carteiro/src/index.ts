@@ -476,12 +476,23 @@ async function entregar(env: Env, origem: string, tipo: 'grupo' | 'pv', id: stri
     foto: typeof foto === 'string' && foto.startsWith('data:image/') ? await enderecoDaFoto(env, origem, uid, foto) : '',
   };
 
-  const aparelhos = await lerVarios(
-    env,
-    para.map((p) => `aparelhos/${p}`),
-  );
+  // 0.11.0: os aparelhos E o que cada um silenciou, numa leitura só.
+  const lidos = await lerVarios(env, [...para.map((p) => `aparelhos/${p}`), ...para.map((p) => `silencios/${p}`)]);
+  const aparelhos = lidos.slice(0, para.length);
+  const silencios = lidos.slice(para.length);
+  const chaves = tipo === 'grupo' ? [`c_${String(msg['channelId'])}`, `g_${String(msg['groupId'])}`] : [`p_${uid}`];
+  const agora = Date.now();
+  const silenciou = (i: number): boolean => {
+    const mapa = (silencios[i]?.['mapa'] ?? {}) as Record<string, unknown>;
+    return chaves.some((k) => {
+      const v = mapa[k];
+      return v === 'sempre' || (typeof v === 'string' && Date.parse(v) > agora);
+    });
+  };
   const envios: Promise<void>[] = [];
   para.forEach((pessoa, i) => {
+    // Silenciou esta conversa (canal, grupo ou o PV com quem mandou): não avisa.
+    if (silenciou(i)) return;
     const lista = (aparelhos[i]?.['lista'] ?? {}) as Record<string, Aparelho>;
     let temPc = false;
     for (const [aparelho, a] of Object.entries(lista)) {

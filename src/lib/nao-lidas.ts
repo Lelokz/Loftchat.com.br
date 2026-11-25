@@ -12,6 +12,7 @@ import type { Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { pairId } from './friends';
+import { estaSilenciado } from './silencios';
 import type { DmThread } from '../types/models';
 
 /**
@@ -39,9 +40,14 @@ export interface NaoLidas {
   /** Chamado a cada mudança do app: meus grupos, meus PVs e a conversa aberta (`canal:<id>`/`pv:<uid>`). */
   sincronizar(grupos: string[], pvs: DmThread[], aberta: string): void;
   canal(canalId: string): number;
+  /** Para a bolinha colorida do grupo: sem o que está silenciado (grupo silenciado = 0). */
   grupo(grupoId: string): number;
+  /** 0.11.0: todas do grupo, mesmo silenciadas (a bolinha cinza do grupo silenciado). */
+  grupoTodas(grupoId: string): number;
   pv(amigo: string): number;
   privado(): number;
+  /** 0.11.0: "Marcar como lido" (`canal:<id>` ou `pv:<uid>`). */
+  marcarLida(conversa: string): void;
   parar(): void;
 }
 
@@ -189,6 +195,14 @@ export function criarNaoLidas(eu: string, aoMudar: () => void): NaoLidas {
     },
     canal: (canal) => contagens.get(`c_${canal}`) ?? 0,
     grupo(grupo) {
+      if (estaSilenciado(`g_${grupo}`)) return 0;
+      let soma = 0;
+      for (const canal of canaisPorGrupo.get(grupo)?.keys() ?? []) {
+        if (!estaSilenciado(`c_${canal}`)) soma += contagens.get(`c_${canal}`) ?? 0;
+      }
+      return soma;
+    },
+    grupoTodas(grupo) {
       let soma = 0;
       for (const canal of canaisPorGrupo.get(grupo)?.keys() ?? []) soma += contagens.get(`c_${canal}`) ?? 0;
       return soma;
@@ -196,8 +210,18 @@ export function criarNaoLidas(eu: string, aoMudar: () => void): NaoLidas {
     pv: (amigo) => contagens.get(`p_${amigo}`) ?? 0,
     privado() {
       let soma = 0;
-      for (const amigo of pvs.keys()) soma += contagens.get(`p_${amigo}`) ?? 0;
+      for (const amigo of pvs.keys()) if (!estaSilenciado(`p_${amigo}`)) soma += contagens.get(`p_${amigo}`) ?? 0;
       return soma;
+    },
+    marcarLida(conversa) {
+      const chave = chaveDa(conversa);
+      if (chave === '') return;
+      const ultima = chave.startsWith('c_')
+        ? [...canaisPorGrupo.values()].map((c) => c.get(chave.slice(2))).find((u) => u !== undefined)
+        : pvs.get(chave.slice(2));
+      marcar(chave, ultima?.em ?? new Date().toISOString());
+      avaliar(chave, ultima);
+      aoMudar();
     },
     parar() {
       pararLidas();

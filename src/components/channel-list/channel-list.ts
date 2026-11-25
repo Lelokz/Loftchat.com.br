@@ -1,7 +1,7 @@
 import './channel-list.css';
 
 import { avatarEl, corDoCargo, el, iconEl, iconeDoCargo } from '../../lib/dom';
-import { chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
+import { bellOffIcon, chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
 import { renderCallBar } from '../call-bar/call-bar';
 import type { CallBarProps } from '../call-bar/call-bar';
 import { renderLoading } from '../empty-state/empty-state';
@@ -32,6 +32,8 @@ export interface ChannelListProps {
   voiceRosters: Map<ChannelId, VoicePresenceView[]>;
   /** Não lidas (0.4.5) de cada canal de texto. */
   naoLidas?: (channelId: ChannelId) => number;
+  /** 0.11.0: o canal está silenciado (apagado, sino riscado, bolinha cinza). */
+  silenciado?: (channelId: ChannelId) => boolean;
 }
 
 /** Uma pessoa na lista indentada sob um canal de voz. */
@@ -60,9 +62,10 @@ function channelButton(
   onSelect: (id: ChannelId) => void,
   roster?: VoicePresenceView[],
   naoLidas = 0,
+  silenciado = false,
 ): HTMLElement {
   const isVoice = channel.kind === 'voice';
-  const stateClass = `${state === 'active' ? ' is-active' : state === 'connected' ? ' is-connected' : ''}${naoLidas > 0 ? ' tem-nao-lidas' : ''}`;
+  const stateClass = `${state === 'active' ? ' is-active' : state === 'connected' ? ' is-connected' : ''}${naoLidas > 0 && !silenciado ? ' tem-nao-lidas' : ''}${silenciado ? ' is-silenciado' : ''}`;
 
   const button = el(
     'button',
@@ -89,7 +92,8 @@ function channelButton(
       roster?.some((person) => person.sharingScreen) === true &&
         el('span', { class: 'channel__on-air' }, ['AO VIVO']),
       state === 'connected' && el('span', { class: 'channel__live' }, ['conectado']),
-      bolinha(naoLidas, 'fim'),
+      silenciado && el('span', { class: 'silenciado-sino', title: 'Silenciado' }, [iconEl(bellOffIcon(15))]),
+      bolinha(naoLidas, 'fim', silenciado),
     ],
   );
   button.addEventListener('click', () => onSelect(channel.id));
@@ -169,6 +173,7 @@ export function renderChannelList(props: ChannelListProps): HTMLElement {
               onSelectChannel,
               undefined,
               props.naoLidas?.(channel.id) ?? 0,
+              props.silenciado?.(channel.id) ?? false,
             ),
       ),
     );

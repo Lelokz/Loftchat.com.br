@@ -1,7 +1,7 @@
 import './group-bar.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { chatsIcon, logoIcon, plusIcon } from '../../lib/icons';
+import { bellOffIcon, chatsIcon, logoIcon, plusIcon } from '../../lib/icons';
 import { CARD_COLORS, cardColorId } from '../../lib/person-theme';
 import { barItems, tabLabel } from '../../lib/private-prefs';
 import type { GroupFolder, TabMode } from '../../lib/private-prefs';
@@ -29,7 +29,9 @@ export interface GroupBarProps {
   onReorderInFolder: (ids: GroupId[]) => void;
   activeGroupId: GroupId | null;
   /** Não lidas (0.4.5): quantas em cada grupo e no privado. */
-  naoLidas?: { grupo(id: GroupId): number; privado(): number };
+  naoLidas?: { grupo(id: GroupId): number; grupoTodas(id: GroupId): number; privado(): number };
+  /** 0.11.0: grupo silenciado. */
+  silenciado?: (id: GroupId) => boolean;
   /** A aba Privado está ativa? Nenhum grupo fica marcado quando ela está. */
   homeActive: boolean;
   /** Eu — o cartão no canto da barra (nome e @). */
@@ -88,6 +90,7 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
     // Apelido pessoal ou "sem nome" (etapa 3d). O nome de verdade continua
     // no title e no nome acessível — o leitor de tela nunca fica sem nome.
     const apelido = tabLabel(group.name, props.groupLabels.get(group.id));
+    const silenciado = props.silenciado?.(group.id) ?? false;
     // O jeito das abas (etapa 4a): "icones" esconde todos os nomes; "aberto"
     // mostra só o do grupo aberto. "Sem nome" (3d) vale em qualquer jeito.
     const rotulo =
@@ -106,9 +109,12 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
       [
         grupoAvatar(group),
         rotulo !== null && el('span', { class: 'group-bar__name' }, [rotulo]),
-        !isActive && bolinha(props.naoLidas?.grupo(group.id) ?? 0, 'aba'),
+        // 0.11.0: grupo silenciado — apagado, sino riscado e bolinha cinza (com todas).
+        silenciado && el('span', { class: 'silenciado-sino silenciado-sino--aba', title: 'Silenciado' }, [iconEl(bellOffIcon(13))]),
+        !isActive && (silenciado ? bolinha(props.naoLidas?.grupoTodas(group.id) ?? 0, 'aba', true) : bolinha(props.naoLidas?.grupo(group.id) ?? 0, 'aba')),
       ],
     );
+    if (silenciado) button.classList.add('is-silenciado');
     button.addEventListener('click', () => onSelectGroup(group.id));
     return el('li', { 'data-sort-id': group.id }, [button]);
   }

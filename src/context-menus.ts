@@ -25,6 +25,8 @@ import { openMenu } from './components/context-menu/context-menu';
 import type { MenuExtras, MenuItem } from './components/context-menu/context-menu';
 import { RAPIDAS_CELULAR, abrirSeletorDeReacao, dadosDaMensagem, instalarBarraDeReacoes, podeReagir, reagir } from './components/reacoes/reacoes';
 import { addReactionIcon } from './lib/icons';
+import { DURACOES, reativar, silenciadoAte, silenciar, textoDoSilencio } from './lib/silencios';
+import type { Alvo } from './lib/silencios';
 import { showToast } from './components/toast/toast';
 import { canLeaveGroup, isOwner, meuTopo, OWNER_CANNOT_LEAVE, pode } from './lib/permissions';
 import type { ContextoDePermissao } from './lib/permissions';
@@ -75,6 +77,10 @@ export interface ContextMenuActions {
   editMessage(messageId: string): void;
   /** 0.11.0: abre a janela de encaminhar esta mensagem (ausente = ainda não existe). */
   forwardMessage?(messageId: string, tipo: 'pv' | 'grupo', sala: boolean): void;
+  /** 0.11.0: "Marcar como lido" (`canal:<id>` ou `pv:<uid>`). */
+  markRead?(conversa: string): void;
+  /** 0.11.0: "Ver perfil" no menu da conversa do privado. */
+  openProfile?(uid: string, anchor: HTMLElement): void;
   /** Abre o PV com este amigo — item "Enviar mensagem" do menu de contexto dele. */
   openDm(friendUid: MemberId): void;
   /**
@@ -344,6 +350,49 @@ function pinnedItemItems(target: HTMLElement, actions: ContextMenuActions): Menu
   return items;
 }
 
+/**
+ * 0.11.0 SILENCIAR: "Silenciar … ›" com as durações, ou, se já está
+ * silenciado, "Reativar notificações" (com até quando).
+ */
+function itemDeSilenciar(alvo: Alvo, oque: string, nome: string): MenuItem {
+  const ate = silenciadoAte(alvo);
+  if (ate !== null) {
+    return {
+      label: 'Reativar notificações',
+      hint: `Silenciado ${textoDoSilencio(ate)}`,
+      onSelect: () => {
+        void reativar(alvo).then(() => showToast('Notificações reativadas.')).catch(() => showToast('Não deu para reativar. Tente de novo.'));
+      },
+    };
+  }
+  return {
+    label: `Silenciar ${oque}`,
+    submenuTitulo: `Silenciar ${nome}`,
+    onSelect: () => undefined,
+    submenu: DURACOES.map((d) => ({
+      label: d.rotulo,
+      onSelect: () => {
+        void silenciar(alvo, d.ms)
+          .then(() => showToast(d.ms === null ? `Silenciado até você reativar.` : `Silenciado ${textoDoSilencio(new Date(Date.now() + d.ms).toISOString())}.`))
+          .catch(() => showToast('Não deu para silenciar. Tente de novo.'));
+      },
+    })),
+  };
+}
+
+/** 0.11.0: o menu da conversa na lista do privado. */
+function dmRowItems(target: HTMLElement, actions: ContextMenuActions): MenuItem[] {
+  const uid = target.dataset['friendUid'] ?? '';
+  if (uid === '') return [];
+  return [
+    ...(actions.markRead !== undefined ? [{ label: 'Marcar como lido', onSelect: () => actions.markRead!(`pv:${uid}`) }] : []),
+    itemDeSilenciar(`p_${uid}`, 'conversa', target.querySelector('.home-column__dm-name')?.textContent ?? 'conversa'),
+    ...(actions.openProfile !== undefined
+      ? [{ label: 'Ver perfil', separatorBefore: true, onSelect: () => actions.openProfile!(uid, target) }]
+      : []),
+  ];
+}
+
 function groupItems(
   target: HTMLElement,
   actions: ContextMenuActions,
@@ -367,6 +416,8 @@ function groupItems(
   }
 
   items.push({ label: 'Apelido do grupo', onSelect: () => actions.groupNickname(groupId) });
+  // 0.11.0: silenciar o grupo inteiro.
+  items.push(itemDeSilenciar(`g_${groupId}`, 'grupo', group.name));
 
   items.push({
     label: 'Sair do grupo',
@@ -400,7 +451,14 @@ function channelItems(
   const owner = pode(ctxDoMenu(state, group), actions.uid, 'apagar-canais', channelId);
 
   const items: MenuItem[] = [
-    { label: 'Copiar nome', onSelect: () => copy(channel.name, 'Nome copiado.') },
+    // 0.11.0: marcar como lido e silenciar (canal de texto).
+    ...(channel.kind === 'text'
+      ? [
+          ...(actions.markRead !== undefined ? [{ label: 'Marcar como lido', onSelect: () => actions.markRead!(`canal:${channelId}`) }] : []),
+          itemDeSilenciar(`c_${channelId}`, 'canal', `#${channel.name}`),
+        ]
+      : []),
+    { label: 'Copiar nome', separatorBefore: channel.kind === 'text', onSelect: () => copy(channel.name, 'Nome copiado.') },
   ];
   // Fundo só na MINHA tela — qualquer membro pode, em canal de texto.
   if (channel.kind === 'text') {
@@ -670,14 +728,22 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
       case 'friend':
         items = friendItems(target, actions);
         break;
+      case 'dm-row': {
+        items = dmRowItems(target, actions);
+        const nome = target.querySelector('.home-column__dm-name')?.textContent ?? '';
+        extras = { toque: porToque, ...(nome !== '' ? { titulo: nome } : {}) };
+        break;
+      }
       case 'pinned-item':
         items = pinnedItemItems(target, actions);
         break;
       case 'group':
         items = groupItems(target, actions, state);
+        extras = { toque: porToque };
         break;
       case 'channel':
         items = channelItems(target, actions, state);
+        extras = { toque: porToque };
         break;
       case 'member':
         items = memberItems(target, actions, state);

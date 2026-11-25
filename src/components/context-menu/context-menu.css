@@ -112,3 +112,29 @@
   color: var(--text-muted);
   font-size: var(--font-size-xs);
 }
+
+/* 0.11.0: submenu (ao lado do item) e título da folha. */
+.context-menu__item--sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.context-menu__seta {
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.context-menu--filho {
+  z-index: 31;
+  min-width: 200px;
+}
+
+.context-menu__titulo {
+  margin: 4px 10px 6px;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
