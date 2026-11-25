@@ -1313,6 +1313,12 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
               patch({ screenSharing: false, screenLabel: null, screenMaximized: false });
               void presence?.setSharingScreen(false);
             },
+            // 0.9.5: a câmera parou sozinha — o botão e o meu bloco acompanham.
+            onCameraEnded: () => {
+              void engine?.stopCamera();
+              patch({ cameraOn: false, cameraPaused: false });
+              void presence?.setCamera(false, false);
+            },
           },
         });
       } catch (error) {

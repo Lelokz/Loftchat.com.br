@@ -1478,6 +1478,17 @@ export function mountApp(
     return null;
   }
 
+  /*
+   * Celular: com o app atrás, o Android corta a câmera (e mostrar a câmera de
+   * alguém que saiu do app seria estranho). A câmera PAUSA — os outros veem
+   * "Câmera pausada" — e volta sozinha quando a pessoa volta. A voz continua.
+   * No computador trocar de janela não pausa nada.
+   */
+  document.addEventListener('visibilitychange', () => {
+    if (!celularComCamera() || !store.getState().cameraOn) return;
+    void store.setCameraPaused(document.visibilityState === 'hidden');
+  });
+
   function alternarCamera(): void {
     const state = store.getState();
     if (state.cameraOn) {

@@ -181,6 +181,8 @@ export interface VoiceEngineCallbacks {
   onAudioBlocked: () => void;
   /** A transmissão parou pelo botão NATIVO do navegador. */
   onScreenShareEnded: () => void;
+  /** 0.9.5: a câmera parou sozinha (desconectada, outro programa pegou). */
+  onCameraEnded?: () => void;
 }
 
 /** Uma faixa de áudio que vai junto da tela, e como desligar a origem dela. */
@@ -422,6 +424,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
   /** A câmera ligada, ou null. Fonte da verdade do "minha câmera está ligada". */
   let cameraStream: MediaStream | null = null;
   let cameraPausada = false;
+  /** O último pedido de câmera, para pedir de novo ao voltar de uma pausa. */
+  let pedidoDaCamera: MediaTrackConstraints = { ...CAMERA_QUALITY };
   let denied = false;
   // Etapa 8c: o microfone, a saída e os filtros escolhidos em Voz e áudio.
   let ajustes = loadVoiceSettings();
@@ -1243,6 +1247,18 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
    */
   /* --- câmera (0.9.5) ------------------------------------------------------ */
 
+  /**
+   * A câmera acabou sem a pessoa desligar (desplugou, outro programa pegou).
+   * Pausada não conta: no celular o Android corta com o app atrás, e quem
+   * cuida disso é a volta da pausa.
+   */
+  function vigiarFim(faixa: MediaStreamTrack): void {
+    faixa.addEventListener('ended', () => {
+      if (destroyed || cameraPausada || cameraStream?.getVideoTracks()[0] !== faixa) return;
+      callbacks.onCameraEnded?.();
+    });
+  }
+
   /** Liga a câmera (ou nada, se pausada/desligada) no canal dela desta conexão. */
   async function attachCamera(peer: Peer): Promise<void> {
     // Sem canal: quem responde ainda não adotou, ou a outra pessoa está numa
@@ -1424,6 +1440,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       }
       // Diz ao codificador que é ROSTO em movimento, não tela com texto.
       faixa.contentHint = 'motion';
+      pedidoDaCamera = video;
+      vigiarFim(faixa);
       const velho = cameraStream;
       cameraStream = novo;
       for (const peer of peers.values()) {
@@ -1448,6 +1466,23 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
 
     async setCameraPaused(paused) {
       if (cameraPausada === paused) return;
+      // Voltando: o Android pode ter encerrado a câmera com o app atrás —
+      // aí pede de novo, do mesmo jeito.
+      const atual = cameraStream?.getVideoTracks()[0];
+      if (!paused && cameraStream !== null && (atual === undefined || atual.readyState === 'ended')) {
+        try {
+          const novo = await navigator.mediaDevices.getUserMedia({ video: pedidoDaCamera });
+          const faixa = novo.getVideoTracks()[0];
+          if (faixa !== undefined) {
+            faixa.contentHint = 'motion';
+            vigiarFim(faixa);
+          }
+          cameraStream.getTracks().forEach((t) => t.stop());
+          cameraStream = novo;
+        } catch (error) {
+          console.error('[voz] a câmera não voltou depois da pausa.', error);
+        }
+      }
       cameraPausada = paused;
       for (const peer of peers.values()) {
         peer.queue = peer.queue.then(() => attachCamera(peer)).catch(onError);

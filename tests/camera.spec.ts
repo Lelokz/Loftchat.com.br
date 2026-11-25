@@ -52,7 +52,12 @@ test('câmera: prévia, vídeo chega no outro, foco, esconder, desligar e permis
   const convite = new URL(await link.inputValue()).pathname;
   await pDono.getByRole('button', { name: 'Fechar' }).first().click();
 
-  const ctxAna = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // A Ana "está no celular" (Android no navegador): ganha o botão de virar e
+  // a pausa ao sair do app. Tela larga só para caber na foto.
+  const ctxAna = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36',
+  });
   const pAna = await ctxAna.newPage();
   await pAna.goto(convite);
   await signUpFromInviteUi(pAna, ana);
@@ -87,6 +92,23 @@ test('câmera: prévia, vídeo chega no outro, foco, esconder, desligar e permis
   await expect(blocoAnaNoDono).toHaveClass(/tem-camera/, { timeout: 30_000 });
   await expect.poll(() => temImagem(pDono, `.room__person[data-uid="${ana.uid}"] video`), { timeout: 30_000 }).toBe(true);
   await pDono.screenshot({ path: 'test-results/camera/2-grade.png' });
+
+  // 2b) Celular: virar a câmera continua ligado e mandando imagem.
+  await pAna.locator('.room__controls').getByRole('button', { name: 'Virar a câmera' }).click();
+  await expect.poll(() => temImagem(pDono, `.room__person[data-uid="${ana.uid}"] video`), { timeout: 30_000 }).toBe(true);
+
+  // 2c) O app da Ana vai para trás: a câmera PAUSA (o dono vê o aviso) e volta.
+  const mudarVisibilidade = (escondida: boolean) =>
+    pAna.evaluate((e) => {
+      Object.defineProperty(document, 'visibilityState', { value: e ? 'hidden' : 'visible', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, escondida);
+  await mudarVisibilidade(true);
+  await expect(blocoAnaNoDono.locator('.room__cam-pausada')).toBeVisible({ timeout: 30_000 });
+  await pDono.screenshot({ path: 'test-results/camera/2c-pausada.png' });
+  await mudarVisibilidade(false);
+  await expect(blocoAnaNoDono.locator('.room__cam-pausada')).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(() => temImagem(pDono, `.room__person[data-uid="${ana.uid}"] video`), { timeout: 30_000 }).toBe(true);
 
   // 3) Foco: clicar no bloco põe a câmera grande no palco; clicar de novo volta.
   await blocoAnaNoDono.click();
