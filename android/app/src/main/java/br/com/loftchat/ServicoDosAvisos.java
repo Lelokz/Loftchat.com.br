@@ -11,6 +11,9 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
@@ -35,6 +38,10 @@ import java.util.Map;
  */
 public class ServicoDosAvisos extends FirebaseMessagingService {
     static final String CANAL = "mensagens";
+    /** 0.9.5: ligação no PV tocando — canal próprio, com o toque de chamada. */
+    static final String CANAL_CHAMADAS = "chamadas";
+    /** Quanto tempo a notificação de chamada fica (a ligação toca 30 s). */
+    private static final long TOQUE_MS = 30_000;
     static final String EXTRA_ABRIR = "loftchat_abrir";
 
     @Override
@@ -47,6 +54,11 @@ public class ServicoDosAvisos extends FirebaseMessagingService {
         Map<String, String> d = mensagem.getData();
         String conversa = d.get("conversa");
         if (conversa == null) return;
+        if ("chamada".equals(d.get("tipo"))) {
+            // Com o app na frente, o cartão de atender já está na tela.
+            if (!MainActivity.naFrente) mostrarChamada(d, conversa);
+            return;
+        }
         // Já estou olhando essa conversa: nada de aviso.
         if (MainActivity.naFrente && conversa.equals(PluginDosAvisos.conversaAberta)) return;
         mostrar(d, conversa);
@@ -83,6 +95,56 @@ public class ServicoDosAvisos extends FirebaseMessagingService {
         } catch (SecurityException semPermissao) {
             // A pessoa não deixou o Loftchat notificar.
         }
+    }
+
+    /**
+     * "Fulano está te ligando": prioridade alta, categoria de chamada, o toque
+     * de chamada do celular, e some sozinha em 30 s (aí vira "chamada perdida"
+     * no chat). Tocar abre o Loftchat no privado, onde dá para atender.
+     */
+    private void mostrarChamada(Map<String, String> d, String conversa) {
+        criarCanalDeChamadas(this);
+        Intent abrir = new Intent(this, MainActivity.class)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_ABRIR, valor(d, "abrir", ""));
+        PendingIntent aoTocar = PendingIntent.getActivity(
+            this, ("chamada" + conversa).hashCode(), abrir, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        NotificationCompat.Builder aviso = new NotificationCompat.Builder(this, CANAL_CHAMADAS)
+            .setSmallIcon(R.drawable.loftchat_notificacao)
+            .setContentTitle(valor(d, "de", "Loftchat"))
+            .setContentText(valor(d, "texto", "está te ligando…"))
+            .setSubText("Ligação no privado")
+            .setWhen(quando(d.get("quando")))
+            .setShowWhen(true)
+            .setAutoCancel(true)
+            .setTimeoutAfter(TOQUE_MS)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
+            .setContentIntent(aoTocar);
+        Bitmap foto = baixarFoto(d.get("foto"));
+        if (foto != null) aviso.setLargeIcon(foto);
+        try {
+            NotificationManagerCompat.from(this).notify(("chamada" + conversa).hashCode(), aviso.build());
+        } catch (SecurityException semPermissao) {
+            // A pessoa não deixou o Loftchat notificar.
+        }
+    }
+
+    static void criarCanalDeChamadas(android.content.Context contexto) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager gerente = contexto.getSystemService(NotificationManager.class);
+        if (gerente.getNotificationChannel(CANAL_CHAMADAS) != null) return;
+        NotificationChannel canal = new NotificationChannel(CANAL_CHAMADAS, "Chamadas", NotificationManager.IMPORTANCE_HIGH);
+        canal.setDescription("Quando um amigo te liga no privado.");
+        Uri toque = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+        canal.setSound(toque, new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build());
+        canal.enableVibration(true);
+        gerente.createNotificationChannel(canal);
     }
 
     static void criarCanal(android.content.Context contexto) {

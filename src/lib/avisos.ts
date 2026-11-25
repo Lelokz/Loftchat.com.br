@@ -68,7 +68,7 @@ export function mudarAvisos(ligado: boolean): void {
 /* ------------------------------ o carteiro ------------------------------ */
 
 /** Depois de mandar: pede ao carteiro para avisar os outros. Nunca atrapalha o envio. */
-export function avisarCarteiro(tipo: 'grupo' | 'pv', id: string): void {
+export function avisarCarteiro(tipo: 'grupo' | 'pv' | 'chamada', id: string): void {
   const usuario = auth.currentUser;
   if (usuario === null) return;
   void usuario
@@ -124,6 +124,8 @@ export interface Avisos {
 }
 
 interface Aviso {
+  /** 0.9.5: 'chamada' = alguém ligando no PV. */
+  tipo?: string;
   mensagem?: string;
   de?: string;
   onde?: string;
@@ -184,7 +186,9 @@ export function ligarAvisos(uid: string, abrir: (rota: string) => void): Avisos 
         if (aviso === undefined || id === undefined || id === ultimo) return;
         ultimo = id;
         if (!(Date.now() - Date.parse(aviso.quando ?? '') < IDADE_MAX_MS)) return;
-        const olhando = document.hasFocus() && document.visibilityState === 'visible' && aviso.conversa === aberta;
+        // Ligação: com a janela na frente, o cartão da chamada já está na tela.
+        const naFrente = document.hasFocus() && document.visibilityState === 'visible';
+        const olhando = naFrente && (aviso.tipo === 'chamada' || aviso.conversa === aberta);
         if (olhando) return;
         void desktop.avisar?.({
           titulo: aviso.de ?? 'Loftchat',

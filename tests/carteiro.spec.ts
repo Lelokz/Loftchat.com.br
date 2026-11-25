@@ -123,6 +123,35 @@ test('carteiro: avisa quem é do grupo e do PV, com o texto cortado e a foto', a
 
   // Nada foi para o Caio nem para a própria Ana.
   expect((await envios()).filter((e) => e['para'] === c || e['para'] === a)).toHaveLength(0);
+
+  // 0.9.5: LIGAÇÃO tocando — o Beto recebe "está te ligando com câmera".
+  const ligouEm = new Date().toISOString();
+  await comoDono(`chamadas/${dupla}`, { de: a, para: b, comCamera: 'x', estado: 'tocando', criadaEm: ligouEm });
+  await fetch(`${FS}/chamadas/${dupla}?updateMask.fieldPaths=comCamera`, {
+    method: 'PATCH',
+    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+    body: JSON.stringify({ fields: { comCamera: { booleanValue: true } } }),
+  });
+  // Só quem ligou pode pedir o aviso.
+  expect((await avisarComo(beto, { tipo: 'chamada', id: dupla })).status).toBe(403);
+  expect((await avisarComo(ana, { tipo: 'chamada', id: dupla })).status).toBe(202);
+  const daChamada = `chamada-${Date.parse(ligouEm)}`;
+  await expect.poll(async () => (await envios()).filter((e) => e['mensagem'] === daChamada).length).toBeGreaterThan(0);
+  const ligacao = (await envios()).filter((e) => e['mensagem'] === daChamada);
+  expect(ligacao.every((e) => e['para'] === b)).toBe(true);
+  expect(ligacao[0]!['tipo']).toBe('chamada');
+  expect(ligacao[0]!['texto']).toBe('está te ligando com câmera…');
+  expect(ligacao[0]!['abrir']).toBe(`pv/${a}`);
+  // O PC do Beto também (avisos/{uid}).
+  const noPc = (await (await fetch(`${FS}/avisos/${b}`, { headers: { authorization: 'Bearer owner' } })).json()) as {
+    fields?: { ultimo?: { mapValue?: { fields?: Record<string, { stringValue?: string }> } } };
+  };
+  expect(noPc.fields?.ultimo?.mapValue?.fields?.['tipo']?.stringValue).toBe('chamada');
+  // Parou de tocar (atendeu/recusou) ou é velha: nada de aviso.
+  await comoDono(`chamadas/${dupla}`, { de: a, para: b, estado: 'recusada', criadaEm: ligouEm });
+  expect((await avisarComo(ana, { tipo: 'chamada', id: dupla })).status).toBe(409);
+  await comoDono(`chamadas/${dupla}`, { de: a, para: b, estado: 'tocando', criadaEm: new Date(Date.now() - 60_000).toISOString() });
+  expect((await avisarComo(ana, { tipo: 'chamada', id: dupla })).status).toBe(409);
 });
 
 test('regras: aparelhos só a própria pessoa; avisos só o carteiro escreve', async () => {

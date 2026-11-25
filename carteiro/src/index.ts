@@ -28,6 +28,8 @@ export interface Env {
 
 const TEXTO_MAX = 180;
 const IDADE_MAX_MS = 2 * 60_000;
+/** 0.9.5: a ligação toca por 30 s; aviso de chamada mais velha que isto não sai. */
+const TOQUE_MAX_MS = 40_000;
 const AVISOS_POR_MINUTO = 40;
 
 type Dados = Record<string, unknown>;
@@ -377,6 +379,23 @@ async function avisar(req: Request, env: Env, ctx: ExecutionContext): Promise<Re
   const corpo = (await req.json().catch(() => null)) as { tipo?: unknown; id?: unknown } | null;
   const tipo = corpo?.tipo;
   const id = corpo?.id;
+  // 0.9.5: ligação no PV tocando — o id é o par ({a}_{b}).
+  if (tipo === 'chamada') {
+    if (typeof id !== 'string' || !/^[A-Za-z0-9]{1,40}_[A-Za-z0-9]{1,40}$/.test(id)) return json({ erro: 'pedido errado' }, 400);
+    if (passouDoLimite(uid)) return json({ erro: 'devagar' }, 429);
+    const chamada = await ler(env, `chamadas/${id}`);
+    if (chamada === null) return json({ erro: 'chamada não existe' }, 404);
+    if (chamada['de'] !== uid) return json({ erro: 'chamada de outra pessoa' }, 403);
+    if (chamada['estado'] !== 'tocando') return json({ erro: 'não está tocando' }, 409);
+    const criada = Date.parse(String(chamada['criadaEm']));
+    if (!(Date.now() - criada < TOQUE_MAX_MS)) return json({ erro: 'chamada velha' }, 409);
+    const chave = `chamada:${id}:${criada}`;
+    if (jaAvisadas.has(chave)) return json({ ok: true, repetido: true });
+    jaAvisadas.add(chave);
+    const origem = new URL(req.url).origin;
+    ctx.waitUntil(entregarChamada(env, origem, uid, chamada).catch((e: unknown) => console.log(String(e))));
+    return json({ ok: true }, 202);
+  }
   if ((tipo !== 'grupo' && tipo !== 'pv') || typeof id !== 'string' || !/^[A-Za-z0-9]{1,40}$/.test(id)) {
     return json({ erro: 'pedido errado' }, 400);
   }
@@ -462,6 +481,47 @@ async function entregar(env: Env, origem: string, tipo: 'grupo' | 'pv', id: stri
       envios.push(gravar(env, `avisos/${pessoa}`, { ultimo: { mapValue: { fields: camposDeTexto(dados) } } }));
     }
   });
+  await Promise.all(envios);
+}
+
+/**
+ * 0.9.5: "Fulano está te ligando". Vai para os aparelhos de quem recebe,
+ * pelo mesmo caminho das mensagens (celular pelo Google, PC pelo avisos/{uid}),
+ * com `tipo: chamada` — o celular toca como ligação.
+ */
+async function entregarChamada(env: Env, origem: string, uid: string, chamada: Dados): Promise<void> {
+  const para = String(chamada['para']);
+  if (!/^[A-Za-z0-9]{1,40}$/.test(para) || para === uid) return;
+  const perfil = await guardado(`users/${uid}`, 5 * 60_000, () => ler(env, `users/${uid}`));
+  const nome = typeof perfil?.['displayName'] === 'string' ? perfil['displayName'] : 'Alguém';
+  const foto = perfil?.['photo'];
+  const criadaEm = String(chamada['criadaEm']);
+  const comCamera = chamada['comCamera'] === true;
+  const dados: Record<string, string> = {
+    tipo: 'chamada',
+    mensagem: `chamada-${Date.parse(criadaEm)}`,
+    de: nome,
+    deUid: uid,
+    onde: 'no seu privado',
+    texto: comCamera ? 'está te ligando com câmera…' : 'está te ligando…',
+    comCamera: comCamera ? 'sim' : 'nao',
+    quando: criadaEm,
+    conversa: `pv:${uid}`,
+    abrir: `pv/${uid}`,
+    foto: typeof foto === 'string' && foto.startsWith('data:image/') ? await enderecoDaFoto(env, origem, uid, foto) : '',
+  };
+  const [aparelhos] = await lerVarios(env, [`aparelhos/${para}`]);
+  const lista = (aparelhos?.['lista'] ?? {}) as Record<string, Aparelho>;
+  const envios: Promise<void>[] = [];
+  let temPc = false;
+  for (const [aparelho, a] of Object.entries(lista)) {
+    if (a.tipo === 'android' && typeof a.token === 'string' && a.token.length < 4096) {
+      envios.push(mandarPeloGoogle(env, para, aparelho, a.token, dados));
+    } else if (a.tipo === 'pc') {
+      temPc = true;
+    }
+  }
+  if (temPc) envios.push(gravar(env, `avisos/${para}`, { ultimo: { mapValue: { fields: camposDeTexto(dados) } } }));
   await Promise.all(envios);
 }
 

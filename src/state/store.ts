@@ -38,6 +38,7 @@ import type { PresenceSession } from '../lib/voice-presence';
 import { clearMySignals, clearPairSignals } from '../lib/voice-signaling';
 import { MAX_CAMERAS, startVoiceEngine } from '../lib/voice-engine';
 import { loadCameraSettings } from '../lib/camera-settings';
+import { avisarCarteiro } from '../lib/avisos';
 import {
   duracaoDaLigacao,
   grupoDoPv,
@@ -1762,6 +1763,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         console.error('[chamadas] não deu para ligar.', error);
         return 'Não deu para ligar agora. Vocês precisam ser amigos.';
       }
+      // Avisa o celular/PC da outra pessoa (com o app fechado também).
+      avisarCarteiro('chamada', chamada.par);
       const motivo = await entrarNaVozDoPv(friendUid, comCamera, true);
       if (motivo !== null) {
         void mudarEstado(chamada.par, 'cancelada').catch(() => {});
