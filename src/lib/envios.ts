@@ -1,4 +1,4 @@
-import { ArquivoRecusado, mandarArquivo, prepararArquivo, subirArquivo } from './midia';
+import { ArquivoRecusado, mandarArquivo, mandarArquivoQualquer, prepararArquivo, subirArquivo } from './midia';
 import type { Gravacao } from './gravador';
 import type { Midia } from './firestore';
 
@@ -69,6 +69,37 @@ export async function mandarArquivos(
           ? erro.message
           : 'Não deu para mandar o arquivo.',
       );
+    } finally {
+      envios.delete(id);
+      avisar();
+    }
+  }
+}
+
+/** 0.11.0: arquivos quaisquer (PDF, ZIP…), um por mensagem, com a porcentagem na fila. */
+export async function mandarDocumentos(
+  destino: string,
+  arquivos: File[],
+  legenda: string,
+  enviar: (midia: Midia, legenda: string) => Promise<void>,
+  aoErro: (texto: string) => void,
+): Promise<void> {
+  let primeira = true;
+  for (const arquivo of arquivos) {
+    const id = proximo++;
+    envios.set(id, { id, destino, previa: '', progresso: 0, nome: arquivo.name });
+    avisar();
+    try {
+      const midia = await mandarArquivoQualquer(arquivo, (fracao) => {
+        const atual = envios.get(id);
+        if (atual === undefined) return;
+        envios.set(id, { ...atual, progresso: fracao });
+        avisar();
+      });
+      await enviar(midia, primeira ? legenda : '');
+      primeira = false;
+    } catch (erro) {
+      aoErro(erro instanceof Error ? erro.message : 'Não deu para mandar o arquivo.');
     } finally {
       envios.delete(id);
       avisar();

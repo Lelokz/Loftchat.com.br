@@ -18,6 +18,8 @@ export interface RoomPanelProps {
   onSend: (body: string) => Promise<void>;
   /** 0.5.0: imagem, GIF e vídeo no chat da sala. */
   aoArquivos?: (arquivos: File[], legenda: string, vezes?: number) => void;
+  /** 0.11.0: arquivo qualquer. */
+  aoDocumentos?: (arquivos: File[], legenda: string) => void;
   destino?: string;
   aoFigurinha?: (figurinha: Figurinha) => void;
   /** 0.5.5: mensagem de voz. */
@@ -64,6 +66,7 @@ export function renderRoomPanel(props: RoomPanelProps): RoomPanelParts {
       painel: {},
       ...(props.destino === undefined ? {} : { destino: props.destino }),
       ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
+      ...(props.aoDocumentos === undefined ? {} : { aoDocumentos: props.aoDocumentos }),
       ...(props.aoFigurinha === undefined ? {} : { aoFigurinha: props.aoFigurinha }),
       ...(props.aoVoz === undefined ? {} : { aoVoz: props.aoVoz }),
       ...(props.comandos === undefined ? {} : { comandos: props.comandos }),

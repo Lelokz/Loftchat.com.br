@@ -16,9 +16,11 @@ const MB = 1024 * 1024;
 export const MAX_IMAGEM = 20 * MB;
 export const MAX_GIF = 20 * MB;
 export const MAX_VIDEO = 50 * MB;
+/** 0.11.0: arquivo qualquer (PDF, ZIP, documento…). */
+export const MAX_ARQUIVO = 50 * MB;
 const LADO_MAXIMO = 2048;
 
-export type TipoDoArquivo = 'imagem' | 'gif' | 'video' | 'figurinha' | 'capa' | 'audio' | 'unica';
+export type TipoDoArquivo = 'imagem' | 'gif' | 'video' | 'figurinha' | 'capa' | 'audio' | 'unica' | 'arquivo';
 
 export interface Preparado {
   kind: Extract<MessageKind, 'image' | 'gif' | 'video'>;
@@ -145,13 +147,15 @@ export async function subirArquivo(
   formato: string,
   tipo: TipoDoArquivo,
   aoProgresso: (fracao: number) => void = () => undefined,
+  /** 0.11.0: o nome original (o download sai com ele). */
+  nome = '',
 ): Promise<Guardado> {
   const usuario = auth.currentUser;
   if (usuario === null) throw new Error('Entre de novo para mandar arquivos.');
   const token = await usuario.getIdToken();
   return new Promise((pronto, falhou) => {
     const pedido = new XMLHttpRequest();
-    pedido.open('POST', `${CARTEIRO}/arquivo?tipo=${tipo}`);
+    pedido.open('POST', `${CARTEIRO}/arquivo?tipo=${tipo}${nome !== '' ? `&nome=${encodeURIComponent(nome.slice(0, 120))}` : ''}`);
     pedido.setRequestHeader('authorization', `Bearer ${token}`);
     pedido.setRequestHeader('content-type', formato);
     pedido.upload.onprogress = (e) => {
@@ -226,6 +230,23 @@ export async function mandarArquivo(
       ...(preparado.duracaoMs === undefined ? {} : { durationMs: preparado.duracaoMs }),
       ...(capaUrl === undefined ? {} : { capaUrl }),
     },
+  };
+}
+
+/** 0.11.0: manda um arquivo qualquer (vira mensagem `file`). */
+export async function mandarArquivoQualquer(
+  arquivo: File,
+  aoProgresso: (fracao: number) => void,
+): Promise<{ kind: 'file'; attachment: Attachment }> {
+  if (arquivo.size === 0) throw new ArquivoRecusado('Esse arquivo está vazio.');
+  if (arquivo.size > MAX_ARQUIVO) {
+    throw new ArquivoRecusado(`Esse arquivo tem ${tamanhoEmMb(arquivo.size)}. O limite é ${tamanhoEmMb(MAX_ARQUIVO)}.`);
+  }
+  const formato = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(arquivo.type.toLowerCase()) ? arquivo.type.toLowerCase() : 'application/octet-stream';
+  const guardado = await subirArquivo(arquivo, formato, 'arquivo', aoProgresso, arquivo.name);
+  return {
+    kind: 'file',
+    attachment: { url: guardado.url, chave: guardado.chave, fileName: arquivo.name.slice(0, 120), mimeType: formato, sizeBytes: arquivo.size },
   };
 }
 

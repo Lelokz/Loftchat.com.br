@@ -2,7 +2,7 @@ import './composer.css';
 
 import { el, iconEl } from '../../../lib/dom';
 import { textoDoErro } from '../../../lib/firestore-errors';
-import { attachIcon, imageIcon, micIcon, sendIcon, stickerIcon, trashIcon, unicaIcon } from '../../../lib/icons';
+import { attachIcon, fileIcon, imageIcon, micIcon, sendIcon, stickerIcon, trashIcon, unicaIcon } from '../../../lib/icons';
 import { enviosDe, ouvirEnvios } from '../../../lib/envios';
 import { comecarGravacao, MAX_VOZ_MS, relogio } from '../../../lib/gravador';
 import type { Gravacao, Gravador } from '../../../lib/gravador';
@@ -33,6 +33,8 @@ export interface ComposerProps {
    * de envio de cada conversa. 0.10.0: `vezes` = visualização única.
    */
   aoArquivos?: (arquivos: File[], legenda: string, vezes?: number) => void;
+  /** 0.11.0: mandar arquivo qualquer (PDF, ZIP, documento…). */
+  aoDocumentos?: (arquivos: File[], legenda: string) => void;
   destino?: string;
   /** 0.5.0: mandar a figurinha escolhida no painel. */
   aoFigurinha?: (figurinha: Figurinha) => void;
@@ -60,6 +62,8 @@ export interface LimitesDoComposer {
   figurinhas: boolean;
   /** 0.10.5: "Mandar visualização única" (ausente = pode, como no PV). */
   unica?: boolean;
+  /** 0.11.0: "Mandar arquivos" (ausente = pode, como no PV). */
+  arquivos?: boolean;
 }
 
 const limitadores = new WeakMap<HTMLElement, (l: LimitesDoComposer) => void>();
@@ -86,6 +90,7 @@ export function renderComposer({
   onSend,
   painel: opcoesDoPainel,
   aoArquivos,
+  aoDocumentos,
   destino = '',
   aoFigurinha,
   aoVoz,
@@ -364,9 +369,30 @@ export function renderComposer({
         ]);
   // 0.10.0: visualização única — um arquivo, foto ou vídeo (GIF não).
   const escolherUnica = el('input', { type: 'file', accept: ACEITA_UNICA, hidden: '' }) as HTMLInputElement;
+  // 0.11.0: arquivo qualquer.
+  const escolherDocumento = el('input', { type: 'file', multiple: '', hidden: '' }) as HTMLInputElement;
+  const podeDocumentos = (): boolean => aoDocumentos !== undefined && limites.motivo === null && limites.arquivos !== false;
+  function mandarDocumentos(lista: File[]): void {
+    if (lista.length === 0 || aoDocumentos === undefined) return;
+    if (!podeDocumentos()) {
+      setError('Você não pode mandar arquivos aqui.');
+      return;
+    }
+    const legenda = input.value.trim();
+    input.value = '';
+    autoGrow();
+    aoDocumentos(lista, legenda);
+  }
+  escolherDocumento.addEventListener('change', () => {
+    mandarDocumentos([...(escolherDocumento.files ?? [])]);
+    escolherDocumento.value = '';
+  });
   const fila = el('div', { class: 'composer__envios', 'aria-live': 'polite' });
 
   function mandarArquivos(lista: FileList | File[] | null): void {
+    // 0.11.0: o que não é foto/vídeo (PDF, ZIP…) vai como arquivo.
+    const outros = [...(lista ?? [])].filter((f) => !f.type.startsWith('image/') && !f.type.startsWith('video/'));
+    if (outros.length > 0) mandarDocumentos(outros);
     const todos = [...(lista ?? [])].filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'));
     // 0.8.5: só o que o cargo deixa (foto, GIF, vídeo).
     const pode = (f: File): boolean =>
@@ -386,6 +412,9 @@ export function renderComposer({
       const podeUnica = limites.motivo === null && limites.unica !== false && (limites.fotos || limites.videos);
       openMenu({ rect: botaoAnexo.getBoundingClientRect() }, [
         { label: 'Foto, GIF ou vídeo', hint: 'Fica no chat como sempre', icon: imageIcon(19), onSelect: () => escolher.click() },
+        ...(podeDocumentos()
+          ? [{ label: 'Arquivo', hint: 'PDF, ZIP, documento… até 50 MB', icon: fileIcon(19), onSelect: () => escolherDocumento.click() }]
+          : []),
         ...(podeUnica
           ? [{ label: 'Visualização única', hint: 'Foto ou vídeo que some depois de ver', icon: unicaIcon(20), onSelect: () => escolherUnica.click() }]
           : []),
@@ -429,7 +458,7 @@ export function renderComposer({
       ...enviosDe(destino).map((envio) =>
         el('div', { class: 'composer__envio' }, [
           envio.previa === ''
-            ? el('span', { class: 'composer__envio-previa' }, [envio.nome === 'Mensagem de voz' ? iconEl(micIcon(22)) : false])
+            ? el('span', { class: 'composer__envio-previa' }, [iconEl(envio.nome === 'Mensagem de voz' ? micIcon(22) : fileIcon(22))])
             : el('img', { class: 'composer__envio-previa', src: envio.previa, alt: '' }),
           el('span', { class: 'composer__envio-texto' }, [
             `Enviando… ${Math.round(envio.progresso * 100)}%`,
@@ -542,6 +571,7 @@ export function renderComposer({
     linha,
     escolher,
     escolherUnica,
+    escolherDocumento,
     painel?.element ?? false,
   ]);
 

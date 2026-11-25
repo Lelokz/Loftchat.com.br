@@ -358,7 +358,7 @@ function textoDoAviso(msg: Dados): string {
   }
   const corpo = String(msg['body'] ?? '').trim();
   if (corpo !== '') return cortar(corpo);
-  const tipos: Record<string, string> = { image: '📷 Foto', gif: 'GIF', video: '🎬 Vídeo', sticker: 'Figurinha', audio: '🎤 Mensagem de voz' };
+  const tipos: Record<string, string> = { image: '📷 Foto', gif: 'GIF', video: '🎬 Vídeo', sticker: 'Figurinha', audio: '🎤 Mensagem de voz', file: '📎 Arquivo' };
   return tipos[String(msg['kind'])] ?? '';
 }
 

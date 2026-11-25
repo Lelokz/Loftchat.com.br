@@ -131,7 +131,7 @@ import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
 import { ligarAvisos } from './lib/avisos';
 import { criarNaoLidas } from './lib/nao-lidas';
-import { mandarArquivos, mandarVoz } from './lib/envios';
+import { mandarArquivos, mandarDocumentos, mandarVoz } from './lib/envios';
 import type { Gravacao } from './lib/gravador';
 import { ligarFigurinhas, usouFigurinha } from './lib/figurinhas';
 import type { Figurinha } from './lib/figurinhas';
@@ -1097,6 +1097,27 @@ export function mountApp(
     void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo, vezes);
   };
 
+  /* ARQUIVOS (0.11.0): PDF, ZIP, documento… (grupo, PV ou sala). */
+  const handleDocumentos = (arquivos: File[], legenda: string): void => {
+    const state = store.getState();
+    const amigo = pvAberto(state);
+    if (amigo !== null) {
+      void mandarDocumentos(`pv:${amigo}`, arquivos, legenda, (midia, texto) => sendDmMessage(user.uid, amigo, texto, undefined, midia), avisarErroDoArquivo);
+      return;
+    }
+    if (state.activeGroupId === null || state.activeChannelId === null) return;
+    const grupo = state.activeGroupId;
+    const canal = state.activeChannelId;
+    void mandarDocumentos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
+  };
+  const handleDocumentosSala = (arquivos: File[], legenda: string): void => {
+    const state = store.getState();
+    const grupo = state.voice?.groupId ?? null;
+    const canal = state.roomChatChannelId;
+    if (grupo === null || canal === null) return;
+    void mandarDocumentos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
+  };
+
   /* MENSAGEM DE VOZ (0.5.5): sobe o áudio e grava a mensagem (grupo, PV ou sala). */
   const handleVoz = (gravacao: Gravacao): void => {
     const state = store.getState();
@@ -1864,6 +1885,7 @@ export function mountApp(
         },
         onSend: handleSendSala,
         aoArquivos: handleArquivosSala,
+        aoDocumentos: handleDocumentosSala,
         aoFigurinha: handleFigurinhaSala,
         aoVoz: handleVozSala,
         comandos: () => comandosParaMim(store.getState(), store.getState().voice?.channelId ?? ''),
@@ -2841,6 +2863,7 @@ export function mountApp(
                   onSend: handleSend,
                   painel: {},
                   aoArquivos: handleArquivos,
+                  aoDocumentos: handleDocumentos,
                   aoFigurinha: handleFigurinha,
                   aoVoz: handleVoz,
                   destino: `pv:${friendUid}`,
@@ -2960,6 +2983,7 @@ export function mountApp(
           channel,
           onSend: handleSend,
           aoArquivos: handleArquivos,
+          aoDocumentos: handleDocumentos,
           aoFigurinha: handleFigurinha,
           aoVoz: handleVoz,
           comandos: () => comandosParaMim(store.getState(), store.getState().activeChannelId ?? ''),
@@ -3109,6 +3133,7 @@ export function mountApp(
       audio: posso(state, 'mandar-audio', canal),
       figurinhas: posso(state, 'mandar-figurinhas', canal),
       unica: posso(state, 'visualizacao-unica', canal),
+      arquivos: posso(state, 'mandar-arquivos', canal),
     });
     if (state.activeChannelId !== null) {
       const canal = state.activeChannelId;

@@ -229,3 +229,9 @@ export const encaminharIcon = (size?: number): string => svg('<path d="m15 6 6 6
 /** Mais opções (0.11.0): três pontos. */
 export const moreIcon = (size?: number): string =>
   svg('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>', size);
+
+/** Baixar (0.11.0): o cartão do arquivo. */
+export const downloadIcon = (size?: number): string => svg('<path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/>', size);
+
+/** Alerta (0.11.0): o aviso de programa no cartão do arquivo. */
+export const alertIcon = (size?: number): string => svg('<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/>', size);

@@ -200,13 +200,16 @@ export function rotuloDaMidia(kind: MessageKind | undefined, unica = false): str
       return 'Figurinha';
     case 'audio':
       return '🎤 Mensagem de voz';
+    case 'file':
+      return '📎 Arquivo';
     default:
       return '';
   }
 }
 
 /** Tipos de mensagem com arquivo (0.5.0). Arquivo de fora do Loftchat vira texto. */
-const TIPOS_COM_ANEXO = new Set<unknown>(['image', 'gif', 'video', 'sticker', 'audio']);
+// 0.11.0: 'file' (arquivo qualquer) entrou.
+const TIPOS_COM_ANEXO = new Set<unknown>(['image', 'gif', 'video', 'sticker', 'audio', 'file']);
 
 function toMessageBase(id: string, data: DocumentData): MessageBase {
   const kind = data['kind'];

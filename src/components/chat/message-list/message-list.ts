@@ -4,7 +4,7 @@ import "./chamada.css";
 import { avatarEl, el, iconEl } from "../../../lib/dom";
 import { nameColorId } from "../../../lib/person-theme";
 import { iconeDoCargo, corDoCargo } from "../../../lib/dom";
-import { cameraIcon, clipIcon, encaminharIcon, fileIcon, phoneIcon } from "../../../lib/icons";
+import { cameraIcon, encaminharIcon, phoneIcon } from "../../../lib/icons";
 import "../../encaminhar/encaminhar.css";
 import { duracaoDaLigacao } from "../../../lib/chamadas";
 import {
@@ -20,6 +20,7 @@ import { renderVoz } from "../../voz/voz";
 import { montarTranscricao } from "../../voz/transcricao";
 import { renderBalaoUnica } from "../../unica/balao";
 import { renderReacoes } from "../../reacoes/reacoes";
+import { renderArquivo } from "../../arquivo/arquivo";
 import type {
   Attachment,
   Member,
@@ -639,7 +640,8 @@ function renderContent(message: MessageBase, tipo: "pv" | "grupo" = "grupo"): HT
 
     case "file":
       return el("div", { class: "message__content" }, [
-        message.attachment && renderFile(message.attachment),
+        // 0.11.0: o cartão novo (etiqueta do tipo, nome, tamanho, baixar).
+        message.attachment && renderArquivo(message.attachment),
         message.body !== "" &&
           el("p", { class: "message__text" }, textoComLinks(message.body)),
       ]);
@@ -712,18 +714,4 @@ function renderMidia(kind: "image" | "gif" | "video" | "sticker", anexo: Attachm
   return caixa;
 }
 
-function renderFile(attachment: Attachment): HTMLElement {
-  return el("div", { class: "attachment" }, [
-    iconEl(fileIcon(20), "icon attachment__icon"),
-    el("span", { class: "attachment__info" }, [
-      el("span", { class: "attachment__name", title: attachment.fileName }, [
-        attachment.fileName,
-      ]),
-      el("span", { class: "attachment__meta" }, [
-        formatBytes(attachment.sizeBytes),
-      ]),
-    ]),
-    iconEl(clipIcon(16), "icon attachment__trailing"),
-  ]);
-}
 

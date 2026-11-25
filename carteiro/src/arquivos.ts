@@ -2,7 +2,7 @@
  * ARQUIVOS (0.5.0): imagem, GIF, vídeo e figurinha, guardados no R2 da
  * Cloudflare (grátis até 10 GB guardados; baixar é sempre grátis).
  *
- * POST /arquivo?tipo=imagem|gif|video|capa|figurinha|audio   (com login; o corpo é o arquivo)
+ * POST /arquivo?tipo=imagem|gif|video|capa|figurinha|audio|arquivo[&nome=]   (com login; o corpo é o arquivo)
  * GET  /arquivo/<chave>                                 (público, com suporte a pedaço — vídeo avança)
  *      (menos `unica/`: visualização única só sai por POST /unica/abrir, ver unica.ts)
  *
@@ -18,6 +18,7 @@ interface Objeto {
   uploaded: Date;
   httpEtag: string;
   httpMetadata?: { contentType?: string };
+  customMetadata?: Record<string, string>;
   range?: { offset: number; length: number };
 }
 interface ObjetoComCorpo extends Objeto {
@@ -45,6 +46,8 @@ export const TIPOS: Record<string, { maximo: number; aceita: RegExp }> = {
   figurinha: { maximo: 1 * MB, aceita: /^image\/(webp|png|gif)$/ },
   // Mensagem de voz (0.5.5): até 5 minutos em Opus dá ~2 MB; 5 MB sobra.
   audio: { maximo: 5 * MB, aceita: /^audio\/(webm|ogg|mp4|aac|mpeg)$/ },
+  // Arquivo qualquer (0.11.0): PDF, ZIP, documento, programa… Sai SEMPRE como download.
+  arquivo: { maximo: 50 * MB, aceita: /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/ },
   // Visualização única (0.10.0): foto ou vídeo. NUNCA sai pelo GET público (unica.ts).
   unica: { maximo: 50 * MB, aceita: /^(image\/(webp|jpeg|png)|video\/(mp4|webm|quicktime|3gpp|x-matroska))$/ },
 };
@@ -121,9 +124,11 @@ export async function receberArquivo(req: Request, balde: Balde, uid: string): P
   if (req.body === null) return json({ erro: 'sem arquivo' }, 400);
 
   const chave = `${tipo}/${uid}/${sorteio()}`;
+  // 0.11.0: o nome do arquivo (para o download sair com ele), sem nada perigoso.
+  const nome = (url.searchParams.get('nome') ?? '').replace(/[\u0000-\u001f"\\/<>:|?*]/g, '').trim().slice(0, 120);
   const salvo = await balde.put(chave, req.body, {
     httpMetadata: { contentType: formato, cacheControl: FECHADAS.has(tipo) ? 'no-store' : 'public, max-age=31536000, immutable' },
-    customMetadata: { uid },
+    customMetadata: { uid, ...(tipo === 'arquivo' && nome !== '' ? { nome } : {}) },
   });
   if (salvo === null) return json({ erro: 'não salvou' }, 500);
   // Conta o que entrou, até a próxima limpeza recontar tudo.
@@ -142,6 +147,15 @@ export async function entregarArquivo(req: Request, balde: Balde, chave: string)
   if (obj === null) return new Response('expirou', { status: 404, headers: CORS });
   const cabecalhos = new Headers(CORS);
   cabecalhos.set('content-type', obj.httpMetadata?.contentType ?? 'application/octet-stream');
+  cabecalhos.set('x-content-type-options', 'nosniff');
+  // 0.11.0: arquivo qualquer NUNCA abre como página (um .html viraria site no endereço do carteiro):
+  // sai como "baixar", com o nome original.
+  if (tipo === 'arquivo') {
+    const nome = obj.customMetadata?.['nome'] ?? 'arquivo';
+    cabecalhos.set('content-type', 'application/octet-stream');
+    cabecalhos.set('content-disposition', `attachment; filename="${nome.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(nome)}`);
+    cabecalhos.set('content-security-policy', "default-src 'none'; sandbox");
+  }
   cabecalhos.set('cache-control', 'public, max-age=31536000, immutable');
   cabecalhos.set('accept-ranges', 'bytes');
   cabecalhos.set('etag', obj.httpEtag);

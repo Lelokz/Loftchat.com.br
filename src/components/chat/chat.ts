@@ -14,6 +14,8 @@ export interface ChatProps {
   onSend: (body: string) => Promise<void>;
   /** 0.5.0: imagem, GIF e vídeo (ver ComposerProps). */
   aoArquivos?: (arquivos: File[], legenda: string, vezes?: number) => void;
+  /** 0.11.0: arquivo qualquer. */
+  aoDocumentos?: (arquivos: File[], legenda: string) => void;
   aoFigurinha?: (figurinha: Figurinha) => void;
   /** 0.5.5: mensagem de voz. */
   aoVoz?: (gravacao: Gravacao) => void;
@@ -135,6 +137,7 @@ export function renderChat(props: ChatProps): ChatParts {
         painel: {},
         destino: `canal:${channel.id}`,
         ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
+      ...(props.aoDocumentos === undefined ? {} : { aoDocumentos: props.aoDocumentos }),
         ...(props.aoFigurinha === undefined ? {} : { aoFigurinha: props.aoFigurinha }),
       ...(props.aoVoz === undefined ? {} : { aoVoz: props.aoVoz }),
         ...(props.comandos === undefined ? {} : { comandos: props.comandos }),
