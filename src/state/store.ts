@@ -1049,7 +1049,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     stopCargos = ouvirCargos(
       groupId,
       (cargos) => patch({ cargos, members: comInsignias(membrosCrus, cargos, dono()) }),
-      (erro) => console.error('[cargos]', erro),
+      groupListenerError(groupId),
     );
 
     // Uma assinatura para TODOS os canais de voz do grupo: a coluna mostra a

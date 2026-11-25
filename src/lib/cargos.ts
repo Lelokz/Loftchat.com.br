@@ -178,7 +178,9 @@ export function insigniaDe(m: Member, cargos: Cargo[], ownerId: string | null): 
   const comIcone = meus.find((c) => c.icone !== undefined || c.imagem !== undefined);
   const separado = meus.find((c) => c.separado);
   const insignia: Insignia = {
-    cor: dono && comCor === undefined ? COR_DO_DONO : (comCor?.cor ?? null),
+    // O laranja do Dono é só o padrão: se a pessoa escolheu a cor do próprio
+    // nome (Perfil), ela vale — só a cor de um CARGO passa por cima.
+    cor: comCor?.cor ?? (dono && (m.nameColor === undefined || m.nameColor === '' || m.nameColor === 'padrao') ? COR_DO_DONO : null),
     bloco: dono ? 'Dono' : (separado?.nome ?? null),
     blocoPosicao: dono ? -1 : (separado?.posicao ?? 99999),
     cargos: meus,

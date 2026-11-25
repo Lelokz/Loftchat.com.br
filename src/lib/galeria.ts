@@ -1,4 +1,5 @@
 import { subscribeGaleria } from './firestore';
+import { isPermissionDenied } from './firestore-errors';
 import type { Message } from '../types/models';
 
 /**
@@ -45,7 +46,7 @@ export function ouvirGaleria(groupId: string, aoMudar: Ouvinte): () => void {
         avisar();
       },
       (erro) => {
-        console.error('[galeria]', erro);
+        if (!isPermissionDenied(erro)) console.error('[galeria]', erro);
         estado = { carregada: true, itens: [], erro: true };
         avisar();
       },

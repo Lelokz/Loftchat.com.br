@@ -18,7 +18,7 @@ import {
 } from '../../lib/cargos';
 import type { CamposDoCargo } from '../../lib/cargos';
 import { SECOES_DE_PERMISSOES, TODAS_AS_PERMISSOES } from '../../lib/permissoes';
-import { textoDoErro } from '../../lib/firestore-errors';
+import { isPermissionDenied, textoDoErro } from '../../lib/firestore-errors';
 import { showToast } from '../toast/toast';
 import type { Cargo, Member } from '../../types/models';
 import { bolinhaDoCargo, chipsDeCargos } from './chips';
@@ -143,7 +143,9 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
       }
       op.redesenhar();
     },
-    (e) => console.error('[cargos]', e),
+    (e) => {
+      if (!isPermissionDenied(e)) console.error('[cargos]', e);
+    },
   );
   const pararMembros = subscribeGroupMembers(
     op.groupId,
@@ -151,7 +153,9 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
       membrosCrus = lista;
       op.redesenhar();
     },
-    (e) => console.error('[cargos membros]', e),
+    (e) => {
+      if (!isPermissionDenied(e)) console.error('[cargos membros]', e);
+    },
   );
 
   function sujo(): boolean {
