@@ -1,5 +1,16 @@
 [
   {
+    "versao": "0.10.0",
+    "data": "2026-11-25",
+    "itens": [
+      "Visualização única: no + do chat, escolha \"Visualização única\" para mandar uma foto ou vídeo que a pessoa pode ver de 1 a 5 vezes (você escolhe). Depois disso, some.",
+      "No chat aparece só \"Foto\" ou \"Vídeo\" com o símbolo 1 — nada da imagem nem da legenda. Quem recebe toca para abrir em tela cheia e vê quantas vezes sobram.",
+      "Quem mandou vê \"ainda não abriu\" ou \"Fulano abriu\" (no grupo, \"vista por…\"). Quem mandou não consegue abrir de novo.",
+      "Não dá para baixar, encaminhar nem copiar. No celular e no programa do Windows, print e gravação de tela saem pretos enquanto ela está aberta. Se ninguém abrir, some em 14 dias.",
+      "O + do chat agora abre um menu: \"Foto, GIF ou vídeo\" (como sempre) ou \"Visualização única\"."
+    ]
+  },
+  {
     "versao": "0.9.5",
     "data": "2026-11-25",
     "itens": [

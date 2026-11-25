@@ -2,6 +2,37 @@
 
 Estado em 15/11/2026.
 
+## Visualização única (25/11/2026) — versão 0.10.0
+
+Plano e maquete aprovados (Arquivo/Loft-desktop/maquete-unica). Seis etapas:
+
+1. **Carteiro + regras**: `tipo=unica` sobe em `unica/<uid>/…`, pasta que o
+   GET público de /arquivo RECUSA (`FECHADAS`). Só sai por `POST /unica/abrir`
+   (`carteiro/src/unica.ts`): confere a mensagem (`unica.vezes` 1–5, anexo na
+   pasta fechada), quem pede (PV: o par; grupo: `quemVeOCanal`), que não é o
+   autor e que tem menos de 14 dias; conta +1 em `unicas/{msg}_{uid}` numa
+   TRANSAÇÃO (beginTransaction + batchGet + commit — o GET com `transaction`
+   trava no emulador e o `currentDocument.updateTime` não funciona nele) e só
+   então entrega o arquivo, sem cache. No PV a última vez apaga o arquivo; a
+   limpeza diária apaga `unica/` com 14 dias. Regras: `unicaOk` nas duas
+   coleções de mensagem (e mensagem sem `unica` não aponta para a pasta
+   fechada); `unicas` só o carteiro escreve, leem quem abriu e quem mandou.
+2. **Mandar**: o + virou menu (itens "ricos" no `context-menu`, com ícone e
+   explicação); `components/unica/mandar.ts` com prévia, legenda e 1–5
+   (começa em 1). Sem capa; aviso/lista de conversas/citação/fixada mostram
+   só o rótulo, nunca a legenda.
+3. **Balão** (`components/unica/balao.ts`): nada da foto; `lib/unicas.ts`
+   escuta `unicas` (as que abri / quem abriu as minhas) e o balão se atualiza
+   sozinho. Fora da galeria; fixada sem o arquivo; sem "Editar".
+4. **Ver** (`components/unica/ver.ts`): tela cheia, sem baixar/copiar/
+   arrastar/botão direito, "1ª de 3 vezes", legenda, quantas sobram; vídeo
+   toca uma vez.
+5. **Print**: `lib/protecao-de-tela.ts` — Android `FLAG_SECURE`
+   (`PluginDaTela.proteger`), PC `setContentProtection` (Windows/Mac; Linux e
+   navegador não têm como).
+6. **Testes**: `unica.spec.ts` (carteiro/regras, aberturas simultâneas, PV de
+   ponta a ponta, vídeo no grupo no celular); `midia`/`galeria` pelo menu.
+
 ## Câmera e ligação no privado (25/11/2026) — versão 0.9.5
 
 Plano e maquete aprovados (Arquivo/Loft-desktop/maquete-camera). Seis etapas:
