@@ -2,6 +2,21 @@
 
 Estado em 15/11/2026.
 
+## Fotos e vídeos da galeria no celular (25/11/2026) — versão 0.9.0
+
+Bug: no Android 13+, `<input type=file accept="image/*,video/*">` cai no
+seletor de fotos do sistema, que devolve `content://media/picker/...` com
+data/tamanho que mudam entre consultas; o WebView recusa ler
+(NotReadableError / ERR_UPLOAD_FILE_CHANGED, Chromium 40123366). Nenhuma
+foto, GIF ou vídeo abria ("Não deu para abrir essa imagem").
+
+- `SeletorDeMidia.java` (herda o BridgeWebChromeClient do Capacitor):
+  pedido só de imagem/vídeo → seletor de fotos do sistema (PickVisualMedia /
+  PickMultipleVisualMedia, até 20) → cada arquivo COPIADO para
+  `cache/escolhidos/` e entregue por FileProvider (data e tamanho fixos).
+  Acima de 60 MB vai o original (a página recusa pelo tamanho). Cópias de
+  mais de 1 hora são apagadas. Câmera e outros tipos: seletor do Capacitor.
+
 ## Cargos, permissões, moderação e comandos (25/11/2026) — versão 0.8.5
 
 Plano aprovado (modelo do Discord de verdade, lido em docs.discord.com:

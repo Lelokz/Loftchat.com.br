@@ -1,5 +1,12 @@
 [
   {
+    "versao": "0.9.0",
+    "data": "2026-11-25",
+    "itens": [
+      "Celular: fotos, GIFs e vídeos da galeria voltam a ir. No Android 13 ou mais novo, o seletor de fotos do sistema entregava um arquivo que o Loftchat não conseguia ler; agora o arquivo escolhido é copiado antes e abre normalmente."
+    ]
+  },
+  {
     "versao": "0.8.5",
     "data": "2026-11-25",
     "itens": [

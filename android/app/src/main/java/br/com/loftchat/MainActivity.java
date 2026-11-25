@@ -30,6 +30,10 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PluginDosAvisos.class);
         super.onCreate(savedInstanceState);
 
+        // Foto e vídeo da galeria (25/11/2026): o seletor de fotos do sistema,
+        // com cópia estável para o WebView conseguir ler (ver SeletorDeMidia).
+        getBridge().getWebView().setWebChromeClient(new SeletorDeMidia(getBridge()));
+
         // A página continua com prioridade alta com o app atrás: a voz e a
         // tela transmitida (etapa 10c) não podem engasgar quando a pessoa
         // abre outro app para mostrar.
