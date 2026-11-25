@@ -2,13 +2,15 @@ import './composer.css';
 
 import { el, iconEl } from '../../../lib/dom';
 import { textoDoErro } from '../../../lib/firestore-errors';
-import { attachIcon, micIcon, sendIcon, stickerIcon, trashIcon } from '../../../lib/icons';
+import { attachIcon, imageIcon, micIcon, sendIcon, stickerIcon, trashIcon, unicaIcon } from '../../../lib/icons';
 import { enviosDe, ouvirEnvios } from '../../../lib/envios';
 import { comecarGravacao, MAX_VOZ_MS, relogio } from '../../../lib/gravador';
 import type { Gravacao, Gravador } from '../../../lib/gravador';
 import type { Figurinha } from '../../../lib/figurinhas';
 import { montarAbaFigurinhas } from '../../figurinhas/aba';
 import { renderPainel } from '../../painel-midia/painel-midia';
+import { openMenu } from '../../context-menu/context-menu';
+import { ACEITA_UNICA, abrirMandarUnica } from '../../unica/mandar';
 import type { PainelProps } from '../../painel-midia/painel-midia';
 
 export interface ComposerProps {
@@ -28,9 +30,9 @@ export interface ComposerProps {
   /**
    * 0.5.0: mandar imagem, GIF e vídeo (o +, colar e arrastar). Recebe os
    * arquivos e o texto do campo, que vira a legenda. `destino` separa a fila
-   * de envio de cada conversa.
+   * de envio de cada conversa. 0.10.0: `vezes` = visualização única.
    */
-  aoArquivos?: (arquivos: File[], legenda: string) => void;
+  aoArquivos?: (arquivos: File[], legenda: string, vezes?: number) => void;
   destino?: string;
   /** 0.5.0: mandar a figurinha escolhida no painel. */
   aoFigurinha?: (figurinha: Figurinha) => void;
@@ -354,10 +356,12 @@ export function renderComposer({
   const botaoAnexo =
     aoArquivos === undefined
       ? null
-      : el('button', { class: 'composer__tool', type: 'button', title: 'Mandar imagem, GIF ou vídeo' }, [
+      : el('button', { class: 'composer__tool', type: 'button', title: 'Anexar', 'aria-haspopup': 'menu' }, [
           iconEl(attachIcon(20)),
-          el('span', { class: 'sr-only' }, ['Mandar imagem, GIF ou vídeo']),
+          el('span', { class: 'sr-only' }, ['Anexar']),
         ]);
+  // 0.10.0: visualização única — um arquivo, foto ou vídeo (GIF não).
+  const escolherUnica = el('input', { type: 'file', accept: ACEITA_UNICA, hidden: '' }) as HTMLInputElement;
   const fila = el('div', { class: 'composer__envios', 'aria-live': 'polite' });
 
   function mandarArquivos(lista: FileList | File[] | null): void {
@@ -375,7 +379,36 @@ export function renderComposer({
   }
 
   if (botaoAnexo !== null) {
-    botaoAnexo.addEventListener('click', () => escolher.click());
+    // 0.10.0: o + abre o menu (o Discord faz igual): o de sempre ou visualização única.
+    botaoAnexo.addEventListener('click', () => {
+      const podeUnica = limites.motivo === null && (limites.fotos || limites.videos);
+      openMenu({ rect: botaoAnexo.getBoundingClientRect() }, [
+        { label: 'Foto, GIF ou vídeo', hint: 'Fica no chat como sempre', icon: imageIcon(19), onSelect: () => escolher.click() },
+        ...(podeUnica
+          ? [{ label: 'Visualização única', hint: 'Foto ou vídeo que some depois de ver', icon: unicaIcon(20), onSelect: () => escolherUnica.click() }]
+          : []),
+      ]);
+    });
+    escolherUnica.addEventListener('change', () => {
+      const arquivo = escolherUnica.files?.[0];
+      escolherUnica.value = '';
+      if (arquivo === undefined || aoArquivos === undefined) return;
+      const video = arquivo.type.startsWith('video/');
+      if (!/^(image\/(png|jpeg|webp)|video\/)/.test(arquivo.type) || !(video ? limites.videos : limites.fotos) || limites.motivo !== null) {
+        setError('Você não pode mandar esse tipo de arquivo aqui.');
+        return;
+      }
+      abrirMandarUnica({
+        para: `${hashPrefix ? '#' : ''}${channelName}`,
+        arquivo,
+        legenda: input.value.trim(),
+        aoMandar: (vezes, legenda) => {
+          input.value = '';
+          autoGrow();
+          aoArquivos([arquivo], legenda, vezes);
+        },
+      });
+    });
     escolher.addEventListener('change', () => {
       mandarArquivos(escolher.files);
       escolher.value = '';
@@ -506,6 +539,7 @@ export function renderComposer({
     fila,
     linha,
     escolher,
+    escolherUnica,
     painel?.element ?? false,
   ]);
 

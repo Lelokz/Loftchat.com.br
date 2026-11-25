@@ -43,6 +43,8 @@ export async function mandarArquivos(
   legenda: string,
   enviar: (midia: Midia, legenda: string) => Promise<void>,
   aoErro: (texto: string) => void,
+  /** 0.10.0: visualização única (quantas vezes). */
+  vezes?: number,
 ): Promise<void> {
   let primeira = true;
   for (const arquivo of arquivos) {
@@ -58,7 +60,7 @@ export async function mandarArquivos(
         if (atual === undefined) return;
         envios.set(id, { ...atual, progresso: fracao });
         avisar();
-      });
+      }, vezes);
       await enviar(midia, primeira ? legenda : '');
       primeira = false;
     } catch (erro) {

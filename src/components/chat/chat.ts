@@ -13,7 +13,7 @@ export interface ChatProps {
   channel: Channel | null;
   onSend: (body: string) => Promise<void>;
   /** 0.5.0: imagem, GIF e vídeo (ver ComposerProps). */
-  aoArquivos?: (arquivos: File[], legenda: string) => void;
+  aoArquivos?: (arquivos: File[], legenda: string, vezes?: number) => void;
   aoFigurinha?: (figurinha: Figurinha) => void;
   /** 0.5.5: mensagem de voz. */
   aoVoz?: (gravacao: Gravacao) => void;

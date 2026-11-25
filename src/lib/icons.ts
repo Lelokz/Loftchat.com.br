@@ -200,3 +200,15 @@ export const playIcon = (size = 16): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" focusable="false"><path d="M7 4.5v15l12.5-7.5z"/></svg>`;
 export const pauseIcon = (size = 16): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" focusable="false"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg>`;
+
+/** Foto (0.10.0): o item "Foto, GIF ou vídeo" do menu do +. */
+export const imageIcon = (size?: number): string =>
+  svg('<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>', size);
+
+/** Visualização única (0.10.0): um "1" num círculo pontilhado. */
+export const unicaIcon = (size?: number): string =>
+  svg('<circle cx="12" cy="12" r="9.5" stroke-dasharray="3.2 2.6"/><path d="M10 9.2 12.6 7.5V16.5" stroke-width="2"/>', size);
+
+/** Cadeado (0.10.0): o aviso "não dá para baixar" da visualização única. */
+export const lockIcon = (size?: number): string =>
+  svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>', size);

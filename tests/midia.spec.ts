@@ -56,7 +56,11 @@ test('mídia: imagem, GIF e vídeo pelo +, colando, com legenda, e o outro membr
   // Imagem pelo +, com legenda (o texto do campo).
   await pAna.locator('.composer__input').fill('olha o print');
   const escolha = pAna.waitForEvent('filechooser');
-  await pAna.getByRole('button', { name: 'Mandar imagem, GIF ou vídeo' }).click();
+  // O menu fecha se a lista rolar (mensagem chegando): tenta de novo.
+  await expect(async () => {
+    await pAna.getByRole('button', { name: 'Anexar' }).click();
+    await pAna.getByRole('menuitem', { name: /Foto, GIF ou vídeo/ }).click({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await (await escolha).setFiles({ name: 'print.png', mimeType: 'image/png', buffer: foto });
   const imagemAna = pAna.locator('.midia--image img');
   await expect(imagemAna).toBeVisible({ timeout: 30_000 });
@@ -90,7 +94,11 @@ test('mídia: imagem, GIF e vídeo pelo +, colando, com legenda, e o outro membr
 
   // Vídeo: capa, play, duração e tamanho; só carrega no play.
   const escolha2 = pAna.waitForEvent('filechooser');
-  await pAna.getByRole('button', { name: 'Mandar imagem, GIF ou vídeo' }).click();
+  // O menu fecha se a lista rolar (mensagem chegando): tenta de novo.
+  await expect(async () => {
+    await pAna.getByRole('button', { name: 'Anexar' }).click();
+    await pAna.getByRole('menuitem', { name: /Foto, GIF ou vídeo/ }).click({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await (await escolha2).setFiles({ name: 'clipe.webm', mimeType: 'video/webm', buffer: VIDEO });
   const video = pAna.locator('.midia--video');
   await expect(video.locator('.midia__rotulo')).toContainText('0:02', { timeout: 30_000 });
@@ -102,7 +110,11 @@ test('mídia: imagem, GIF e vídeo pelo +, colando, com legenda, e o outro membr
 
   // Vídeo de 51 MB: recusado com o motivo.
   const escolha3 = pAna.waitForEvent('filechooser');
-  await pAna.getByRole('button', { name: 'Mandar imagem, GIF ou vídeo' }).click();
+  // O menu fecha se a lista rolar (mensagem chegando): tenta de novo.
+  await expect(async () => {
+    await pAna.getByRole('button', { name: 'Anexar' }).click();
+    await pAna.getByRole('menuitem', { name: /Foto, GIF ou vídeo/ }).click({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   const grande = join(process.env['TMPDIR'] ?? tmpdir(), `grande-${Date.now()}.mp4`);
   writeFileSync(grande, Buffer.alloc(0));
   truncateSync(grande, 51 * 1024 * 1024);
@@ -136,7 +148,11 @@ test('mídia no celular: o + e a imagem cabem na tela', async ({ browser }) => {
   await createGroupThroughUi(page, 'Grupo cel');
   const foto = await page.screenshot();
   const escolha = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Mandar imagem, GIF ou vídeo' }).click();
+  // O menu fecha se a lista rolar (mensagem chegando): tenta de novo.
+  await expect(async () => {
+    await page.getByRole('button', { name: 'Anexar' }).click();
+    await page.getByRole('menuitem', { name: /Foto, GIF ou vídeo/ }).click({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await (await escolha).setFiles({ name: 'foto.png', mimeType: 'image/png', buffer: foto });
   const img = page.locator('.midia--image img');
   await expect(img).toBeVisible({ timeout: 30_000 });

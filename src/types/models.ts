@@ -387,6 +387,8 @@ export interface MessageBase {
   spoiler?: boolean;
   /** 0.9.5: registro de uma ligação no PV. */
   chamada?: { duracaoMs?: number; perdida: boolean; comCamera: boolean };
+  /** 0.10.0: visualização única — quantas vezes cada pessoa pode abrir (1 a 5). */
+  unica?: { vezes: number };
 }
 
 /**

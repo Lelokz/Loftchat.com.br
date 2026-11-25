@@ -47,7 +47,11 @@ test('galeria: aba Mídia junta os canais, filtra, Ver tudo abre a grande, e o v
   // Foto, GIF e vídeo pelo + no #geral.
   const mandar = async (name: string, mimeType: string, buffer: Buffer): Promise<void> => {
     const escolha = pAna.waitForEvent('filechooser');
-    await pAna.getByRole('button', { name: 'Mandar imagem, GIF ou vídeo' }).click();
+    // O menu fecha se a lista rolar (mensagem chegando): tenta de novo.
+    await expect(async () => {
+      await pAna.getByRole('button', { name: 'Anexar' }).click();
+      await pAna.getByRole('menuitem', { name: /Foto, GIF ou vídeo/ }).click({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await (await escolha).setFiles({ name, mimeType, buffer });
   };
   await mandar('print.png', 'image/png', foto);

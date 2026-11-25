@@ -345,6 +345,10 @@ function passouDoLimite(uid: string): boolean {
 
 /** Mensagem só com arquivo vira "📷 Foto", "🎬 Vídeo"… (com legenda, a legenda). */
 function textoDoAviso(msg: Dados): string {
+  // 0.10.0: visualização única nunca mostra a legenda nem nada do conteúdo.
+  if (typeof msg['unica'] === 'object' && msg['unica'] !== null) {
+    return msg['kind'] === 'video' ? '🎬 Vídeo de visualização única' : '📷 Foto de visualização única';
+  }
   const corpo = String(msg['body'] ?? '').trim();
   if (corpo !== '') return cortar(corpo);
   const tipos: Record<string, string> = { image: '📷 Foto', gif: 'GIF', video: '🎬 Vídeo', sticker: 'Figurinha', audio: '🎤 Mensagem de voz' };

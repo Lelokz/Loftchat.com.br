@@ -17,7 +17,7 @@ export interface RoomPanelProps {
   onAba: (aba: AbaDaSala) => void;
   onSend: (body: string) => Promise<void>;
   /** 0.5.0: imagem, GIF e vídeo no chat da sala. */
-  aoArquivos?: (arquivos: File[], legenda: string) => void;
+  aoArquivos?: (arquivos: File[], legenda: string, vezes?: number) => void;
   destino?: string;
   aoFigurinha?: (figurinha: Figurinha) => void;
   /** 0.5.5: mensagem de voz. */

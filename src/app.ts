@@ -1009,24 +1009,24 @@ export function mountApp(
    * arquivo vira uma mensagem; a legenda vai com o primeiro.
    */
   const avisarErroDoArquivo = (texto: string): void => showToast(texto);
-  const handleArquivos = (arquivos: File[], legenda: string): void => {
+  const handleArquivos = (arquivos: File[], legenda: string, vezes?: number): void => {
     const state = store.getState();
     const amigo = pvAberto(state);
     if (amigo !== null) {
-      void mandarArquivos(`pv:${amigo}`, arquivos, legenda, (midia, texto) => sendDmMessage(user.uid, amigo, texto, undefined, midia), avisarErroDoArquivo);
+      void mandarArquivos(`pv:${amigo}`, arquivos, legenda, (midia, texto) => sendDmMessage(user.uid, amigo, texto, undefined, midia), avisarErroDoArquivo, vezes);
       return;
     }
     if (state.activeGroupId === null || state.activeChannelId === null) return;
     const grupo = state.activeGroupId;
     const canal = state.activeChannelId;
-    void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
+    void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo, vezes);
   };
-  const handleArquivosSala = (arquivos: File[], legenda: string): void => {
+  const handleArquivosSala = (arquivos: File[], legenda: string, vezes?: number): void => {
     const state = store.getState();
     const grupo = state.voice?.groupId ?? null;
     const canal = state.roomChatChannelId;
     if (grupo === null || canal === null) return;
-    void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo);
+    void mandarArquivos(`canal:${canal}`, arquivos, legenda, (midia, texto) => sendMessage(grupo, canal, user.uid, texto, undefined, midia), avisarErroDoArquivo, vezes);
   };
 
   /* MENSAGEM DE VOZ (0.5.5): sobe o áudio e grava a mensagem (grupo, PV ou sala). */

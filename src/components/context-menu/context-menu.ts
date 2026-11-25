@@ -1,6 +1,6 @@
 import './context-menu.css';
 
-import { el } from '../../lib/dom';
+import { el, iconEl } from '../../lib/dom';
 
 /**
  * Menu de contexto — o primitivo único de menu do app.
@@ -32,6 +32,9 @@ export interface MenuItem {
   /** Destrutivo: vermelho, e por convenção sempre no fim. */
   danger?: boolean;
   separatorBefore?: boolean;
+  /** 0.10.0: item "rico" — ícone (SVG de icons.ts) e uma linha explicando. */
+  icon?: string;
+  hint?: string;
 }
 
 /** Onde ancorar: no cursor, ou colado a um elemento. */
@@ -74,8 +77,17 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[]): void {
         role: 'menuitem',
         title: item.reason,
       },
-      [item.label],
+      item.icon === undefined && item.hint === undefined
+        ? [item.label]
+        : [
+            item.icon === undefined ? null : el('span', { class: 'context-menu__icone', 'aria-hidden': 'true' }, [iconEl(item.icon)]),
+            el('span', { class: 'context-menu__textos' }, [
+              el('b', {}, [item.label]),
+              item.hint === undefined ? null : el('small', {}, [item.hint]),
+            ]),
+          ],
     );
+    if (item.icon !== undefined || item.hint !== undefined) button.classList.add('context-menu__item--rico');
 
     if (item.disabled === true) {
       button.disabled = true;
@@ -93,7 +105,8 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[]): void {
     nodes.push(button);
   }
 
-  const menu = el('div', { class: 'context-menu', role: 'menu', tabindex: '-1' }, nodes);
+  const rico = items.some((i) => i.icon !== undefined || i.hint !== undefined);
+  const menu = el('div', { class: `context-menu${rico ? ' context-menu--rico' : ''}`, role: 'menu', tabindex: '-1' }, nodes);
 
   function close(): void {
     menu.remove();

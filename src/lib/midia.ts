@@ -18,7 +18,7 @@ export const MAX_GIF = 20 * MB;
 export const MAX_VIDEO = 50 * MB;
 const LADO_MAXIMO = 2048;
 
-export type TipoDoArquivo = 'imagem' | 'gif' | 'video' | 'figurinha' | 'capa' | 'audio';
+export type TipoDoArquivo = 'imagem' | 'gif' | 'video' | 'figurinha' | 'capa' | 'audio' | 'unica';
 
 export interface Preparado {
   kind: Extract<MessageKind, 'image' | 'gif' | 'video'>;
@@ -186,7 +186,27 @@ export async function subirArquivo(
 export async function mandarArquivo(
   preparado: Preparado,
   aoProgresso: (fracao: number) => void,
-): Promise<{ kind: Preparado['kind']; attachment: Attachment }> {
+  /** 0.10.0: visualização única — pasta fechada, sem capa e sem nome. */
+  vezes?: number,
+): Promise<{ kind: Preparado['kind']; attachment: Attachment; unica?: { vezes: number } }> {
+  if (vezes !== undefined) {
+    if (preparado.kind === 'gif') throw new ArquivoRecusado('GIF não vai como visualização única.');
+    const guardado = await subirArquivo(preparado.arquivo, preparado.formato, 'unica', aoProgresso);
+    return {
+      kind: preparado.kind,
+      attachment: {
+        url: guardado.url,
+        chave: guardado.chave,
+        fileName: preparado.kind === 'video' ? 'video' : 'foto',
+        mimeType: preparado.formato,
+        sizeBytes: preparado.arquivo.size,
+        largura: preparado.largura,
+        altura: preparado.altura,
+        ...(preparado.duracaoMs === undefined ? {} : { durationMs: preparado.duracaoMs }),
+      },
+      unica: { vezes },
+    };
+  }
   let capaUrl: string | undefined;
   if (preparado.capa !== undefined) {
     capaUrl = (await subirArquivo(preparado.capa, 'image/webp', 'capa').catch(() => null))?.url;

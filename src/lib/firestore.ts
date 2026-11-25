@@ -181,10 +181,14 @@ function toChannel(id: string, data: DocumentData): Channel {
 export interface Midia {
   kind: MessageKind;
   attachment: Attachment;
+  /** 0.10.0: visualização única. */
+  unica?: { vezes: number };
 }
 
 /** Como uma mensagem só com arquivo aparece numa prévia ou citação. */
-export function rotuloDaMidia(kind: MessageKind | undefined): string {
+export function rotuloDaMidia(kind: MessageKind | undefined, unica = false): string {
+  // 0.10.0: nada de miniatura nem nome — só o rótulo.
+  if (unica) return kind === 'video' ? 'Vídeo de visualização única' : 'Foto de visualização única';
   switch (kind) {
     case 'image':
       return '📷 Foto';
@@ -240,6 +244,12 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
         ...(typeof chamada.duracaoMs === 'number' && chamada.duracaoMs >= 0 ? { duracaoMs: chamada.duracaoMs } : {}),
       },
     });
+  }
+
+  // 0.10.0: visualização única.
+  const unica = data['unica'] as { vezes?: unknown } | undefined;
+  if (typeof unica === 'object' && unica !== null && typeof unica.vezes === 'number' && unica.vezes >= 1 && unica.vezes <= 5) {
+    Object.assign(message, { unica: { vezes: Math.floor(unica.vezes) } });
   }
 
   const reply = data['replyTo'];
@@ -796,6 +806,7 @@ export async function sendMessage(
     body,
     sentAt,
     ...(midia === undefined ? {} : { attachment: midia.attachment }),
+    ...(midia?.unica === undefined ? {} : { unica: midia.unica }),
     // Só entra quando existe: documento com `replyTo: undefined` é recusado.
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(extra?.comando === undefined ? {} : { comando: { nome: extra.comando } }),
@@ -837,7 +848,7 @@ export function buildReplyTo(message: MessageBase, authorName: string): ReplyTo 
     messageId: message.id,
     authorId: message.authorId,
     authorName,
-    excerpt: excerptOf(message.body !== '' ? message.body : rotuloDaMidia(message.kind)),
+    excerpt: excerptOf(message.body !== '' && message.unica === undefined ? message.body : rotuloDaMidia(message.kind, message.unica !== undefined)),
     sentAt: message.sentAt,
   };
 }
@@ -1368,6 +1379,7 @@ export async function sendDmMessage(
     body,
     sentAt,
     ...(midia === undefined ? {} : { attachment: midia.attachment }),
+    ...(midia?.unica === undefined ? {} : { unica: midia.unica }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(chamada === undefined ? {} : { chamada }),
   });
@@ -1387,7 +1399,7 @@ export async function sendDmMessage(
        * venha de quem vier, e `diff()` não vê `members` como alterado.
        */
       members: me < other ? [me, other] : [other, me],
-      lastMessage: { body: body !== '' ? body : rotuloDaMidia(midia?.kind), authorId: me, sentAt },
+      lastMessage: { body: body !== '' && midia?.unica === undefined ? body : rotuloDaMidia(midia?.kind, midia?.unica !== undefined), authorId: me, sentAt },
       lastMessageAt: sentAt,
     },
     { merge: true },
@@ -1500,7 +1512,7 @@ async function createPin(
     authorId: message.authorId,
     authorName,
     kind: message.kind,
-    excerpt: excerptOf(message.body !== '' ? message.body : rotuloDaMidia(message.kind)),
+    excerpt: excerptOf(message.body !== '' && message.unica === undefined ? message.body : rotuloDaMidia(message.kind, message.unica !== undefined)),
     sentAt: message.sentAt,
     pinnedAt: nowIso(),
     pinnedBy,

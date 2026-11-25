@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
-import { createAccountViaRest, limparTudo, newAccount } from './helpers';
+import { createAccountViaRest, limparTudo, newAccount, resolveTokens, signUpThroughUi } from './helpers';
 import type { TestAccount } from './helpers';
 import { CARTEIRO, FS, campos, comoDono, ligarCarteiroLocal } from './carteiro-local';
 
@@ -170,4 +171,101 @@ test('visualização única: carteiro conta as vezes, fecha o arquivo e as regra
     attachment: { url: arq.url, chave: arq.chave, fileName: 'f.webp', mimeType: 'image/webp', sizeBytes: BYTES.length },
   });
   expect((await abrir(beto.idToken!, 'grupo', 'unicaGr2')).status).toBe(410);
+});
+
+/* ------------------------------------------------------------------------ */
+
+async function abrirPv(page: Page, nome: string): Promise<void> {
+  await page.getByRole('button', { name: 'Privado', exact: true }).click();
+  await page.getByRole('button', { name: 'Amigos', exact: true }).click();
+  await page.locator('.friends__tab[data-tab="amigos"]').click();
+  await page.locator('.friends__row--clickable', { hasText: nome }).click();
+  await expect(page.locator('.dm-chat__name')).toHaveText(nome, { timeout: 15_000 });
+}
+
+async function ficarAmigos(a: TestAccount, b: TestAccount): Promise<void> {
+  const r = await fetch(`${FS}/friendships/${par(a.uid!, b.uid!)}`, {
+    method: 'PATCH',
+    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      fields: {
+        members: { arrayValue: { values: [{ stringValue: a.uid! }, { stringValue: b.uid! }] } },
+        from: { stringValue: a.uid! },
+        to: { stringValue: b.uid! },
+        status: { stringValue: 'accepted' },
+        createdAt: { stringValue: new Date().toISOString() },
+      },
+    }),
+  });
+  expect(r.ok).toBe(true);
+}
+
+/** As mensagens do PV, lidas como dono. */
+async function mensagensDoPv(fio: string): Promise<{ id: string; f: Record<string, Record<string, unknown>> }[]> {
+  const r = await fetch(`${FS}:runQuery`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'dmMessages' }],
+        where: { fieldFilter: { field: { fieldPath: 'threadId' }, op: 'EQUAL', value: { stringValue: fio } } },
+      },
+    }),
+  });
+  const linhas = (await r.json()) as { document?: { name: string; fields: Record<string, Record<string, unknown>> } }[];
+  return linhas.filter((l) => l.document !== undefined).map((l) => ({ id: l.document!.name.split('/').pop()!, f: l.document!.fields }));
+}
+
+test('visualização única: mandar pelo + (menu, janela, 1 a 5 vezes)', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const eva = newAccount('Eva única');
+  const fabio = newAccount('Fabio única');
+  contas.push(eva, fabio);
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await signUpThroughUi(page, eva);
+  await resolveTokens(eva);
+  await createAccountViaRest(fabio);
+  await comoDono(`users/${fabio.uid}`, { uid: fabio.uid!, displayName: fabio.displayName, initials: 'FA' });
+  await ficarAmigos(eva, fabio);
+  await page.reload();
+  await abrirPv(page, fabio.displayName);
+
+  // O + abre o menu com as duas opções.
+  await page.getByRole('button', { name: 'Anexar' }).click();
+  await expect(page.getByRole('menuitem', { name: /Foto, GIF ou vídeo/ })).toBeVisible();
+  const escolha = page.waitForEvent('filechooser');
+  await page.getByRole('menuitem', { name: /Visualização única/ }).click();
+  const foto = await page.screenshot();
+  await (await escolha).setFiles({ name: 'segredo.png', mimeType: 'image/png', buffer: foto });
+
+  // A janela: prévia, legenda e as vezes (começa em 1).
+  const janela = page.getByRole('dialog', { name: 'Visualização única' });
+  await expect(janela).toBeVisible();
+  await expect(janela).toContainText(`Para ${fabio.displayName}`);
+  await expect(janela.getByRole('radio', { name: '1' })).toHaveAttribute('aria-checked', 'true');
+  await janela.getByRole('radio', { name: '3' }).click();
+  await expect(janela.getByRole('radio', { name: '3' })).toHaveAttribute('aria-checked', 'true');
+  await janela.getByRole('textbox', { name: 'Legenda' }).fill('não conta pra ninguém');
+  await page.screenshot({ path: 'test-results/unica/1-mandar.png' });
+  await janela.getByRole('button', { name: 'Mandar' }).click();
+  await expect(janela).toBeHidden();
+
+  // A mensagem: `unica.vezes = 3`, arquivo na pasta fechada, sem capa.
+  const fio = par(eva.uid!, fabio.uid!);
+  await expect.poll(async () => (await mensagensDoPv(fio)).length, { timeout: 30_000 }).toBe(1);
+  const [msg] = await mensagensDoPv(fio);
+  const campos_ = msg!.f;
+  expect((campos_['unica'] as { mapValue: { fields: { vezes: { integerValue: string } } } }).mapValue.fields.vezes.integerValue).toBe('3');
+  const anexoF = (campos_['attachment'] as { mapValue: { fields: Record<string, { stringValue?: string }> } }).mapValue.fields;
+  expect(anexoF['chave']!.stringValue).toMatch(/^unica\//);
+  expect(anexoF['capaUrl']).toBeUndefined();
+  expect((await fetch(anexoF['url']!.stringValue!)).status).toBe(404);
+
+  // A lista de conversas não mostra a legenda, só o rótulo.
+  const fioDoc = await fetch(`${FS}/dmThreads/${fio}`, { headers: { authorization: 'Bearer owner' } });
+  const ultimo = ((await fioDoc.json()) as { fields: { lastMessage: { mapValue: { fields: { body: { stringValue: string } } } } } }).fields;
+  expect(ultimo.lastMessage.mapValue.fields.body.stringValue).toBe('Foto de visualização única');
+  await ctx.close();
 });
