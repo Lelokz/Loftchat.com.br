@@ -221,7 +221,9 @@ export function instalarBarraDeReacoes(acoes: AcoesDaBarra): () => void {
     const mine = alvo.classList.contains('message--mine');
     barra.hidden = false;
     const larg = barra.offsetWidth;
-    const x = mine ? r.left - larg + 40 : r.right - 40;
+    // Balão curto: a barrinha não pode tampar o nome de quem mandou (clicar abre o perfil).
+    const nome = alvo.querySelector<HTMLElement>('.message__author')?.getBoundingClientRect();
+    const x = mine ? r.left - larg + 40 : Math.max(r.right - 40, nome === undefined ? 0 : nome.right + 8);
     barra.style.left = `${Math.max(8, Math.min(innerWidth - larg - 8, x))}px`;
     barra.style.top = `${Math.max(8, r.top - barra.offsetHeight + 8)}px`;
   };

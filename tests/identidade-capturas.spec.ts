@@ -116,6 +116,12 @@ for (const tamanho of ['desktop', 'mobile'] as const) {
     await foto(page, p('10-modal-convite'));
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    if (mobile) {
+      // Fechando o convite, volta para a gaveta (tocar no menu não fecha a gaveta).
+      await expect(page.locator('.app.drawer-left')).toBeVisible();
+      await page.mouse.click(TAMANHOS.mobile.width - 10, TAMANHOS.mobile.height / 2);
+      await expect(page.locator('.app.drawer-left')).toHaveCount(0);
+    }
 
     if (mobile) {
       // Gaveta de canais aberta.
