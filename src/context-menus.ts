@@ -23,7 +23,7 @@
 
 import { openMenu } from './components/context-menu/context-menu';
 import type { MenuExtras, MenuItem } from './components/context-menu/context-menu';
-import { RAPIDAS_CELULAR, abrirSeletorDeReacao, dadosDaMensagem, instalarBarraDeReacoes, podeReagir, reagir } from './components/reacoes/reacoes';
+import { RAPIDAS_CELULAR, abrirSeletorDeReacao, dadosDaMensagem, podeReagir, reagir } from './components/reacoes/reacoes';
 import { addReactionIcon } from './lib/icons';
 import { DURACOES, reativar, silenciadoAte, silenciar, textoDoSilencio } from './lib/silencios';
 import type { Alvo } from './lib/silencios';
@@ -650,17 +650,6 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
     if (moved) cancelPress();
   }
 
-  // 0.11.0: a barrinha de reações do PC (passar o mouse na mensagem).
-  const desligarBarra = instalarBarraDeReacoes({
-    eu: () => actions.uid,
-    responder: (li) => actions.replyToMessage(li.dataset['messageId'] ?? '', li.dataset['context'] === 'room-message'),
-    encaminhar: (li) => {
-      const d = dadosDaMensagem(li);
-      actions.forwardMessage?.(d.id, d.tipo, li.dataset['context'] === 'room-message');
-    },
-    menu: (li, onde) => openForTarget(li, onde),
-  });
-
   document.addEventListener('contextmenu', onContextMenu);
   document.addEventListener('pointerdown', onPointerDown);
   document.addEventListener('pointermove', onPointerMove);
@@ -676,7 +665,6 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
     document.removeEventListener('pointercancel', cancelPress);
     document.removeEventListener('scroll', cancelPress, true);
     cancelPress();
-    desligarBarra();
   };
 
   /** Monta e abre o menu do alvo — o mesmo caminho do botão direito. */

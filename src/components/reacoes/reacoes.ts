@@ -3,7 +3,7 @@ import './reacoes.css';
 import { el, iconEl } from '../../lib/dom';
 import { alternarReacao, MAX_REACOES_POR_PESSOA } from '../../lib/firestore';
 import { usouEmoji } from '../../lib/emojis';
-import { addReactionIcon, encaminharIcon, moreIcon, replyIcon } from '../../lib/icons';
+import { addReactionIcon } from '../../lib/icons';
 import { showToast } from '../toast/toast';
 import { montarEmojis } from '../painel-midia/painel-midia';
 import type { Member, MemberId, MessageBase } from '../../types/models';
@@ -13,10 +13,9 @@ import type { Member, MemberId, MessageBase } from '../../types/models';
  *
  * - Embaixo do balão: uma pílula por emoji ("👍 3"); a minha fica roxa e
  *   clicar põe/tira. Passar o mouse diz quem reagiu.
- * - PC: passar o mouse na mensagem mostra a barrinha (👍 ❤️ 😂 🔥, todos
- *   os emojis, Responder, Encaminhar, ⋯).
- * - Celular: o toque longo abre o menu com a fileira de emojis em cima
- *   (context-menus.ts).
+ * - Botão direito (PC) ou toque longo (celular): o menu com a fileira de
+ *   emojis em cima (context-menus.ts). Passar o mouse NÃO mostra nada (o Léo
+ *   pediu em 25/11: reação só pelo botão direito).
  *
  * Os dados vêm na própria mensagem (`reacoes`: uid → emojis); a regra do
  * banco deixa cada um mexer só na sua.
@@ -148,17 +147,9 @@ export function abrirSeletorDeReacao(perto: DOMRect, aoEscolher: (emoji: string)
   seletorAberto = fechar;
 }
 
-/* --- a barrinha do PC (passar o mouse na mensagem) -------------------------------- */
+/* --- dados da mensagem (menu de contexto) ---------------------------------------- */
 
-export interface AcoesDaBarra {
-  eu: () => string;
-  responder: (li: HTMLElement) => void;
-  encaminhar: (li: HTMLElement) => void;
-  /** Abre o menu da mensagem (o "⋯"). */
-  menu: (li: HTMLElement, onde: { x: number; y: number }) => void;
-}
-
-/** Os dados que a lista deixa em cada mensagem para a barrinha. */
+/** Os dados que a lista deixa em cada mensagem para o menu (emojis e encaminhar). */
 export function dadosDaMensagem(li: HTMLElement): { id: string; tipo: 'pv' | 'grupo'; canal: string | undefined; minhas: string[] } {
   let minhas: string[] = [];
   try {
@@ -171,97 +162,5 @@ export function dadosDaMensagem(li: HTMLElement): { id: string; tipo: 'pv' | 'gr
     tipo: li.dataset['context'] === 'dm-message' ? 'pv' : 'grupo',
     canal: li.dataset['canal'],
     minhas,
-  };
-}
-
-/** Liga a barrinha (só com mouse). Devolve como desligar. */
-export function instalarBarraDeReacoes(acoes: AcoesDaBarra): () => void {
-  const mouse = matchMedia('(hover: hover) and (pointer: fine)');
-  let alvo: HTMLElement | null = null;
-  const botao = (conteudo: Node, rotulo: string, f: () => void): HTMLElement => {
-    const b = el('button', { type: 'button', title: rotulo, 'aria-label': rotulo }, [conteudo]);
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (alvo !== null) f();
-    });
-    return b;
-  };
-  const rapidas = RAPIDAS.map((emoji) =>
-    botao(el('span', { class: 'emoji' }, [emoji]), `Reagir com ${emoji}`, () => {
-      const d = dadosDaMensagem(alvo!);
-      reagir(d.tipo, d.id, acoes.eu(), d.minhas, emoji);
-    }),
-  );
-  const todos = botao(iconEl(addReactionIcon(19)), 'Reagir com outro emoji', () => {
-    const d = dadosDaMensagem(alvo!);
-    abrirSeletorDeReacao(todos.getBoundingClientRect(), (e) => reagir(d.tipo, d.id, acoes.eu(), d.minhas, e));
-  });
-  const separador = el('i', { 'aria-hidden': 'true' });
-  const barra = el('div', { class: 'barra-da-mensagem', role: 'toolbar', 'aria-label': 'Ações da mensagem' }, [
-    ...rapidas,
-    todos,
-    separador,
-    botao(iconEl(replyIcon(18)), 'Responder', () => acoes.responder(alvo!)),
-    botao(iconEl(encaminharIcon(18)), 'Encaminhar', () => acoes.encaminhar(alvo!)),
-    botao(iconEl(moreIcon(18)), 'Mais', () => {
-      const r = barra.getBoundingClientRect();
-      acoes.menu(alvo!, { x: r.right - 20, y: r.bottom + 4 });
-    }),
-  ]);
-  barra.hidden = true;
-  document.body.append(barra);
-
-  const posicionar = (): void => {
-    if (alvo === null || !alvo.isConnected) {
-      esconder();
-      return;
-    }
-    const bolha = alvo.querySelector<HTMLElement>('.message__bubble') ?? alvo;
-    const r = bolha.getBoundingClientRect();
-    const mine = alvo.classList.contains('message--mine');
-    barra.hidden = false;
-    const larg = barra.offsetWidth;
-    // Balão curto: a barrinha não pode tampar o nome de quem mandou (clicar abre o perfil).
-    const nome = alvo.querySelector<HTMLElement>('.message__author')?.getBoundingClientRect();
-    const x = mine ? r.left - larg + 40 : Math.max(r.right - 40, nome === undefined ? 0 : nome.right + 8);
-    barra.style.left = `${Math.max(8, Math.min(innerWidth - larg - 8, x))}px`;
-    barra.style.top = `${Math.max(8, r.top - barra.offsetHeight + 8)}px`;
-  };
-  function esconder(): void {
-    alvo?.classList.remove('is-com-barra');
-    alvo = null;
-    barra.hidden = true;
-  }
-  const sobre = (e: MouseEvent): void => {
-    if (!mouse.matches) return;
-    if (barra.contains(e.target as Node)) return;
-    const li = (e.target as HTMLElement | null)?.closest<HTMLElement>('.message[data-message-id]');
-    if (li === null || li === undefined || li.querySelector('.message__editor') !== null) {
-      if (li === null) esconder();
-      return;
-    }
-    if (li === alvo) return;
-    alvo?.classList.remove('is-com-barra');
-    alvo = li;
-    li.classList.add('is-com-barra');
-    // Sem "Reagir" no cargo: a barrinha fica só com Responder/Encaminhar/⋯.
-    const d = dadosDaMensagem(li);
-    const pode = podeReagir(d.tipo, d.canal);
-    for (const b of [...rapidas, todos, separador]) b.hidden = !pode;
-    posicionar();
-  };
-  const sair = (e: MouseEvent): void => {
-    const para = e.relatedTarget as Node | null;
-    if (para !== null && (barra.contains(para) || alvo?.contains(para))) return;
-    if (para === null || !(para instanceof Element) || para.closest('.message[data-message-id]') === null) esconder();
-  };
-  document.addEventListener('mouseover', sobre);
-  document.addEventListener('mouseout', sair);
-  document.addEventListener('scroll', esconder, true);
-  return () => {
-    document.removeEventListener('mouseover', sobre);
-    document.removeEventListener('mouseout', sair);
-    document.removeEventListener('scroll', esconder, true);
-    barra.remove();
   };
 }

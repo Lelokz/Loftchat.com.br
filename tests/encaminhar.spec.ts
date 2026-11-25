@@ -59,9 +59,9 @@ test('encaminhar: para um amigo e para um canal de outro grupo, com mensagem jun
   const msg = pa.locator('.message', { hasText: 'o IP do servidor é 10.0.0.7' });
   await expect(msg).toBeVisible({ timeout: 30_000 });
 
-  // Barrinha → Encaminhar.
-  await msg.locator('.message__bubble').hover();
-  await pa.getByRole('toolbar', { name: 'Ações da mensagem' }).getByRole('button', { name: 'Encaminhar' }).click();
+  // Botão direito → Encaminhar.
+  await msg.locator('.message__bubble').click({ button: 'right' });
+  await pa.locator('.context-menu').getByRole('menuitem', { name: 'Encaminhar' }).click();
   const janela = pa.getByRole('dialog', { name: 'Encaminhar' });
   await expect(janela).toBeVisible();
   await expect(janela).toContainText('o IP do servidor é 10.0.0.7');

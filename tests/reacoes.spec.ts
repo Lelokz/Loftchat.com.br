@@ -42,12 +42,16 @@ test('reações: barrinha, pílulas, celular e regras', async ({ browser }) => {
   await expect(msgA).toBeVisible({ timeout: 30_000 });
   const id = (await msgA.getAttribute('data-message-id'))!;
 
-  // PC: passar o mouse mostra a barrinha; 🔥 reage.
+  // PC: passar o mouse NÃO mostra nada; o botão direito traz os emojis; 🔥 reage.
   await msgA.locator('.message__bubble').hover();
-  const barra = pa.getByRole('toolbar', { name: 'Ações da mensagem' });
-  await expect(barra).toBeVisible();
-  await pa.screenshot({ path: 'test-results/reacoes/1-barrinha.png' });
-  await barra.getByRole('button', { name: 'Reagir com 🔥' }).click();
+  await pa.waitForTimeout(300);
+  await expect(pa.getByRole('toolbar', { name: 'Ações da mensagem' })).toHaveCount(0);
+  await expect(pa.locator('.context-menu')).toHaveCount(0);
+  await msgA.locator('.message__bubble').click({ button: 'right' });
+  const emojis = pa.locator('.context-menu').getByRole('group', { name: 'Reagir' });
+  await expect(emojis).toBeVisible();
+  await pa.screenshot({ path: 'test-results/reacoes/1-menu.png' });
+  await emojis.getByRole('button', { name: 'Reagir com 🔥' }).click();
   const fogoA = msgA.locator('.reacao', { hasText: '🔥' });
   await expect(fogoA).toHaveText('🔥1', { timeout: 30_000 });
   await expect(fogoA).toHaveAttribute('aria-pressed', 'true');
