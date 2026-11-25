@@ -107,6 +107,8 @@ export interface PresenceSession {
   setMuted(muted: boolean): Promise<void>;
   /** Publica que estou (ou não) transmitindo a tela. */
   setSharingScreen(sharing: boolean): Promise<void>;
+  /** 0.9.5: publica a câmera (ligada e/ou pausada). */
+  setCamera(ligada: boolean, pausada: boolean): Promise<void>;
   /** Sai do canal: para o heartbeat, responde outras abas e apaga o documento. */
   leave(): Promise<void>;
 }
@@ -207,6 +209,9 @@ export async function joinVoiceChannel(
     },
     async setSharingScreen(sharing) {
       await updateDoc(ref, { sharingScreen: sharing, lastSeen: new Date().toISOString() });
+    },
+    async setCamera(ligada, pausada) {
+      await updateDoc(ref, { camera: ligada, cameraPausada: ligada && pausada, lastSeen: new Date().toISOString() });
     },
     async leave() {
       stop();

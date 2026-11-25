@@ -1570,6 +1570,8 @@ function toVoiceParticipant(data: DocumentData): VoiceParticipant {
     joinedAt: typeof data['joinedAt'] === 'string' ? data['joinedAt'] : '',
     muted: data['muted'] === true,
     sharingScreen: data['sharingScreen'] === true,
+    camera: data['camera'] === true,
+    cameraPausada: data['cameraPausada'] === true,
     // Sem lastSeen, o participante conta como fantasma na hora — é o padrão
     // seguro: melhor sumir alguém de verdade do que mostrar quem não está lá.
     lastSeen: typeof data['lastSeen'] === 'string' ? data['lastSeen'] : '',

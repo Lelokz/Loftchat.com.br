@@ -35,7 +35,7 @@ import {
 } from '../lib/voice-presence';
 import type { PresenceSession } from '../lib/voice-presence';
 import { clearMySignals } from '../lib/voice-signaling';
-import { startVoiceEngine } from '../lib/voice-engine';
+import { MAX_CAMERAS, startVoiceEngine } from '../lib/voice-engine';
 import { emAppAndroid } from '../lib/android';
 import { capturarTelaDoAndroid, transmissaoDoAndroidDisponivel } from '../lib/android-tela';
 import type { PeerDiagnostic, ScreenAudioExtra, VoiceEngine } from '../lib/voice-engine';
@@ -185,6 +185,9 @@ export interface AppState {
   screenAudioMissing: boolean;
   /** A transmissão ocupa a tela toda. */
   screenMaximized: boolean;
+  /** 0.9.5: minha câmera está ligada? E pausada (app do celular atrás)? */
+  cameraOn: boolean;
+  cameraPaused: boolean;
   /**
    * O motor de voz terminou de subir?
    *
@@ -320,6 +323,18 @@ export interface Store {
   /** Meu próprio vídeo, para a miniatura de conferência. */
   localScreenStream(): MediaStream | null;
   /**
+   * 0.9.5: liga a câmera (ou troca de câmera, se já estiver ligada).
+   * Devolve o motivo da recusa, ou null.
+   */
+  startCamera(deviceId?: string, frente?: boolean): Promise<string | null>;
+  stopCamera(): Promise<void>;
+  /** Pausa/retoma a câmera sem desligar (app do celular foi para trás). */
+  setCameraPaused(paused: boolean): Promise<void>;
+  /** O <video> da câmera de outra pessoa na chamada — ou null. */
+  cameraElementOf(uid: string): HTMLVideoElement | null;
+  /** A minha câmera, para o meu próprio bloco. */
+  localCameraStream(): MediaStream | null;
+  /**
    * Quem começou ou parou de falar.
    *
    * Fica FORA do estado de propósito: o analisador roda a cada quadro e isso
@@ -404,6 +419,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     screenLabel: null,
     screenAudioMissing: false,
     screenMaximized: false,
+    cameraOn: false,
+    cameraPaused: false,
     voiceReady: false,
     voiceEngineError: null,
     members: [],
@@ -515,7 +532,9 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         p.uid === other.uid &&
         p.channelId === other.channelId &&
         p.muted === other.muted &&
-        p.sharingScreen === other.sharingScreen
+        p.sharingScreen === other.sharingScreen &&
+        p.camera === other.camera &&
+        p.cameraPausada === other.cameraPausada
       );
     });
 
@@ -653,7 +672,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     // grupo, aquela sala não existe mais para mim.
     if (state.voice?.groupId === groupId) {
       void stopVoice();
-      patch({ voice: null, centerView: 'chat' });
+      patch({ voice: null, centerView: 'chat', cameraOn: false, cameraPaused: false });
     }
     if (state.activeGroupId !== groupId) return;
     lostAccess.add(groupId);
@@ -1242,7 +1261,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         presence = await joinVoiceChannel(user, groupId, channelId, {
           onDisplaced: () => {
             void stopVoice();
-            patch({ voice: null, centerView: 'chat' });
+            patch({ voice: null, centerView: 'chat', cameraOn: false, cameraPaused: false });
           },
         });
       } catch (error) {
@@ -1325,6 +1344,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         screenSharing: false,
         screenLabel: null,
         screenMaximized: false,
+        cameraOn: false,
+        cameraPaused: false,
         voiceReady: false,
         voiceEngineError: null,
       });
@@ -1432,6 +1453,45 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
     localScreenStream: () => engine?.localScreen() ?? null,
 
+    async startCamera(deviceId, frente) {
+      if (engine === null || state.voice === null) return 'Entre numa chamada para ligar a câmera.';
+      if (!state.cameraOn) {
+        // Limite da sala: na malha cada câmera vai para cada pessoa.
+        const ligadas = state.voiceParticipants.filter(
+          (p) => p.channelId === state.voice?.channelId && p.camera && p.uid !== user.uid,
+        ).length;
+        if (ligadas >= MAX_CAMERAS) {
+          return `Já tem ${MAX_CAMERAS} câmeras ligadas nesta sala. Espere alguém desligar a dele.`;
+        }
+      }
+      try {
+        await engine.startCamera(deviceId, frente);
+      } catch (error) {
+        console.error('Não foi possível ligar a câmera.', error);
+        return textoDoErroDaCamera(error);
+      }
+      patch({ cameraOn: true, cameraPaused: false });
+      await presence?.setCamera(true, false).catch(() => {});
+      return null;
+    },
+
+    async stopCamera() {
+      if (engine === null) return;
+      await engine.stopCamera();
+      patch({ cameraOn: false, cameraPaused: false });
+      await presence?.setCamera(false, false).catch(() => {});
+    },
+
+    async setCameraPaused(paused) {
+      if (engine === null || !state.cameraOn || state.cameraPaused === paused) return;
+      await engine.setCameraPaused(paused);
+      patch({ cameraPaused: paused });
+      await presence?.setCamera(true, paused).catch(() => {});
+    },
+
+    cameraElementOf: (uid) => engine?.cameraElementOf(uid) ?? null,
+    localCameraStream: () => engine?.localCamera() ?? null,
+
     onSpeaking(listener) {
       speakingListeners.add(listener);
       return () => speakingListeners.delete(listener);
@@ -1461,4 +1521,17 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       listeners.clear();
     },
   };
+}
+
+/** O erro da câmera em português (o navegador diz em inglês e técnico). */
+function textoDoErroDaCamera(error: unknown): string {
+  const nome = (error as { name?: string } | null)?.name ?? '';
+  if (nome === 'NotAllowedError' || nome === 'SecurityError') {
+    return 'O Loftchat não tem permissão para usar a câmera. Libere nas configurações do aparelho.';
+  }
+  if (nome === 'NotFoundError' || nome === 'OverconstrainedError') return 'Nenhuma câmera encontrada.';
+  if (nome === 'NotReadableError' || nome === 'AbortError') {
+    return 'A câmera está sendo usada por outro programa. Feche ele e tente de novo.';
+  }
+  return 'Não foi possível ligar a câmera.';
 }

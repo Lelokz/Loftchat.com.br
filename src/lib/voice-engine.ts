@@ -76,6 +76,35 @@ export const SCREEN_QUALITY: MediaTrackConstraints = {
  */
 export const SCREEN_UPLOAD_BUDGET = 8_000_000; // bits/s somando todos os pares
 
+/*
+ * CÂMERA (0.9.5). Um quarto canal em cada conexão, reservado desde o começo
+ * como o da tela — ligar e desligar é `replaceTrack`, sem renegociar.
+ *
+ * Qualidade: 720p30 PEDIDO (`ideal`, a câmera entrega o que tiver). O que
+ * sai para cada par se ajusta sozinho pelo tamanho da sala: um orçamento
+ * total dividido (mesma lógica da tela, ver acima) com teto por par, e a
+ * resolução encolhe quando a sala enche. Relay aperta mais.
+ */
+export const CAMERA_QUALITY: MediaTrackConstraints = {
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  frameRate: { ideal: 30, max: 30 },
+};
+export const CAMERA_UPLOAD_BUDGET = 3_000_000; // bits/s somando todos os pares
+export const CAMERA_MAX_PER_PEER = 1_200_000;
+export const CAMERA_RELAY_BITRATE = 500_000;
+/** Câmeras ligadas ao mesmo tempo numa sala (malha: cada uma vai para cada pessoa). */
+export const MAX_CAMERAS = 8;
+
+/** Bits/s e redução de resolução da câmera para um par, pelo tamanho da sala. */
+export function qualidadeDaCamera(pares: number, viaRelay: boolean): { bitrate: number; reduzir: number } {
+  const n = Math.max(1, pares);
+  const bitrate = viaRelay ? CAMERA_RELAY_BITRATE : Math.min(CAMERA_MAX_PER_PEER, Math.floor(CAMERA_UPLOAD_BUDGET / n));
+  // 720p com até 2 pessoas, 480p até 4, 360p acima disso.
+  const reduzir = viaRelay || n >= 5 ? 2 : n >= 3 ? 1.5 : 1;
+  return { bitrate, reduzir };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Detecção de fala                                                            */
 /* -------------------------------------------------------------------------- */
@@ -222,6 +251,19 @@ export interface VoiceEngine {
   /** O <video> daquela pessoa. Vive fora da árvore de componentes. */
   videoElementOf(uid: string): HTMLVideoElement | null;
 
+  /**
+   * Liga (ou troca) a câmera. `deviceId` = qual câmera ('' = a padrão);
+   * `frente` vale no celular (true = a da frente). Erro sobe: quem chama diz
+   * o motivo (permissão negada, câmera ocupada…).
+   */
+  startCamera(deviceId?: string, frente?: boolean): Promise<MediaStream>;
+  stopCamera(): Promise<void>;
+  /** Pausa sem desligar (app do celular foi para trás): para de mandar quadros. */
+  setCameraPaused(paused: boolean): Promise<void>;
+  localCamera(): MediaStream | null;
+  /** O <video> da câmera daquela pessoa. Vive fora da árvore de componentes. */
+  cameraElementOf(uid: string): HTMLVideoElement | null;
+
   destroy(): Promise<void>;
 }
 
@@ -250,6 +292,16 @@ interface Peer {
    * silêncio foi exatamente o defeito da etapa 9.
    */
   screenVideoTransceiver: RTCRtpTransceiver | null;
+  /**
+   * O canal da CÂMERA (0.9.5): a quarta linha. `null` até existir — e fica
+   * `null` para sempre com quem ainda está numa versão sem câmera (a oferta
+   * dela só tem três linhas).
+   */
+  camSender: RTCRtpSender | null;
+  camTransceiver: RTCRtpTransceiver | null;
+  /** A câmera que chega desta pessoa, num <video> próprio (fora da árvore). */
+  camVideo: HTMLVideoElement;
+  remoteCam: MediaStream;
   /**
    * O par vencedor é relay? Decide o teto de banda deste par.
    *
@@ -367,6 +419,9 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
   let stopScreenAudioExtra: (() => void) | null = null;
   /** A origem da tela quando não é o getDisplayMedia (app Android). */
   let pararFonte: (() => void) | null = null;
+  /** A câmera ligada, ou null. Fonte da verdade do "minha câmera está ligada". */
+  let cameraStream: MediaStream | null = null;
+  let cameraPausada = false;
   let denied = false;
   // Etapa 8c: o microfone, a saída e os filtros escolhidos em Voz e áudio.
   let ajustes = loadVoiceSettings();
@@ -542,6 +597,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     let screenAudioSender: RTCRtpSender | null = null;
     let screenVideoSender: RTCRtpSender | null = null;
     let screenVideoTransceiver: RTCRtpTransceiver | null = null;
+    let camTransceiver: RTCRtpTransceiver | null = null;
 
     if (iAmOfferer(myUid, peerUid)) {
       pc.addTransceiver(micTrack ?? 'audio', {
@@ -552,6 +608,10 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       screenAudioSender = screenAudio.sender;
       screenVideoSender = screenVideo.sender;
       screenVideoTransceiver = screenVideo;
+      // 0.9.5: a câmera é a QUARTA linha, sempre depois das três de antes —
+      // assim quem ainda está numa versão velha adota as três dele e ignora
+      // esta (vira `recvonly` lá, e a câmera só não chega naquela pessoa).
+      camTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
     }
 
     const audio = document.createElement('audio');
@@ -569,6 +629,14 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     video.dataset['uid'] = peerUid;
     videoHost.append(video);
 
+    const camVideo = document.createElement('video');
+    camVideo.autoplay = true;
+    camVideo.playsInline = true;
+    camVideo.muted = true;
+    camVideo.dataset['uid'] = peerUid;
+    camVideo.dataset['camera'] = '';
+    videoHost.append(camVideo);
+
     const peer: Peer = {
       pc,
       audio,
@@ -579,6 +647,10 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       screenAudioSender,
       screenVideoSender,
       screenVideoTransceiver,
+      camSender: camTransceiver?.sender ?? null,
+      camTransceiver,
+      camVideo,
+      remoteCam: new MediaStream(),
       viaRelay: false,
       relayBytes: 0,
       lastPairBytes: 0,
@@ -609,6 +681,16 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
      */
     pc.ontrack = (event) => {
       const track = event.track;
+
+      if (track.kind === 'video' && ehCamera(pc, event.transceiver)) {
+        // A câmera: mesma ideia da tela logo abaixo (a faixa fica para sempre;
+        // quem diz se a câmera está ligada é o roster, campo `camera`).
+        peer.remoteCam.addTrack(track);
+        peer.camVideo.srcObject = peer.remoteCam;
+        void peer.camVideo.play().catch(() => {});
+        callbacks.onPeersChanged();
+        return;
+      }
 
       if (track.kind === 'video') {
         /*
@@ -737,6 +819,9 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     if (screenStream !== null) {
       peer.queue = peer.queue.then(() => attachScreen(peerUid, peer)).catch(onError);
     }
+    if (cameraStream !== null) {
+      peer.queue = peer.queue.then(() => attachCamera(peer)).catch(onError);
+    }
 
     return peer;
   }
@@ -781,6 +866,14 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       screenVideo.direction = 'sendrecv';
       peer.screenVideoSender = screenVideo.sender;
       peer.screenVideoTransceiver = screenVideo;
+    }
+
+    // 0.9.5: a quarta linha é a câmera (não vem de quem está em versão velha).
+    const cam = video[1];
+    if (cam !== undefined) {
+      cam.direction = 'sendrecv';
+      peer.camSender = cam.sender;
+      peer.camTransceiver = cam;
     }
   }
 
@@ -940,6 +1033,7 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
           // adotada ainda sai no SDP.
           adoptTransceivers(peer);
           if (screenStream !== null) await attachScreen(signal.from, peer);
+          if (cameraStream !== null) await attachCamera(peer);
 
           await peer.pc.setLocalDescription();
           /*
@@ -1005,6 +1099,8 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     // último quadro congelado no palco depois de já ter sumido do roster.
     peer.video.srcObject = null;
     peer.video.remove();
+    peer.camVideo.srcObject = null;
+    peer.camVideo.remove();
     peers.delete(peerUid);
     watchers.delete(peerUid);
     failed.delete(peerUid);
@@ -1032,6 +1128,9 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
     // é caro e disputa o mesmo sender que o anexo da tela.
     if (peer.viaRelay !== wasRelay && screenStream !== null) {
       peer.queue = peer.queue.then(() => applyVideoParameters(peer)).catch(onError);
+    }
+    if (peer.viaRelay !== wasRelay && cameraStream !== null) {
+      peer.queue = peer.queue.then(() => applyCameraParameters(peer)).catch(onError);
     }
     void peerUid;
   }
@@ -1142,7 +1241,38 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
    * upload em vez de repartir o mesmo — e o sintoma seria a voz de todo mundo
    * piorando de uma vez, sem nada na tela explicando.
    */
+  /* --- câmera (0.9.5) ------------------------------------------------------ */
+
+  /** Liga a câmera (ou nada, se pausada/desligada) no canal dela desta conexão. */
+  async function attachCamera(peer: Peer): Promise<void> {
+    // Sem canal: quem responde ainda não adotou, ou a outra pessoa está numa
+    // versão sem câmera. Nos dois casos não é erro.
+    if (peer.camSender === null) return;
+    const faixa = cameraPausada ? null : (cameraStream?.getVideoTracks()[0] ?? null);
+    await peer.camSender.replaceTrack(faixa);
+    if (faixa !== null) await applyCameraParameters(peer);
+  }
+
+  async function applyCameraParameters(peer: Peer): Promise<void> {
+    const sender = peer.camSender;
+    if (sender === null || sender.track === null) return;
+    const { bitrate, reduzir } = qualidadeDaCamera(peers.size, peer.viaRelay);
+    const params = sender.getParameters();
+    if (params.encodings.length === 0) params.encodings = [{}];
+    params.encodings[0]!.maxBitrate = bitrate;
+    params.encodings[0]!.scaleResolutionDownBy = reduzir;
+    params.encodings[0]!.maxFramerate = 30;
+    // Rosto: equilibrado (nem trava a imagem, nem borra tudo).
+    params.degradationPreference = 'balanced';
+    await sender.setParameters(params).catch(onError);
+  }
+
   function rebalanceBitrate(): void {
+    if (cameraStream !== null) {
+      for (const peer of peers.values()) {
+        peer.queue = peer.queue.then(() => applyCameraParameters(peer)).catch(onError);
+      }
+    }
     if (screenStream === null) return;
     /*
      * PELA FILA DO PAR, e não solto.
@@ -1276,6 +1406,58 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       [...peers.entries()].filter(([, peer]) => peer.hasVideo).map(([uid]) => uid),
     videoElementOf: (uid) => peers.get(uid)?.video ?? null,
 
+    async startCamera(deviceId = '', frente) {
+      const video: MediaTrackConstraints = { ...CAMERA_QUALITY };
+      if (deviceId !== '') video.deviceId = { exact: deviceId };
+      else if (frente !== undefined) video.facingMode = frente ? 'user' : 'environment';
+      // Trocar de câmera com ela ligada: a velha para DEPOIS de a nova estar
+      // nas conexões (ninguém vê um buraco preto no meio).
+      const novo = await navigator.mediaDevices.getUserMedia({ video });
+      if (destroyed) {
+        novo.getTracks().forEach((t) => t.stop());
+        throw new Error('A chamada acabou.');
+      }
+      const faixa = novo.getVideoTracks()[0];
+      if (faixa === undefined) {
+        novo.getTracks().forEach((t) => t.stop());
+        throw new Error('A câmera não mandou imagem.');
+      }
+      // Diz ao codificador que é ROSTO em movimento, não tela com texto.
+      faixa.contentHint = 'motion';
+      const velho = cameraStream;
+      cameraStream = novo;
+      for (const peer of peers.values()) {
+        peer.queue = peer.queue.then(() => attachCamera(peer)).catch(onError);
+      }
+      await Promise.all([...peers.values()].map((p) => p.queue));
+      velho?.getTracks().forEach((t) => t.stop());
+      return novo;
+    },
+
+    async stopCamera() {
+      const velho = cameraStream;
+      if (velho === null) return;
+      cameraStream = null;
+      cameraPausada = false;
+      for (const peer of peers.values()) {
+        peer.queue = peer.queue.then(() => attachCamera(peer)).catch(onError);
+      }
+      await Promise.all([...peers.values()].map((p) => p.queue));
+      velho.getTracks().forEach((t) => t.stop());
+    },
+
+    async setCameraPaused(paused) {
+      if (cameraPausada === paused) return;
+      cameraPausada = paused;
+      for (const peer of peers.values()) {
+        peer.queue = peer.queue.then(() => attachCamera(peer)).catch(onError);
+      }
+      await Promise.all([...peers.values()].map((p) => p.queue));
+    },
+
+    localCamera: () => cameraStream,
+    cameraElementOf: (uid) => peers.get(uid)?.camVideo ?? null,
+
     setMuted(value) {
       muted = value;
       // Desligar a FAIXA, não parar o stream: parar exigiria pedir o microfone
@@ -1353,6 +1535,9 @@ export async function startVoiceEngine(options: VoiceEngineOptions): Promise<Voi
       screenStream = null;
       pararFonte?.();
       pararFonte = null;
+      // A câmera também desliga com a chamada (a luzinha dela apaga).
+      cameraStream?.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
       for (const peerUid of [...peers.keys()]) dropPeer(peerUid);
       watchers.clear();
       localStream?.getTracks().forEach((track) => track.stop());
@@ -1408,6 +1593,15 @@ function videoStats(
     // responde "está travando por rede ou por CPU?".
     limitation: outbound ? ((report['qualityLimitationReason'] as string) ?? null) : null,
   };
+}
+
+/**
+ * Este transceiver é o da CÂMERA? É a SEGUNDA linha de vídeo da sessão (a
+ * primeira é a tela) — a ordem é a de quem oferta, igual nos dois lados.
+ */
+function ehCamera(pc: RTCPeerConnection, transceiver: RTCRtpTransceiver): boolean {
+  const videos = pc.getTransceivers().filter((t) => t.mid !== null && t.receiver.track.kind === 'video');
+  return videos.indexOf(transceiver) === 1;
 }
 
 /**

@@ -503,6 +503,10 @@ export interface VoiceParticipant {
    * uma transmissão fantasma sem dono.
    */
   sharingScreen: boolean;
+  /** 0.9.5: está com a câmera ligada? (Mesmo motivo de morar aqui: some junto.) */
+  camera: boolean;
+  /** Câmera ligada, mas pausada (o app do celular foi para trás). */
+  cameraPausada: boolean;
   lastSeen: string;
 }
 

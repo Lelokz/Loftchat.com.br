@@ -972,7 +972,10 @@ service cloud.firestore {
 
       function vozOk(d) {
         return (d.get('muted', true) == true || podeNoCanal(d.groupId, d.channelId, 'falar'))
-          && (d.get('sharingScreen', false) != true || podeNoCanal(d.groupId, d.channelId, 'transmitir'));
+          && (d.get('sharingScreen', false) != true || podeNoCanal(d.groupId, d.channelId, 'transmitir'))
+          // 0.9.5: câmera = "Ligar câmera".
+          && (d.get('camera', false) != true || podeNoCanal(d.groupId, d.channelId, 'camera'))
+          && d.get('camera', false) is bool && d.get('cameraPausada', false) is bool;
       }
 
       // Só mexo no meu, e não posso me mudar de canal nem de grupo por update —
@@ -983,6 +986,7 @@ service cloud.firestore {
         && request.resource.data.groupId == resource.data.groupId
         && (request.resource.data.get('muted', true) == resource.data.get('muted', true)
               && request.resource.data.get('sharingScreen', false) == resource.data.get('sharingScreen', false)
+              && request.resource.data.get('camera', false) == resource.data.get('camera', false)
             || vozOk(request.resource.data));
 
       // Eu saio; o dono também pode tirar alguém da sala do próprio grupo.

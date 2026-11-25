@@ -97,7 +97,7 @@ export const SECOES_DE_PERMISSOES: SecaoDePermissoes[] = [
       { id: 'falar', nome: 'Falar', desc: 'Liga o microfone dentro da sala.' },
       { id: 'transmitir', nome: 'Transmitir tela', desc: 'Compartilha a tela na sala.' },
       { id: 'transmitir-som', nome: 'Transmitir tela com som', desc: 'Manda o som do computador junto com a tela.' },
-      { id: 'camera', nome: 'Ligar câmera', desc: 'Liga a câmera na sala.', futura: 'câmera' },
+      { id: 'camera', nome: 'Ligar câmera', desc: 'Liga a câmera na sala e nas ligações.' },
       { id: 'sala-cheia', nome: 'Entrar em sala cheia', desc: 'Entra mesmo quando a sala chegou no limite de pessoas.' },
       { id: 'silenciar-outros', nome: 'Silenciar o microfone dos outros', desc: 'Desliga o microfone de alguém na sala.' },
       { id: 'ensurdecer-outros', nome: 'Ensurdecer os outros', desc: 'Faz alguém parar de ouvir a sala.' },

@@ -2,6 +2,7 @@ import { chromium, expect, test } from "@playwright/test";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 
 import { MEDIA_ARGS } from "../playwright.config";
+import { ligarCarteiroLocal } from "./carteiro-local";
 
 import {
   activeGroupId,
@@ -910,7 +911,19 @@ test("apagar grupo remove tudo e o grupo some da barra dos dois usuários", asyn
   browser,
 }) => {
   // Duas sessões, convite, mensagens e a cascata inteira não cabem em 60s.
-  test.setTimeout(75_000);
+  test.setTimeout(120_000);
+  // 0.8.5: abrir o grupo fala com o carteiro (cargos). Sem ele ligado, o
+  // navegador registra "conexão recusada" no console — e este teste olha o
+  // console. Na suíte inteira outro teste já o deixava ligado; sozinho, não.
+  const desligarCarteiro = await ligarCarteiroLocal();
+  try {
+    await apagarGrupoCascata(browser);
+  } finally {
+    desligarCarteiro();
+  }
+});
+
+async function apagarGrupoCascata(browser: Browser): Promise<void> {
   const scene = await groupWithMember(browser, "cascata");
 
   // Dá conteúdo real para a cascata varrer: mensagens dos DOIS lados. As do
@@ -969,7 +982,7 @@ test("apagar grupo remove tudo e o grupo some da barra dos dois usuários", asyn
 
   await scene.ownerContext.close();
   await scene.guestContext.close();
-});
+}
 
 /* -------------------------------------------------------------------------- */
 /* ENTREGA 2 — menu de contexto                                                */
