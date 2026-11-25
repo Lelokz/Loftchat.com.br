@@ -59,7 +59,10 @@ import { renderPinnedList } from './components/pinned/pinned-list';
 import type { AbaDoPainel, SalaAgora } from './components/group-panel/group-panel';
 import { abaMidia } from './components/galeria/galeria';
 import { chipsDeCargos } from './components/cargos/chips';
-import { darCargo, quemConvidou } from './lib/cargos';
+import { abrirPermissoesDoCanal } from './components/cargos/permissoes-canal';
+import { banir, darCargo, expulsar, limparMensagens, mudarApelido, passarDono, porDeCastigo, quemConvidou, recalcularDepois, tirarCastigo } from './lib/cargos';
+import { COMANDOS_PRONTOS, lerPessoa, lerTempo, separar, sortearNumero } from './lib/comandos';
+import { abrirApelido, abrirBanir, abrirCastigo, abrirModoLento, abrirPassarDono } from './components/cargos/moderacao';
 import { closeGroupMenu, openGroupMenu } from './components/group-menu/group-menu';
 import type { GroupMenuItem } from './components/group-menu/group-menu';
 import {
@@ -97,7 +100,12 @@ import {
   unpinMessages,
 } from './lib/firestore';
 import { initials } from './lib/format';
-import { canLeaveGroup, isOwner, OWNER_CANNOT_LEAVE } from './lib/permissions';
+import { aoMudarVerComo, canLeaveGroup, isOwner, meuCastigo, OWNER_CANNOT_LEAVE, pode, vendoComoAgora, verComo } from './lib/permissions';
+import { limitarComposer } from './components/chat/composer/composer';
+import { ligarModoLento, mudarModoLento } from './lib/firestore';
+import type { LimitesDoComposer } from './components/chat/composer/composer';
+import type { ContextoDePermissao } from './lib/permissions';
+import { PERMS_DAS_CONFIGURACOES } from './lib/permissoes';
 import { isWellFormedInviteCode } from './lib/invite-code';
 import { extractInviteCode, invitePath, inviteUrl, navigate } from './lib/router';
 import { isMobileLayout, onLayoutChange, trackViewportHeight } from './lib/layout';
@@ -162,6 +170,53 @@ export function mountApp(
 ): AppHandle {
   const me = sessionMember(user, username);
   const store: Store = createStore(user, onFatalError);
+
+  /* 0.8.5: CARGOS — "posso fazer isto aqui?" segue a mesma regra do banco. */
+  const ctxPerm = (state: AppState): ContextoDePermissao => ({
+    group: state.view === 'group' ? (activeGroup(state) ?? null) : null,
+    members: state.members,
+    cargos: state.cargos,
+    channels: state.channels,
+  });
+  const posso = (state: AppState, perm: string, canal?: string): boolean => pode(ctxPerm(state), user.uid, perm, canal);
+
+  /*
+   * "Ver o grupo como este cargo": uma faixa no topo diz isso e tem o botão
+   * para voltar. Ligar/desligar redesenha tudo (canais, botões, caixa).
+   */
+  /* 0.8.5 MODO LENTO: quando mandei a última em cada canal (para a contagem na caixa). */
+  const minhaUltimaEm = new Map<string, number>();
+  let relogioDoLento = 0;
+  const canalLento = (st: AppState, canal: string): number => {
+    const c = st.channels.find((x) => x.id === canal);
+    return c?.lento !== undefined && c.lento > 0 && !posso(st, 'ignorar-lento', canal) ? c.lento : 0;
+  };
+  ligarModoLento(
+    (canal) => canalLento(store.getState(), canal) > 0,
+    (canal) => {
+      minhaUltimaEm.set(canal, Date.now());
+      aplicarLimitesDoCargo(store.getState());
+    },
+  );
+
+  const faixaVerComo = el('div', { class: 'ver-como', role: 'status', hidden: true });
+  aoMudarVerComo(() => {
+    previous = null;
+    render(store.getState());
+  });
+  function desenharVerComo(state: AppState): void {
+    const cargoId = vendoComoAgora(state.view === 'group' ? state.activeGroupId : null);
+    const cargo = state.cargos.find((c) => c.id === cargoId);
+    faixaVerComo.hidden = cargoId === null;
+    if (cargoId === null) return;
+    const voltar = el('button', { class: 'ver-como__voltar', type: 'button' }, ['Voltar ao normal']);
+    voltar.addEventListener('click', () => verComo(state.activeGroupId ?? '', null));
+    faixaVerComo.replaceChildren(
+      el('span', {}, ['👁 Vendo o grupo como ', el('b', {}, [cargo?.todos === true ? '@todos' : (cargo?.nome ?? 'cargo')])]),
+      voltar,
+    );
+    if (!faixaVerComo.isConnected) document.body.append(faixaVerComo);
+  }
 
   // A minha foto (etapa 2b) mora no perfil público: busca uma vez e redesenha
   // o meu cartão quando chegar.
@@ -342,6 +397,7 @@ export function mountApp(
     if (groupId === null) return;
     openCreateChannelDialog(async (name, kind) => {
       await createChannel(groupId, name, kind, state.channels);
+      recalcularDepois(groupId);
     });
   };
 
@@ -399,8 +455,11 @@ export function mountApp(
   const handleGroupSettings = (groupId?: string): void => {
     const state = store.getState();
     const group = groupId === undefined ? activeGroup(state) : groupById(groupId);
-    if (group === undefined || !isOwner(group, user.uid)) return;
+    if (group === undefined) return;
     const aberto = group.id === state.activeGroupId;
+    // De outro grupo o app não sabe as permissões: só o dono abre de lá.
+    const podeAqui = (perm: string): boolean => (aberto ? posso(store.getState(), perm) : isOwner(group, user.uid));
+    if (!PERMS_DAS_CONFIGURACOES.some(podeAqui)) return;
     void (aberto ? Promise.resolve(state.channels) : loadChannels(group.id)).then(
       (channels) =>
         openGroupSettings({
@@ -408,6 +467,13 @@ export function mountApp(
           // De outro grupo o app não tem a lista de membros: a prévia mostra só o resto.
           memberCount: aberto ? state.members.length : 0,
           channels,
+          eu: user.uid,
+          pode: podeAqui,
+          ...(aberto ? { aoPermissoes: abrirPermissoes } : {}),
+          aoVerComo: (cargoId) => {
+            verComo(group.id, cargoId);
+            showToast('Vendo o grupo como este cargo. Use "Voltar ao normal" no topo para sair.');
+          },
         }),
       () => showToast('Não deu para abrir as configurações do grupo agora.'),
     );
@@ -500,7 +566,15 @@ export function mountApp(
       busyLabel: 'Removendo…',
       failureMessage: 'Não foi possível remover a pessoa.',
       async onConfirm(controller) {
-        await removeMember(groupId, memberId);
+        // 0.8.5: pelo carteiro (confere "Expulsar" + hierarquia e anota no
+        // registro). Sem carteiro (fora do ar), o dono ainda remove direto.
+        try {
+          await expulsar(groupId, memberId);
+        } catch (erro) {
+          const dono = isOwner(activeGroup(store.getState()) ?? null, user.uid);
+          if (!dono || !(erro instanceof Error) || !erro.message.startsWith('Sem conexão')) throw erro;
+          await removeMember(groupId, memberId);
+        }
         controller.close();
       },
     });
@@ -617,13 +691,12 @@ export function mountApp(
     const owner = isOwner(group, user.uid);
     const items: GroupMenuItem[] = [];
 
-    if (owner) {
-      items.push(
-        { label: 'Configurações do grupo', onSelect: () => handleGroupSettings() },
-        { label: 'Criar canal', onSelect: handleCreateChannel },
-        { label: 'Convidar pessoas', onSelect: handleInvite },
-      );
+    // 0.8.5: cada item com a sua permissão.
+    if (PERMS_DAS_CONFIGURACOES.some((p) => posso(state, p))) {
+      items.push({ label: 'Configurações do grupo', onSelect: () => handleGroupSettings() });
     }
+    if (posso(state, 'criar-canais')) items.push({ label: 'Criar canal', onSelect: handleCreateChannel });
+    if (posso(state, 'criar-convites')) items.push({ label: 'Convidar pessoas', onSelect: handleInvite });
 
     // Etapa 3d: qualquer membro (dono também) dá apelido ou tira o nome da aba.
     items.push({ label: 'Apelido do grupo', onSelect: () => handleOpenSettings('grupos') });
@@ -670,6 +743,13 @@ export function mountApp(
    * num canal e não acontecer nada seria o pior desfecho possível.
    */
   const handleEnterVoice = (channelId: string): void => {
+    // 0.8.5: "Entrar" na sala; sem "Falar", entra com o microfone desligado.
+    const agora = store.getState();
+    if (!posso(agora, 'entrar', channelId)) {
+      showToast('Você não tem permissão para entrar nesta sala.');
+      return;
+    }
+    if (!posso(agora, 'falar', channelId) && !agora.voiceMuted) store.toggleMute();
     void store.enterVoice(channelId).then((refusal) => {
       if (refusal !== null) showToast(refusal);
     });
@@ -764,9 +844,161 @@ export function mountApp(
     if (state.activeGroupId === null || state.activeChannelId === null) return;
     const groupId = state.activeGroupId;
     const channelId = state.activeChannelId;
+    // 0.8.5: "/comando" faz o que o comando faz (o texto não vai como mensagem).
+    if (await executarComando(body, groupId, channelId)) {
+      clearReply();
+      return;
+    }
     clearReply();
     await sendMessage(groupId, channelId, user.uid, body, citando);
   };
+
+  /** Os comandos que eu posso usar neste canal (a lista do "/"). */
+  function comandosParaMim(st: AppState, canal: string): { nome: string; desc: string; args: string }[] {
+    if (st.view !== 'group' || canal === '' || !posso(st, 'usar-comandos', canal)) return [];
+    const meus = st.members.find((m) => m.id === user.uid)?.cargos ?? [];
+    const dono = isOwner(activeGroup(st) ?? null, user.uid);
+    return [
+      ...st.comandos
+        .filter((c) => c.cargos.length === 0 || dono || c.cargos.some((x) => meus.includes(x)))
+        .map((c) => ({ nome: c.nome, desc: c.descricao || 'Comando do grupo', args: '' })),
+      ...COMANDOS_PRONTOS.filter((c) => c.perm === undefined || posso(st, c.perm, canal) || (c.nome === 'apelido' && posso(st, 'apelido-proprio'))).map((c) => ({
+        nome: c.nome,
+        desc: c.desc,
+        args: c.args,
+      })),
+    ];
+  }
+
+  /**
+   * COMANDOS (0.8.5, etapas 5 e 6). Devolve true se era um comando (e já
+   * fez). Erro (sem permissão, faltou a pessoa…) volta para a caixa de
+   * mensagem, que mostra o motivo e não apaga o que foi escrito.
+   */
+  async function executarComando(texto: string, grupo: string, canal: string): Promise<boolean> {
+    const sep = separar(texto);
+    if (sep === null) return false;
+    const st = store.getState();
+    const pronto = COMANDOS_PRONTOS.find((c) => c.nome === sep.nome);
+    const proprio = st.comandos.find((c) => c.nome === sep.nome);
+    if (pronto === undefined && proprio === undefined) return false;
+    if (!posso(st, 'usar-comandos', canal)) throw new Error('Você não tem permissão para usar comandos aqui.');
+    const nome = sep.nome;
+    const resto = sep.resto;
+    const mandar = (corpo: string, extra: { comando?: string; spoiler?: boolean } = { comando: nome }): Promise<void> =>
+      sendMessage(grupo, canal, user.uid, corpo, undefined, undefined, extra);
+    const pessoa = (): { pessoa: Member; resto: string } => {
+      const achou = lerPessoa(resto, st.members);
+      if (achou === null) throw new Error(`Diga quem: /${nome} @nome…`);
+      return achou;
+    };
+
+    if (proprio !== undefined) {
+      const meus = st.members.find((m) => m.id === user.uid)?.cargos ?? [];
+      const dono = isOwner(activeGroup(st) ?? null, user.uid);
+      if (proprio.cargos.length > 0 && !dono && !proprio.cargos.some((c) => meus.includes(c))) {
+        throw new Error(`/${nome} é só para alguns cargos.`);
+      }
+      await mandar(proprio.resposta);
+      return true;
+    }
+
+    const def = pronto!;
+    const permDoComando = nome === 'apelido' && lerPessoa(resto, st.members)?.pessoa.id === user.uid ? 'apelido-proprio' : def.perm;
+    if (permDoComando !== undefined && !posso(st, permDoComando, canal)) throw new Error(`Você não tem permissão para usar /${nome}.`);
+
+    switch (nome) {
+      case 'dado': {
+        const lados = resto === '' ? 6 : Number.parseInt(resto, 10);
+        if (!Number.isInteger(lados) || lados < 2 || lados > 1000) throw new Error('Diga um número de lados entre 2 e 1000.');
+        await mandar(`🎲 ${sortearNumero(lados)} (dado de ${lados})`);
+        return true;
+      }
+      case 'moeda':
+        await mandar(sortearNumero(2) === 1 ? '🪙 Cara' : '🪙 Coroa');
+        return true;
+      case 'sortear': {
+        const daVoz = resto.toLowerCase() === 'voz';
+        const naVoz = new Set(st.voiceParticipants.filter((p) => p.channelId === st.voice?.channelId).map((p) => p.uid));
+        const pool = st.members.filter((m) => !daVoz || naVoz.has(m.id));
+        if (pool.length === 0) throw new Error(daVoz ? 'Ninguém na sala de voz agora (entre numa sala primeiro).' : 'Ninguém para sortear.');
+        await mandar(`🎉 ${pool[sortearNumero(pool.length) - 1]!.displayName}${daVoz ? ' (entre quem está na sala)' : ''}`);
+        return true;
+      }
+      case 'escolher': {
+        const opcoes = resto.split('|').map((x) => x.trim()).filter((x) => x !== '');
+        if (opcoes.length < 2) throw new Error('Dê pelo menos duas opções separadas por | (ex.: /escolher pizza | sushi).');
+        await mandar(`👉 ${opcoes[sortearNumero(opcoes.length) - 1]}  (entre: ${opcoes.join(', ')})`);
+        return true;
+      }
+      case 'spoiler':
+        if (resto === '') throw new Error('Escreva o texto: /spoiler o final do filme…');
+        await mandar(resto, { spoiler: true });
+        return true;
+      case 'shrug':
+        await mandar(`${resto} ¯\\_(ツ)_/¯`.trim(), {});
+        return true;
+      case 'me':
+        if (resto === '') throw new Error('Escreva a ação: /me foi pegar pipoca');
+        await mandar(resto);
+        return true;
+      case 'castigo': {
+        const { pessoa: p, resto: r } = pessoa();
+        const [tempoTexto, ...motivo] = r.split(/\s+/);
+        const segundos = lerTempo(tempoTexto ?? '');
+        if (segundos === null || segundos < 60 || segundos > 7 * 86400) throw new Error('Diga o tempo: 60s, 10m, 1h, 1d ou 1sem (de 60 s a 1 semana).');
+        await porDeCastigo(grupo, p.id, segundos, motivo.join(' '));
+        showToast(`${p.displayName} está de castigo.`);
+        return true;
+      }
+      case 'expulsar': {
+        const { pessoa: p, resto: motivo } = pessoa();
+        await expulsar(grupo, p.id, motivo);
+        showToast(`${p.displayName} saiu do grupo.`);
+        return true;
+      }
+      case 'banir': {
+        const { pessoa: p, resto: motivo } = pessoa();
+        await banir(grupo, p.id, motivo);
+        showToast(`${p.displayName} foi banido.`);
+        return true;
+      }
+      case 'cargo': {
+        const { pessoa: p, resto: r } = pessoa();
+        const cargo = st.cargos.find((c) => c.todos !== true && c.nome.toLowerCase() === r.toLowerCase());
+        if (cargo === undefined) throw new Error(`Não achei o cargo "${r}".`);
+        const dar = !(p.cargos ?? []).includes(cargo.id);
+        await darCargo(grupo, p.id, cargo.id, dar);
+        showToast(dar ? `${p.displayName} ganhou o cargo ${cargo.nome}.` : `${p.displayName} perdeu o cargo ${cargo.nome}.`);
+        return true;
+      }
+      case 'apelido': {
+        const { pessoa: p, resto: apelido } = pessoa();
+        await mudarApelido(grupo, p.id, apelido);
+        showToast(apelido === '' ? 'Apelido tirado.' : 'Apelido salvo.');
+        return true;
+      }
+      case 'limpar': {
+        const n = Number.parseInt(resto, 10);
+        if (!Number.isInteger(n) || n < 1 || n > 100) throw new Error('Diga quantas: /limpar 10 (de 1 a 100).');
+        const apagadas = await limparMensagens(grupo, canal, n);
+        showToast(`${apagadas} ${apagadas === 1 ? 'mensagem apagada' : 'mensagens apagadas'}.`);
+        return true;
+      }
+      case 'lento': {
+        const segundos = resto === '0' ? 0 : lerTempo(resto);
+        if (segundos === null || segundos > 21600) throw new Error('Diga o tempo: /lento 30s, /lento 5m, ou /lento 0 para desligar.');
+        await mudarModoLento(canal, segundos);
+        showToast(segundos === 0 ? 'Modo lento desligado.' : 'Modo lento ligado.');
+        return true;
+      }
+      case 'convite':
+        handleCopyInvite(grupo);
+        return true;
+      default:
+        return false;
+    }
+  }
 
   /*
    * IMAGEM, GIF E VÍDEO (0.5.0): mandados pelo +, colando ou arrastando. Cada
@@ -851,6 +1083,7 @@ export function mountApp(
       replyingToSala = null;
       renderReplySala();
     }
+    if (await executarComando(body, groupId, channelId)) return;
     await sendMessage(groupId, channelId, user.uid, body, citando);
   };
 
@@ -1022,7 +1255,7 @@ export function mountApp(
       otherGroupName: otherGroup,
       muted: state.voiceMuted,
       onOpenRoom: () => store.openVoiceRoom(),
-      onToggleMute: () => store.toggleMute(),
+      onToggleMute: () => alternarMicrofone(),
       onDisconnect: () => store.disconnectVoice(),
       onToggleScreen: () => handleToggleScreenShare(),
       sharingScreen: state.screenSharing,
@@ -1115,7 +1348,8 @@ export function mountApp(
     const coluna = renderChannelList({
       naoLidas: (id) => naoLidas.canal(id),
       group: activeGroup(state) ?? null,
-      channels: state.channels,
+      // 0.8.5: canal que eu não vejo não aparece (o conteúdo o banco já fecha).
+      channels: state.channels.filter((c) => posso(state, c.kind === 'voice' ? 'ver-sala' : 'ver-canal', c.id)),
       channelsLoaded: state.channelsLoaded,
       activeChannelId: state.activeChannelId,
       activeVoiceChannelId:
@@ -1268,7 +1502,7 @@ export function mountApp(
           : {}),
         ready: state.voiceReady,
       },
-      onToggleMute: () => store.toggleMute(),
+      onToggleMute: () => alternarMicrofone(),
       onRetryAudio: () => store.retryVoiceAudio(),
       onOpenChannels: () => setDrawer('left'),
       onOpenMembers: () => setDrawer('right'),
@@ -1370,6 +1604,8 @@ export function mountApp(
         aoArquivos: handleArquivosSala,
         aoFigurinha: handleFigurinhaSala,
         aoVoz: handleVozSala,
+        comandos: () => comandosParaMim(store.getState(), store.getState().voice?.channelId ?? ''),
+        pessoas: () => store.getState().members.map((m) => m.displayName),
         ...(state.roomChatChannelId === null ? {} : { destino: `canal:${state.roomChatChannelId}` }),
       });
       painelDaSalaNovo = true;
@@ -1399,7 +1635,7 @@ export function mountApp(
         pins: state.roomPinnedMessages,
         pinnedLoaded: state.roomPinnedMessagesLoaded,
         reachabilityOf: (pin) => pinReachabilityIn(pin, state.roomMessages, state.roomMessagesAtStart),
-        canUnpin: group !== null && isOwner(group, user.uid),
+        canUnpin: group !== null && posso(state, 'desafixar', state.voice?.channelId),
         onJumpTo: handleJumpToPin,
       }),
     );
@@ -1474,7 +1710,8 @@ export function mountApp(
     const group = activeGroup(state) ?? null;
     return renderGroupPanel({
       aba: abaDoPainel,
-      abas: abasDoPainel,
+      // 0.8.5: sem "Ver a galeria", sem a aba Mídia.
+      abas: abasDoPainel.filter((a) => a !== 'midia' || posso(state, 'ver-galeria')),
       onAba: (aba) => {
         abaDoPainel = aba;
         memberListEl = swap(memberListEl, buildMemberList(store.getState()));
@@ -1489,14 +1726,19 @@ export function mountApp(
         membersLoaded: state.membersLoaded,
         ownerId: group?.ownerId ?? null,
       },
-      fixadas: buildGroupPins(state, group !== null && isOwner(group, user.uid)),
+      fixadas: buildGroupPins(state, group !== null && posso(state, 'desafixar', state.activeChannelId ?? undefined)),
       // O cartão do grupo no topo da aba Agora (etapa 3a).
       ...(group === null
         ? {}
         : {
             // A galeria do grupo (0.8.0).
             midia: () =>
-              abaMidia({ groupId: group.id, nomeDoGrupo: group.name, membros: state.members, canais: state.channels }),
+              abaMidia({
+                groupId: group.id,
+                nomeDoGrupo: group.name,
+                membros: state.members,
+                canais: state.channels.filter((c) => posso(state, 'ver-galeria', c.id) && posso(state, c.kind === 'voice' ? 'ver-chat-sala' : 'ver-canal', c.id)),
+              }),
             cartao: renderGroupCard({
               name: group.name,
               description: group.description,
@@ -1730,7 +1972,7 @@ export function mountApp(
     const state = store.getState();
     const group = activeGroup(state) ?? null;
     if (group === null) return;
-    pinsPanel = openPinnedMessagesPanel(buildGroupPins(state, isOwner(group, user.uid)));
+    pinsPanel = openPinnedMessagesPanel(buildGroupPins(state, posso(state, 'desafixar', state.activeChannelId ?? undefined)));
   };
 
   /**
@@ -2429,6 +2671,8 @@ export function mountApp(
           aoArquivos: handleArquivos,
           aoFigurinha: handleFigurinha,
           aoVoz: handleVoz,
+          comandos: () => comandosParaMim(store.getState(), store.getState().activeChannelId ?? ''),
+          pessoas: () => store.getState().members.map((m) => m.displayName),
           onOpenChannels: () => setDrawer('left'),
           onOpenMembers: () => setDrawer('right'),
           onTogglePanel: alternarPainel,
@@ -2485,7 +2729,7 @@ export function mountApp(
         if (pinsPanel.element.isConnected) {
           if (messagesChanged || prev === null || prev.pinnedMessages !== state.pinnedMessages || prev.pinnedMessagesLoaded !== state.pinnedMessagesLoaded) {
             const group = activeGroup(state) ?? null;
-            if (group !== null) pinsPanel.update(buildGroupPins(state, isOwner(group, user.uid)));
+            if (group !== null) pinsPanel.update(buildGroupPins(state, posso(state, 'desafixar', state.activeChannelId ?? undefined)));
           }
         } else {
           pinsPanel = null;
@@ -2535,10 +2779,130 @@ export function mountApp(
       }
     }
 
+    aplicarLimitesDoCargo(state);
+    desenharVerComo(state);
+    // 0.8.5: o canal aberto ficou escondido para mim (cargo mudou, ou é o
+    // primeiro canal e eu não vejo): vai para o primeiro que eu vejo.
+    if (state.view === 'group' && state.channelsLoaded && state.membersLoaded && state.activeChannelId !== null) {
+      const aberto = state.activeChannelId;
+      if (!posso(state, 'ver-canal', aberto)) {
+        const outro = state.channels.find((c) => c.kind === 'text' && c.id !== aberto && posso(state, 'ver-canal', c.id));
+        if (outro !== undefined) queueMicrotask(() => store.setActiveChannel(outro.id));
+      }
+    }
     previous = state;
   }
 
+  /**
+   * 0.8.5: a caixa de mensagem do canal e a do chat da sala seguem o que o
+   * cargo deixa (e o castigo). O banco cobra o mesmo.
+   */
+  function aplicarLimitesDoCargo(state: AppState): void {
+    if (state.view !== 'group') return;
+    const castigo = meuCastigo(ctxPerm(state), user.uid);
+    const ate = castigo === null ? '' : new Date(castigo).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const limites = (canal: string, escrever: string): LimitesDoComposer => ({
+      motivo:
+        castigo !== null
+          ? `Você está de castigo até ${ate}.`
+          : posso(state, escrever, canal)
+            ? null
+            : 'Você não tem permissão para escrever aqui.',
+      fotos: posso(state, 'mandar-fotos', canal),
+      gifs: posso(state, 'mandar-gifs', canal),
+      videos: posso(state, 'mandar-videos', canal),
+      audio: posso(state, 'mandar-audio', canal),
+      figurinhas: posso(state, 'mandar-figurinhas', canal),
+    });
+    if (state.activeChannelId !== null) {
+      const canal = state.activeChannelId;
+      const l = limites(canal, 'mandar-mensagens');
+      // Modo lento: depois de mandar, espera os segundos do canal (com contagem).
+      const lento = canalLento(state, canal);
+      const falta = lento === 0 ? 0 : Math.ceil(((minhaUltimaEm.get(canal) ?? 0) + lento * 1000 - Date.now()) / 1000);
+      if (l.motivo === null && falta > 0) {
+        l.motivo = `Modo lento: espere ${falta >= 60 ? `${Math.ceil(falta / 60)} min` : `${falta} s`} para mandar de novo.`;
+        clearTimeout(relogioDoLento);
+        relogioDoLento = window.setTimeout(() => aplicarLimitesDoCargo(store.getState()), 1000);
+      }
+      limitarComposer(root.querySelector<HTMLElement>('main.chat .composer'), l);
+    }
+    if (state.voice !== null) {
+      limitarComposer(root.querySelector<HTMLElement>('.room-panel__chat .composer'), limites(state.voice.channelId, 'escrever-chat-sala'));
+    }
+  }
+
+  /** 0.8.5 etapa 4: moderação pelo menu do membro (o carteiro confere tudo). */
+  function moderar(memberId: MemberId, acao: 'apelido' | 'castigo' | 'tirar-castigo' | 'banir' | 'dono'): void {
+    const st = store.getState();
+    const group = activeGroup(st);
+    const membro = st.members.find((m) => m.id === memberId);
+    if (group === undefined || membro === undefined) return;
+    const nome = membro.nomeReal ?? membro.displayName;
+    if (acao === 'apelido') {
+      abrirApelido(nome, membro.apelido ?? '', memberId === user.uid, async (apelido) => {
+        await mudarApelido(group.id, memberId, apelido);
+        showToast(apelido === '' ? 'Apelido tirado.' : 'Apelido salvo.');
+      });
+    } else if (acao === 'castigo') {
+      abrirCastigo(nome, async (segundos, motivo) => {
+        await porDeCastigo(group.id, memberId, segundos, motivo);
+        showToast(`${nome} está de castigo.`);
+      });
+    } else if (acao === 'tirar-castigo') {
+      void tirarCastigo(group.id, memberId)
+        .then(() => showToast(`O castigo de ${nome} acabou.`))
+        .catch((e) => showToast(textoDoErro(e, 'Não deu para tirar o castigo.')));
+    } else if (acao === 'banir') {
+      abrirBanir(nome, async (motivo) => {
+        await banir(group.id, memberId, motivo);
+        showToast(`${nome} foi banido.`);
+      });
+    } else {
+      abrirPassarDono(nome, async () => {
+        await passarDono(group.id, memberId);
+        showToast(`Agora ${nome} é o dono do grupo.`);
+      });
+    }
+  }
+
+  /** 0.8.5 etapa 3: a tela de permissões de um canal ou de uma categoria (grupo aberto). */
+  function abrirPermissoes(alvo: { canal: string } | { categoria: string; nome: string }): void {
+    const st = store.getState();
+    const group = activeGroup(st);
+    if (group === undefined) return;
+    const base = { groupId: group.id, cargos: st.cargos, membros: st.members };
+    if ('canal' in alvo) {
+      const canal = st.channels.find((c) => c.id === alvo.canal);
+      if (canal === undefined) return;
+      const cat = group.categories?.find((c) => c.id === canal.categoryId);
+      abrirPermissoesDoCanal({
+        ...base,
+        canal,
+        regras: canal.permissoes ?? {},
+        ...(cat === undefined ? {} : { nomeDaCategoria: cat.name, regrasDaCategoria: group.permsCategorias?.[cat.id] ?? {} }),
+      });
+    } else {
+      abrirPermissoesDoCanal({ ...base, categoria: { id: alvo.categoria, nome: alvo.nome }, regras: group.permsCategorias?.[alvo.categoria] ?? {} });
+    }
+  }
+
+  /** 0.8.5: ligar o microfone pede "Falar" na sala. */
+  const alternarMicrofone = (): void => {
+    const st = store.getState();
+    if (st.voiceMuted && st.voice !== null && !posso(st, 'falar', st.voice.channelId)) {
+      showToast('Você não tem permissão para falar nesta sala.');
+      return;
+    }
+    store.toggleMute();
+  };
+
   const handleToggleScreenShare = (): void => {
+    const st = store.getState();
+    if (!st.screenSharing && st.voice !== null && !posso(st, 'transmitir', st.voice.channelId)) {
+      showToast('Você não tem permissão para transmitir a tela nesta sala.');
+      return;
+    }
     // Na janela do Loft não existe seletor do navegador: entra o nosso.
     const desktop = loftDesktop();
     const janela =
@@ -2665,6 +3029,20 @@ export function mountApp(
     groupSettings: handleGroupSettings,
     groupNickname: () => handleOpenSettings('grupos'),
     channelBackground: handleChannelBackground,
+    channelPermissions: (channelId) => abrirPermissoes({ canal: channelId }),
+    channelSlowMode: (channelId) => {
+      const canal = store.getState().channels.find((c) => c.id === channelId);
+      if (canal === undefined) return;
+      abrirModoLento(canal.name, canal.lento ?? 0, async (segundos) => {
+        await mudarModoLento(channelId, segundos);
+        showToast(segundos === 0 ? 'Modo lento desligado.' : 'Modo lento ligado.');
+      });
+    },
+    memberNickname: (memberId) => moderar(memberId, 'apelido'),
+    memberTimeout: (memberId) => moderar(memberId, 'castigo'),
+    memberEndTimeout: (memberId) => moderar(memberId, 'tirar-castigo'),
+    memberBan: (memberId) => moderar(memberId, 'banir'),
+    transferOwnership: (memberId) => moderar(memberId, 'dono'),
     leaveGroup: handleLeaveGroup,
     deleteGroup: handleDeleteGroup,
     deleteChannel: handleDeleteChannel,
@@ -2769,6 +3147,11 @@ export function mountApp(
         }),
       );
     }
+    if (membro.castigoAte !== undefined && Date.parse(membro.castigoAte) > Date.now()) {
+      const ate = new Date(membro.castigoAte).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      caixa.append(el('span', { class: 'perfil-servidor__castigo' }, [`⏳ De castigo até ${ate}`]));
+    }
+    if (membro.nomeReal !== undefined) caixa.append(el('span', { class: 'perfil-servidor__desde' }, [`Apelido neste grupo · nome: ${membro.nomeReal}`]));
     const quando = membro.id === group.ownerId ? 'Criou o grupo' : membro.entrouEm;
     if (quando !== undefined) {
       const data = new Date(quando);

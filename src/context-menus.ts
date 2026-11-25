@@ -24,7 +24,15 @@
 import { openMenu } from './components/context-menu/context-menu';
 import type { MenuItem } from './components/context-menu/context-menu';
 import { showToast } from './components/toast/toast';
-import { canLeaveGroup, isOwner, OWNER_CANNOT_LEAVE } from './lib/permissions';
+import { canLeaveGroup, isOwner, meuTopo, OWNER_CANNOT_LEAVE, pode } from './lib/permissions';
+import type { ContextoDePermissao } from './lib/permissions';
+import { PERMS_DAS_CONFIGURACOES } from './lib/permissoes';
+import type { Group } from './types/models';
+
+/** As permissões do grupo aberto, para os menus (0.8.5). */
+function ctxDoMenu(state: AppState, group: Group | null): ContextoDePermissao {
+  return { group, members: state.members, cargos: state.cargos, channels: state.channels };
+}
 import { desfavoritar, ehFavorita, favoritar } from './lib/figurinhas';
 import type { AppState } from './state/store';
 import type { MemberId } from './types/models';
@@ -37,6 +45,15 @@ export interface ContextMenuActions {
   groupNickname(groupId: string): void;
   /** Etapa 5c: abre Configurações → Aparência apontando para o fundo deste canal. */
   channelBackground(channelId: string): void;
+  /** 0.8.5: permissões do canal e modo lento. */
+  channelPermissions(channelId: string): void;
+  channelSlowMode(channelId: string): void;
+  /** 0.8.5 moderação: apelido, castigo, banir, passar o grupo. */
+  memberNickname(memberId: MemberId): void;
+  memberTimeout(memberId: MemberId): void;
+  memberEndTimeout(memberId: MemberId): void;
+  memberBan(memberId: MemberId): void;
+  transferOwnership(memberId: MemberId): void;
   leaveGroup(groupId: string): void;
   deleteGroup(groupId: string): void;
   deleteChannel(channelId: string): void;
@@ -188,9 +205,11 @@ function messageItems(
   const text = target.querySelector('.message__text')?.textContent ?? '';
 
   const group = state.groups.find((g) => g.id === state.activeGroupId) ?? null;
-  // Autor OU dono do grupo — a mesma dupla que a regra do Firestore aceita.
-  // A tela não inventa permissão: ela espelha a do banco.
-  const canDelete = authorId === actions.uid || isOwner(group, actions.uid);
+  // 0.8.5: autor, dono, ou quem tem "Apagar mensagens dos outros" NESTE canal —
+  // o mesmo que a regra do banco aceita. A tela espelha o banco.
+  const ctx = ctxDoMenu(state, group);
+  const canal = sala ? (state.voice?.channelId ?? '') : (state.activeChannelId ?? '');
+  const canDelete = authorId === actions.uid || pode(ctx, actions.uid, 'apagar-dos-outros', canal);
 
   const items: MenuItem[] = [
     ...itensDaFigurinha(target),
@@ -209,10 +228,9 @@ function messageItems(
     items.push({ label: 'Editar', onSelect: () => actions.editMessage(messageId) });
   }
 
-  // Fixar é só do DONO do grupo — conteúdo que todo mundo vê, e qualquer
-  // membro poder fixar viraria bagunça (etapa 19). Mesma restrição da regra.
-  if (isOwner(group, actions.uid)) {
-    const pinned = (sala ? state.roomPinnedMessages : state.pinnedMessages).some((p) => p.messageId === messageId);
+  // Fixar: "Fixar mensagens"; desafixar: "Desafixar mensagens" (0.8.5).
+  const pinned = (sala ? state.roomPinnedMessages : state.pinnedMessages).some((p) => p.messageId === messageId);
+  if (pode(ctx, actions.uid, pinned ? 'desafixar' : 'fixar', canal)) {
     items.push({
       label: pinned ? 'Desafixar' : 'Fixar mensagem',
       onSelect: () => actions.togglePinMessage(messageId, sala),
@@ -332,11 +350,14 @@ function groupItems(
   const owner = isOwner(group, actions.uid);
   const items: MenuItem[] = [];
 
-  if (owner) {
-    items.push(
-      { label: 'Configurações do grupo', onSelect: () => actions.groupSettings(groupId) },
-      { label: 'Copiar código do grupo', onSelect: () => actions.copyInviteLink(groupId) },
-    );
+  // 0.8.5: do grupo aberto o app sabe as permissões; dos outros, só o dono.
+  const aberto = groupId === state.activeGroupId;
+  const podeAqui = (p: string): boolean => (aberto ? pode(ctxDoMenu(state, group), actions.uid, p) : owner);
+  if (PERMS_DAS_CONFIGURACOES.some(podeAqui)) {
+    items.push({ label: 'Configurações do grupo', onSelect: () => actions.groupSettings(groupId) });
+  }
+  if (podeAqui('criar-convites')) {
+    items.push({ label: 'Copiar código do grupo', onSelect: () => actions.copyInviteLink(groupId) });
   }
 
   items.push({ label: 'Apelido do grupo', onSelect: () => actions.groupNickname(groupId) });
@@ -370,7 +391,7 @@ function channelItems(
   if (channel === undefined) return [];
 
   const group = state.groups.find((g) => g.id === state.activeGroupId) ?? null;
-  const owner = isOwner(group, actions.uid);
+  const owner = pode(ctxDoMenu(state, group), actions.uid, 'apagar-canais', channelId);
 
   const items: MenuItem[] = [
     { label: 'Copiar nome', onSelect: () => copy(channel.name, 'Nome copiado.') },
@@ -378,6 +399,12 @@ function channelItems(
   // Fundo só na MINHA tela — qualquer membro pode, em canal de texto.
   if (channel.kind === 'text') {
     items.push({ label: 'Fundo deste canal', onSelect: () => actions.channelBackground(channelId) });
+  }
+  if (pode(ctxDoMenu(state, group), actions.uid, 'permissoes-canais', channelId)) {
+    items.push({ label: 'Permissões do canal', onSelect: () => actions.channelPermissions(channelId) });
+  }
+  if (channel.kind === 'text' && pode(ctxDoMenu(state, group), actions.uid, 'editar-canais', channelId)) {
+    items.push({ label: channel.lento ? `Modo lento (${channel.lento} s)…` : 'Modo lento…', onSelect: () => actions.channelSlowMode(channelId) });
   }
 
   if (owner) {
@@ -410,15 +437,39 @@ function memberItems(
   if (member === undefined) return [];
 
   const group = state.groups.find((g) => g.id === state.activeGroupId) ?? null;
-  const owner = isOwner(group, actions.uid);
+  const ctx = ctxDoMenu(state, group);
+  // 0.8.5: "Expulsar", e só quem está abaixo de mim (o dono nunca).
+  const podeTirar =
+    pode(ctx, actions.uid, 'expulsar') &&
+    memberId !== group?.ownerId &&
+    (isOwner(group, actions.uid) || (member.topo ?? 99999) > meuTopo(ctx, actions.uid));
 
   const items: MenuItem[] = [
     { label: 'Copiar nome', onSelect: () => copy(member.displayName, 'Nome copiado.') },
   ];
 
+  // 0.8.5: apelido no servidor (o meu, ou o de alguém abaixo de mim).
+  const abaixo = memberId !== group?.ownerId && (isOwner(group, actions.uid) || (member.topo ?? 99999) > meuTopo(ctx, actions.uid));
+  if (memberId === actions.uid ? pode(ctx, actions.uid, 'apelido-proprio') : abaixo && pode(ctx, actions.uid, 'apelido-outros')) {
+    items.push({ label: memberId === actions.uid ? 'Mudar meu apelido' : 'Mudar apelido', onSelect: () => actions.memberNickname(memberId) });
+  }
+  const emCastigo = member.castigoAte !== undefined && Date.parse(member.castigoAte) > Date.now();
+  if (memberId !== actions.uid && abaixo && emCastigo && pode(ctx, actions.uid, 'tirar-castigo')) {
+    items.push({ label: 'Tirar castigo', onSelect: () => actions.memberEndTimeout(memberId) });
+  }
+  if (memberId !== actions.uid && abaixo && !emCastigo && pode(ctx, actions.uid, 'castigo')) {
+    items.push({ label: 'Castigo…', separatorBefore: true, onSelect: () => actions.memberTimeout(memberId) });
+  }
+  if (memberId !== actions.uid && abaixo && pode(ctx, actions.uid, 'banir')) {
+    items.push({ label: 'Banir…', danger: true, onSelect: () => actions.memberBan(memberId) });
+  }
+  if (memberId !== actions.uid && isOwner(group, actions.uid)) {
+    items.push({ label: `Passar o grupo para ${member.displayName}`, danger: true, separatorBefore: true, onSelect: () => actions.transferOwnership(memberId) });
+  }
+
   // Nem em mim mesmo: "remover" a si próprio é sair do grupo, e isso tem o item
   // dele no menu do grupo, com o texto certo.
-  if (owner && memberId !== actions.uid) {
+  if (podeTirar && memberId !== actions.uid) {
     items.push({
       label: 'Remover do grupo',
       danger: true,

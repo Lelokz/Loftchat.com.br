@@ -998,3 +998,310 @@
     padding-left: 44px;
   }
 }
+
+.cg-escolha__op:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cg-trava {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cg-so-ler-aviso {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 12px;
+  background: var(--vidro-claro);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.cg-so-ler .cg-form,
+.cg-so-ler .cg-secao,
+.cg-so-ler .cg-pbarra .cg-link {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.cg-ver {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 9px 14px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 11px;
+  background: var(--vidro-claro);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cg-ver:hover {
+  background: var(--surface-hover);
+}
+
+.cg-sw:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .cg-ver {
+    margin-left: 0;
+  }
+}
+
+/* "Ver o grupo como este cargo": faixa no topo, por cima de tudo. */
+.ver-como {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px 10px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 45%);
+  color: var(--text-primary);
+  font-size: 14px;
+  transform: translateX(-50%);
+}
+
+.ver-como[hidden] {
+  display: none;
+}
+
+.ver-como__voltar {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* --- permissões do canal / categoria (etapa 3) -------------------------------- */
+
+.pc .galeria__caixa {
+  flex-direction: column;
+}
+
+.pc .galeria__rolagem {
+  padding-bottom: 90px;
+}
+
+.pc-topo {
+  margin-bottom: 10px;
+}
+
+.pc-sinc {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 12px;
+  background: var(--vidro-claro);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.pc-privado {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 14px;
+  background: var(--vidro-claro);
+}
+
+.pc-ed {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.pc-lado .cg-lado__topo {
+  gap: 8px;
+}
+
+.pc-mais {
+  font-size: 12.5px;
+}
+
+.pc-escolha {
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  margin-bottom: 8px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.pc-escolha[hidden] {
+  display: none;
+}
+
+.pc-tres {
+  display: inline-flex;
+  flex: none;
+  margin-left: auto;
+  overflow: hidden;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 10px;
+}
+
+.pc-tres__op {
+  width: 38px;
+  height: 32px;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.pc-tres__op + .pc-tres__op {
+  border-left: 1px solid var(--vidro-traco);
+}
+
+.pc-tres__op--nega.is-on {
+  background: #b23a48;
+  color: #fff;
+}
+
+.pc-tres__op--segue.is-on {
+  background: var(--vidro-claro);
+  color: var(--text-primary);
+}
+
+.pc-tres__op--permite.is-on {
+  background: #2f9e6e;
+  color: #fff;
+}
+
+.pc-barra {
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  left: 24px;
+}
+
+@media (max-width: 720px) {
+  .pc-ed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pc-lado {
+    display: flex;
+    padding-right: 0;
+    margin-bottom: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--vidro-traco);
+  }
+
+  .pc-barra {
+    right: 12px;
+    left: 12px;
+  }
+}
+
+/* --- moderação (etapa 4) ------------------------------------------------------ */
+
+.md-tempos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.md-tempo {
+  padding: 9px 8px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 10px;
+  background: var(--vidro-claro);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.md-tempo.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.castigo-selo {
+  margin-left: 4px;
+  font-size: 0.9em;
+}
+
+.perfil-servidor__castigo {
+  color: var(--nome-laranja);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* --- registro e banidos ------------------------------------------------------- */
+
+.rg-lista {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rg-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vidro-traco);
+}
+
+.rg-texto {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.rg-texto small {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.rg-detalhe {
+  color: var(--text-secondary);
+}
+
+/* --- comandos personalizados (etapa 6) ---------------------------------------- */
+
+.cmd-form {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 14px;
+  background: var(--vidro-claro);
+}
+
+.cmd-form__botoes {
+  display: flex;
+  gap: 10px;
+}
+
+.cg-chip.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}

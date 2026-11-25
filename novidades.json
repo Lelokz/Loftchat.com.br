@@ -1,5 +1,18 @@
 [
   {
+    "versao": "0.8.5",
+    "data": "2026-11-25",
+    "itens": [
+      "Cargos: crie cargos com o nome que quiser, cor (até em degradê), ícone e posição, e escolha uma por uma as mais de 60 permissões de cada um (Configurações do grupo → Cargos).",
+      "O nome de cada pessoa aparece com a cor e o ícone do cargo dela no chat, na voz e na lista de membros, que agora vem separada por cargo.",
+      "Permissões por canal e por categoria: canal privado, canal só de leitura, sala de voz só para alguns cargos (botão direito no canal → Permissões do canal).",
+      "Moderação: castigo (de 60 segundos a 1 semana), banir e desbanir, modo lento, apelido no grupo, passar o grupo para outra pessoa, e o Registro de quem fez o quê.",
+      "Comandos com /: digite / na caixa de mensagem e escolha — /dado, /moeda, /sortear, /escolher, /spoiler, /me, /castigo, /limpar e outros.",
+      "Comandos do próprio grupo: crie /regras, /ip ou o que quiser em Configurações do grupo → Comandos.",
+      "\"Ver o grupo como este cargo\": veja o grupo do jeito que quem tem aquele cargo vê."
+    ]
+  },
+  {
     "versao": "0.8.0",
     "data": "2026-11-24",
     "itens": [

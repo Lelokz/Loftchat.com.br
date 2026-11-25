@@ -13,6 +13,7 @@
  */
 
 import { entregarArquivo, limpar, receberArquivo } from './arquivos';
+import { quemVeOCanal, rotaCargos } from './cargos';
 import type { Balde } from './arquivos';
 
 export interface Env {
@@ -52,7 +53,7 @@ function deBase64url(texto: string): Uint8Array {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-function json(corpo: unknown, status = 200): Response {
+export function json(corpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(corpo), {
     status,
     headers: { 'content-type': 'application/json', ...CORS },
@@ -99,7 +100,7 @@ async function chaveDoFirebase(kid: string): Promise<CryptoKey | null> {
 }
 
 /** Devolve o uid de quem chamou, ou null se o token não vale. */
-async function quemChamou(req: Request, env: Env): Promise<string | null> {
+export async function quemChamou(req: Request, env: Env): Promise<string | null> {
   const cabecalho = req.headers.get('authorization') ?? '';
   const partes = cabecalho.replace(/^Bearer /, '').split('.');
   if (partes.length !== 3) return null;
@@ -178,12 +179,12 @@ async function acessoGoogle(env: Env): Promise<string> {
 
 /* ------------------------------- Firestore ------------------------------- */
 
-function raiz(env: Env): string {
+export function raiz(env: Env): string {
   const host = env.EMULADOR === undefined ? 'https://firestore.googleapis.com' : `http://${env.EMULADOR}`;
   return `${host}/v1/projects/${env.PROJETO}/databases/(default)/documents`;
 }
 
-function nomeCompleto(env: Env, caminho: string): string {
+export function nomeCompleto(env: Env, caminho: string): string {
   return `projects/${env.PROJETO}/databases/(default)/documents/${caminho}`;
 }
 
@@ -199,7 +200,7 @@ function lerValor(v: Dados): unknown {
   return null;
 }
 
-function lerCampos(campos: Dados): Dados {
+export function lerCampos(campos: Dados): Dados {
   const saida: Dados = {};
   for (const [k, v] of Object.entries(campos)) saida[k] = lerValor(v as Dados);
   return saida;
@@ -211,7 +212,7 @@ function camposDeTexto(dados: Record<string, string>): Dados {
   return campos;
 }
 
-async function firestore(env: Env, url: string, init: RequestInit = {}): Promise<Response> {
+export async function firestore(env: Env, url: string, init: RequestInit = {}): Promise<Response> {
   const token = await acessoGoogle(env);
   return fetch(url, {
     ...init,
@@ -219,7 +220,7 @@ async function firestore(env: Env, url: string, init: RequestInit = {}): Promise
   });
 }
 
-async function ler(env: Env, caminho: string): Promise<Dados | null> {
+export async function ler(env: Env, caminho: string): Promise<Dados | null> {
   const r = await firestore(env, `${raiz(env)}/${caminho}`);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`Firestore ${r.status} lendo ${caminho.split('/')[0]}`);
@@ -228,7 +229,7 @@ async function ler(env: Env, caminho: string): Promise<Dados | null> {
 }
 
 /** Vários documentos numa chamada só. Devolve na mesma ordem (null = não existe). */
-async function lerVarios(env: Env, caminhos: string[]): Promise<(Dados | null)[]> {
+export async function lerVarios(env: Env, caminhos: string[]): Promise<(Dados | null)[]> {
   if (caminhos.length === 0) return [];
   const r = await firestore(env, `${raiz(env)}:batchGet`, {
     method: 'POST',
@@ -413,8 +414,10 @@ async function entregar(env: Env, origem: string, tipo: 'grupo' | 'pv', id: stri
       guardado(`channels/${canalId}`, 5 * 60_000, () => ler(env, `channels/${canalId}`)),
       guardado(`membros/${grupoId}`, 2 * 60_000, () => membrosDoGrupo(env, grupoId)),
     ]);
+    // 0.8.5: canal privado — só avisa quem vê o canal.
+    const veem = new Set(await guardado(`veem/${canalId}`, 60_000, () => quemVeOCanal(env, grupoId, canalId, grupo, canal)));
     if (!membros.includes(uid)) return;
-    para = membros.filter((m) => m !== uid);
+    para = membros.filter((m) => m !== uid && veem.has(m));
     onde = `${String(grupo?.['name'] ?? 'Grupo')} · #${String(canal?.['name'] ?? 'canal')}`;
     conversa = `canal:${canalId}`;
     abrir = `grupo/${grupoId}/${canalId}`;
@@ -470,6 +473,8 @@ export default {
     const url = new URL(req.url);
     try {
       if (req.method === 'POST' && url.pathname === '/avisar') return await avisar(req, env, ctx);
+      // 0.8.5: cargos, permissões e moderação (ver cargos.ts).
+      if (req.method === 'POST' && url.pathname === '/cargos') return await rotaCargos(req, env);
       const foto = /^\/foto\/([^/]+)$/.exec(url.pathname);
       if (req.method === 'GET' && foto !== null) return await servirFoto(req, env, foto[1]!);
       if (url.pathname === '/arquivo' || url.pathname.startsWith('/arquivo/')) {

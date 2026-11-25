@@ -204,3 +204,24 @@
     flex: 1;
   }
 }
+
+/* 0.8.5: imagem que a pessoa não tem permissão de trocar. */
+.gs-travado {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+/* 0.8.5: botão das permissões de cada canal. */
+.gc-perms {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 10px;
+  background: var(--vidro-claro);
+  font-size: 14px;
+}
+
+.gc-perms:hover {
+  background: var(--surface-hover);
+}

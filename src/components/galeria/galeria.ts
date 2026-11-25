@@ -19,6 +19,7 @@ export interface GaleriaProps {
   groupId: string;
   nomeDoGrupo: string;
   membros: Member[];
+  /** 0.8.5: só os canais que a pessoa vê (a galeria busca canal por canal). */
   canais: Channel[];
 }
 
@@ -148,7 +149,7 @@ export function abaMidia(props: GaleriaProps): HTMLElement {
     );
   };
 
-  const soltar = ouvirGaleria(props.groupId, (estado) => {
+  const soltar = ouvirGaleria(props.groupId, props.canais.map((c) => c.id), (estado) => {
     // O painel é remontado toda hora: o desenho velho que saiu da tela solta a escuta.
     if (raiz.isConnected) entrou = true;
     else if (entrou) {
@@ -221,7 +222,7 @@ export function abrirGaleria(props: GaleriaProps): void {
     if (ultimo !== null) desenhar(ultimo);
   });
 
-  const soltar = ouvirGaleria(props.groupId, (estado) => {
+  const soltar = ouvirGaleria(props.groupId, props.canais.map((c) => c.id), (estado) => {
     ultimo = estado;
     desenhar(estado);
   });

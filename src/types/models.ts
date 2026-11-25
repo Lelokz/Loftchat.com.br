@@ -1,3 +1,4 @@
+import type { RegrasDoCanal } from '../lib/permissoes';
 /**
  * Modelo de dados do Loft.
  *
@@ -157,6 +158,8 @@ export interface Group {
   categories?: ChannelCategory[];
   /** Etapa 3c: texto de boas-vindas para quem entra. Ver lib/welcome.ts. */
   welcome?: string;
+  /** 0.8.5: regras das categorias (os canais sincronizados seguem). Só o carteiro grava. */
+  permsCategorias?: Record<string, RegrasDoCanal>;
 }
 
 /** Tamanhos do grupo, cobrados também na regra (firestore.rules). */
@@ -181,6 +184,10 @@ export interface Channel {
   /** Etapa 3b: emoji na frente do nome e a categoria (ausente = sem categoria). */
   emoji?: string;
   categoryId?: string;
+  /** 0.8.5: regras próprias do canal (quem vê, escreve, entra, fala…). Só o carteiro grava. */
+  permissoes?: RegrasDoCanal;
+  /** 0.8.5: modo lento, em segundos (ausente/0 = desligado). */
+  lento?: number;
 }
 
 /**
@@ -217,6 +224,15 @@ export interface Member {
   cargos?: string[];
   entrouEm?: string;
   convite?: string;
+  /** Calculado pelo carteiro: o que pode no servidor, posição e regras por canal. */
+  perms?: string[];
+  topo?: number;
+  canais?: Record<string, string[]>;
+  /** Em castigo até (ISO). */
+  castigoAte?: string;
+  /** Apelido NESTE grupo (já aplicado em displayName) e o nome de verdade. */
+  apelido?: string;
+  nomeReal?: string;
   /** Calculada pelo store: cor, ícone e bloco da lista vindos do cargo mais alto. */
   insignia?: Insignia;
 }
@@ -365,6 +381,10 @@ export interface MessageBase {
    */
   editedAt?: string;
   replyTo?: ReplyTo;
+  /** 0.8.5: a mensagem é o resultado de um comando (ex.: { nome: 'dado' }). */
+  comando?: { nome: string };
+  /** 0.8.5: texto escondido até tocar (/spoiler). */
+  spoiler?: boolean;
 }
 
 /**

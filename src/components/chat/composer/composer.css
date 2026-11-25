@@ -268,3 +268,74 @@
   display: grid;
   place-items: center;
 }
+
+/* 0.8.5: sem permissão de escrever (ou de castigo): o campo trava com o motivo. */
+.composer--travado .composer__input {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.composer--travado .composer__send {
+  opacity: 0.4;
+}
+
+/* 0.8.5: a lista do "/" — por cima da caixa de mensagem. */
+.composer {
+  position: relative;
+}
+
+.cmd-menu {
+  position: absolute;
+  right: 12px;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 50%);
+}
+
+.cmd-menu[hidden] {
+  display: none;
+}
+
+.cmd-menu__op {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+}
+
+.cmd-menu__op small {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.cmd-menu__op.is-on,
+.cmd-menu__op:hover {
+  background: var(--surface-hover);
+}
+
+.cmd-menu__args {
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+}
+
+.cmd-menu__dica {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}

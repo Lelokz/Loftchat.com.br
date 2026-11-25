@@ -16,11 +16,14 @@ import {
   reordenarCargos,
   salvarCargo,
 } from '../../lib/cargos';
-import type { CamposDoCargo } from '../../lib/cargos';
+import { apagarComando, desbanir as desbanirPessoa, ouvirBanidos, ouvirComandos, ouvirRegistro, salvarComando } from '../../lib/cargos';
+import type { Banido, CamposDoCargo, ComandoDoGrupo, LinhaDoRegistro } from '../../lib/cargos';
 import { SECOES_DE_PERMISSOES, TODAS_AS_PERMISSOES } from '../../lib/permissoes';
 import { isPermissionDenied, textoDoErro } from '../../lib/firestore-errors';
 import { showToast } from '../toast/toast';
-import type { Cargo, Member } from '../../types/models';
+import type { Cargo, Group, Member } from '../../types/models';
+import { meuTopo, minhasPermissoes, pode } from '../../lib/permissions';
+import type { ContextoDePermissao } from '../../lib/permissions';
 import { bolinhaDoCargo, chipsDeCargos } from './chips';
 
 /**
@@ -39,6 +42,11 @@ import { bolinhaDoCargo, chipsDeCargos } from './chips';
 export interface SecaoCargosOpcoes {
   groupId: string;
   ownerId: string;
+  /** Quem está mexendo (o meu uid) e o grupo (para as permissões). */
+  eu: string;
+  grupo: Group;
+  /** "Ver o grupo como este cargo". */
+  aoVerComo: (cargoId: string) => void;
   /** Redesenhar o conteúdo das Configurações. */
   redesenhar: () => void;
   /** Só a barra de salvar mudou (digitação). */
@@ -50,6 +58,11 @@ export interface SecaoCargosOpcoes {
 export interface SecaoCargos {
   cargos(): HTMLElement[];
   membros(): HTMLElement[];
+  /** Etapa 4: registro de auditoria e banidos. */
+  registro(): HTMLElement[];
+  banidos(): HTMLElement[];
+  /** Etapa 6: comandos personalizados. */
+  comandos(): HTMLElement[];
   /** Prévia (aba Aparência) — fica dentro do conteúdo, não na coluna da direita. */
   sujo(): boolean;
   salvar(): Promise<void>;
@@ -115,6 +128,16 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
   let garantiu = false;
 
   const membros = (): Member[] => comInsignias(membrosCrus, cargos, op.ownerId);
+  // Quem pode o quê aqui dentro (o carteiro confere de novo ao gravar).
+  const ctx = (): ContextoDePermissao => ({ group: op.grupo, members: membrosCrus, cargos, channels: [] });
+  const souDono = op.eu === op.ownerId;
+  const podeGerenciar = (): boolean => pode(ctx(), op.eu, 'gerenciar-cargos');
+  const podeDar = (): boolean => pode(ctx(), op.eu, 'dar-cargos');
+  const topo = (): number => meuTopo(ctx(), op.eu);
+  /** Cargo no meu nível ou acima: não mexo. (O @todos fica sempre embaixo.) */
+  const acima = (c: Cargo): boolean => !souDono && c.todos !== true && c.posicao <= topo();
+  /** Pessoa no meu nível ou acima (ou o dono): não mexo nos cargos dela. */
+  const pessoaAcima = (m: Member): boolean => m.id === op.ownerId ? !souDono : !souDono && m.id !== op.eu && (m.topo ?? 99999) <= topo();
   const normais = (): Cargo[] => cargos.filter((c) => c.todos !== true);
   const cargoDe = (id: string): Cargo | undefined => cargos.find((c) => c.id === id);
 
@@ -124,7 +147,7 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
       cargos = lista;
       carregou = true;
       // Grupo de antes dos cargos: cria o @todos e o Administrador (uma vez).
-      if (!garantiu && !lista.some((c) => c.todos === true)) {
+      if (!garantiu && souDono && !lista.some((c) => c.todos === true)) {
         garantiu = true;
         void garantirBasicos(op.groupId, lista).catch((e) => showToast(textoDoErro(e, 'Não deu para preparar os cargos.')));
       }
@@ -201,10 +224,10 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
 
     const busca = el('input', { class: 'cg-busca', type: 'search', placeholder: 'Procurar cargo', 'aria-label': 'Procurar cargo' });
     busca.value = buscaCargo;
-    const criar = el('button', { class: 'cg-criar', type: 'button' }, ['+ Criar cargo']);
+    const criar = el('button', { class: 'cg-criar', type: 'button', hidden: !podeGerenciar() }, ['+ Criar cargo']);
     criar.addEventListener('click', () => {
       criar.disabled = true;
-      void criarCargo(op.groupId, cargos)
+      void criarCargo(op.groupId)
         .then((id) => {
           // Espera o cargo chegar pela escuta e abre direto no editor.
           const abrir = (): void => {
@@ -252,15 +275,17 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
         apagando = c.id;
         op.redesenhar();
       });
-      const acoes =
-        apagando === c.id
+      const travada = !podeGerenciar() || acima(c);
+      const acoes = travada
+        ? el('span', { class: 'cg-acoes' }, [el('span', { class: 'cg-trava' }, [acima(c) ? '🔒 acima do seu' : ''])])
+        : apagando === c.id
           ? (() => {
               const sim = el('button', { class: 'cg-confirma cg-confirma--sim', type: 'button' }, ['Apagar']);
               const nao = el('button', { class: 'cg-confirma', type: 'button' }, ['Cancelar']);
               sim.addEventListener('click', (e) => {
                 e.stopPropagation();
                 sim.disabled = true;
-                void apagarCargo(op.groupId, c.id, membrosCrus)
+                void apagarCargo(op.groupId, c.id)
                   .then(() => showToast(`Cargo ${c.nome} apagado.`))
                   .catch((erro) => falhou(erro, 'Não deu para apagar o cargo.'))
                   .finally(() => {
@@ -277,7 +302,7 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
             })()
           : el('span', { class: 'cg-acoes' }, [editar, apagar]);
       const linha = el('li', { class: 'cg-linha', 'data-sort-id': c.id, tabindex: 0 }, [
-        el('span', { class: 'cg-pega', title: 'Arraste para mudar a ordem', 'aria-hidden': 'true' }, ['⋮⋮']),
+        el('span', { class: 'cg-pega', title: travada ? '' : 'Arraste para mudar a ordem', 'aria-hidden': 'true' }, [travada ? '' : '⋮⋮']),
         el('span', { class: 'cg-nome' }, [esc, nome]),
         el('span', { class: 'cg-qtd' }, [`👤 ${contagem(c.id)}`]),
         acoes,
@@ -288,15 +313,20 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
       });
       linhas.append(linha);
     }
-    if (q === '') {
+    if (q === '' && podeGerenciar()) {
       enableDragSort({
         container: linhas,
         itemSelector: 'li[data-sort-id]',
         handleSelector: '.cg-pega',
         axis: 'y',
         onDrop: (ids) => {
+          const antes = cargos;
           cargos = [...ids.map((id) => cargoDe(id)!).filter(Boolean), ...cargos.filter((c) => !ids.includes(c.id))];
-          void reordenarCargos(ids).catch((e) => falhou(e, 'Não deu para mudar a ordem.'));
+          void reordenarCargos(op.groupId, ids).catch((e) => {
+            cargos = antes;
+            op.redesenhar();
+            falhou(e, 'Não deu para mudar a ordem.');
+          });
         },
       });
     }
@@ -336,13 +366,13 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
   function listaLateral(atual: string): HTMLElement {
     const voltar = el('button', { class: 'cg-lado__voltar', type: 'button' }, ['‹ Voltar']);
     voltar.addEventListener('click', () => irPara({ tipo: 'lista' }));
-    const mais = el('button', { class: 'cg-lado__mais', type: 'button', title: 'Criar cargo', 'aria-label': 'Criar cargo' }, ['+']);
+    const mais = el('button', { class: 'cg-lado__mais', type: 'button', title: 'Criar cargo', 'aria-label': 'Criar cargo', hidden: !podeGerenciar() }, ['+']);
     mais.addEventListener('click', () => {
       if (sujo()) {
         op.piscar();
         return;
       }
-      void criarCargo(op.groupId, cargos)
+      void criarCargo(op.groupId)
         .then((id) => {
           const abrir = (): void => {
             if (cargoDe(id) !== undefined) irPara({ tipo: 'editar', id, aba: 'aparencia' });
@@ -391,16 +421,31 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
     const nomeNoTopo = ehTodos ? '@todos' : rascunho.nome.trim() || 'cargo';
     const voltarCel = el('button', { class: 'cg-dir__voltar', type: 'button' }, ['‹ Cargos']);
     voltarCel.addEventListener('click', () => irPara({ tipo: 'lista' }));
-    const topo = el('div', { class: 'cg-dir__topo' }, [
+    const verComoBotao = el('button', { class: 'cg-ver', type: 'button', hidden: !podeGerenciar() }, ['👁  Ver o grupo como este cargo']);
+    verComoBotao.addEventListener('click', () => {
+      if (sujo()) {
+        op.piscar();
+        return;
+      }
+      op.aoVerComo(c.id);
+    });
+    const topoEl = el('div', { class: 'cg-dir__topo' }, [
       voltarCel,
       el('h2', { class: 'cg-dir__titulo' }, ['Editar cargo — ', el('b', {}, [nomeNoTopo])]),
+      verComoBotao,
     ]);
 
+    const soLer = !podeGerenciar() || acima(c);
     const corpo = aba === 'aparencia' ? aparencia(c) : aba === 'permissoes' ? permissoes(ehTodos) : membrosDoCargo(c);
+    const aviso = soLer && aba !== 'membros'
+      ? el('p', { class: 'cg-so-ler-aviso' }, [
+          !podeGerenciar() ? 'Você pode ver este cargo, mas não tem a permissão "Gerenciar cargos".' : 'Este cargo está no seu nível ou acima: só dá para ver.',
+        ])
+      : null;
     return [
       el('div', { class: 'cg-ed' }, [
         listaLateral(c.id),
-        el('div', { class: 'cg-dir' }, [topo, abas, ...corpo]),
+        el('div', { class: `cg-dir${soLer ? ' cg-so-ler' : ''}` }, [topoEl, abas, ...(aviso === null ? [] : [aviso]), ...corpo]),
       ]),
     ];
   }
@@ -583,6 +628,8 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
   function permissoes(ehTodos: boolean): HTMLElement[] {
     const r = rascunho!;
     const ligadas = new Set(r.permissoes);
+    const minhas = minhasPermissoes(ctx(), op.eu);
+    const livre = souDono || minhas.has('administrador');
     const busca = el('input', { class: 'cg-busca cg-busca--perm', type: 'search', placeholder: `Procurar entre as ${TODAS_AS_PERMISSOES.length} permissões`, 'aria-label': 'Procurar permissão' });
     busca.value = buscaPermissao;
     const desligar = el('button', { class: 'cg-link', type: 'button' }, ['Desligar todas']);
@@ -605,10 +652,21 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
               el('small', {}, [p.desc]),
               p.aviso !== undefined ? el('small', { class: 'cg-perm__aviso' }, [p.aviso]) : null,
             ]),
-            interruptor(ligadas.has(p.id), p.nome, (v) => {
-              r.permissoes = v ? [...ligadas, p.id] : [...ligadas].filter((x) => x !== p.id);
-              op.redesenhar();
-            }),
+            (() => {
+              // Ninguém dá a um cargo o que não tem (desligar sempre pode).
+              const semEla = !livre && !minhas.has(p.id) && !ligadas.has(p.id);
+              const sw = interruptor(
+                ligadas.has(p.id),
+                p.nome,
+                (v) => {
+                  r.permissoes = v ? [...ligadas, p.id] : [...ligadas].filter((x) => x !== p.id);
+                  op.redesenhar();
+                },
+                semEla,
+              );
+              if (semEla) sw.title = 'Você não tem esta permissão, então não pode dar.';
+              return sw;
+            })(),
           ]),
         ),
       ]);
@@ -648,7 +706,8 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
     const com = todos.filter((m) => m.cargos?.includes(c.id));
     const sem = todos.filter((m) => !m.cargos?.includes(c.id));
     const linha = (m: Member, tem: boolean): HTMLElement => {
-      const b = el('button', { class: 'cg-membro__botao', type: 'button' }, [tem ? 'Tirar' : 'Dar']);
+      const preso = !podeDar() || acima(c) || pessoaAcima(m);
+      const b = el('button', { class: 'cg-membro__botao', type: 'button', disabled: preso, title: preso ? 'Sem permissão para isso (ou a pessoa/cargo está no seu nível ou acima).' : '' }, [tem ? 'Tirar' : 'Dar']);
       b.addEventListener('click', () => {
         b.disabled = true;
         void darCargo(op.groupId, m.id, c.id, !tem).catch((e) => {
@@ -703,7 +762,8 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
           chipsDeCargos({
             membro: m,
             cargos: normais(),
-            podeEditar: true,
+            podeEditar: podeDar() && !pessoaAcima(m),
+            travado: acima,
             aoDar: (cargoId, dar) => darCargo(op.groupId, m.id, cargoId, dar).catch((e) => {
               falhou(e, 'Não deu para mudar o cargo.');
               throw e;
@@ -714,16 +774,261 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
     ];
   }
 
+  /* --- REGISTRO e BANIDOS (etapa 4) — a escuta liga na primeira vez que abre --- */
+
+  let linhasDoRegistro: LinhaDoRegistro[] | null = null;
+  let pararRegistro: (() => void) | null = null;
+  let listaDeBanidos: Banido[] | null = null;
+  let pararBanidos: (() => void) | null = null;
+  let buscaRegistro = '';
+  const nomeDe = (uid: string, guardado: string): string =>
+    membrosCrus.find((m) => m.id === uid)?.displayName ?? (guardado || 'Alguém');
+
+  function secaoRegistro(): HTMLElement[] {
+    if (pararRegistro === null) {
+      pararRegistro = ouvirRegistro(
+        op.groupId,
+        (l) => {
+          linhasDoRegistro = l;
+          op.redesenhar();
+        },
+        (e) => {
+          if (!isPermissionDenied(e)) console.error('[registro]', e);
+          linhasDoRegistro = [];
+          op.redesenhar();
+        },
+      );
+    }
+    const busca = el('input', { class: 'cg-busca cg-busca--registro', type: 'search', placeholder: 'Procurar por pessoa ou ação', 'aria-label': 'Procurar no registro' });
+    busca.value = buscaRegistro;
+    busca.addEventListener('input', () => {
+      buscaRegistro = busca.value;
+      op.redesenhar();
+      const nova = document.querySelector<HTMLInputElement>('.cg-busca--registro');
+      nova?.focus();
+      nova?.setSelectionRange(nova.value.length, nova.value.length);
+    });
+    const q = buscaRegistro.trim().toLowerCase();
+    const linhas = (linhasDoRegistro ?? []).filter((r) => {
+      const t = `${nomeDe(r.quem, r.quemNome)} ${r.acao} ${nomeDe(r.alvo, r.alvoNome)} ${r.detalhe}`.toLowerCase();
+      return q === '' || t.includes(q);
+    });
+    return [
+      el('header', { class: 'settings__header' }, [
+        el('h2', { class: 'settings__title' }, ['Registro']),
+        el('p', { class: 'settings__subtitle' }, ['Quem fez o quê no grupo: cargos, permissões, castigos, expulsões e banimentos. As últimas 200 ações.']),
+      ]),
+      busca,
+      linhasDoRegistro === null
+        ? el('p', { class: 'settings__help' }, ['Carregando…'])
+        : linhas.length === 0
+          ? el('p', { class: 'settings__help' }, [q === '' ? 'Nada registrado ainda.' : 'Nada com isso.'])
+          : el('ul', { class: 'rg-lista', 'aria-label': 'Registro' }, linhas.map((r) => {
+              const quem = membrosCrus.find((m) => m.id === r.quem);
+              const alvoPessoa = r.alvoNome !== '' || membrosCrus.some((m) => m.id === r.alvo);
+              return el('li', { class: 'rg-linha' }, [
+                avatarEl(quem?.initials ?? (r.quemNome.slice(0, 2).toUpperCase() || '?'), 'md', '', quem?.photo, r.quem),
+                el('span', { class: 'rg-texto' }, [
+                  el('span', {}, [
+                    el('b', {}, [nomeDe(r.quem, r.quemNome)]),
+                    ` ${r.acao} `,
+                    alvoPessoa ? el('b', {}, [nomeDe(r.alvo, r.alvoNome)]) : null,
+                    r.detalhe !== '' ? el('span', { class: 'rg-detalhe' }, [alvoPessoa ? ` · ${r.detalhe}` : r.detalhe]) : null,
+                  ]),
+                  el('small', {}, [dataHora(r.em)]),
+                ]),
+              ]);
+            })),
+    ];
+  }
+
+  function secaoBanidos(): HTMLElement[] {
+    if (pararBanidos === null) {
+      pararBanidos = ouvirBanidos(
+        op.groupId,
+        (l) => {
+          listaDeBanidos = l;
+          op.redesenhar();
+        },
+        (e) => {
+          if (!isPermissionDenied(e)) console.error('[banidos]', e);
+          listaDeBanidos = [];
+          op.redesenhar();
+        },
+      );
+    }
+    const podeDesbanir = pode(ctx(), op.eu, 'desbanir');
+    return [
+      el('header', { class: 'settings__header' }, [
+        el('h2', { class: 'settings__title' }, ['Banidos']),
+        el('p', { class: 'settings__subtitle' }, ['Quem foi banido não entra de novo por convite até ser desbanido.']),
+      ]),
+      listaDeBanidos === null
+        ? el('p', { class: 'settings__help' }, ['Carregando…'])
+        : listaDeBanidos.length === 0
+          ? el('p', { class: 'settings__help' }, ['Ninguém banido.'])
+          : el('ul', { class: 'rg-lista', 'aria-label': 'Banidos' }, listaDeBanidos.map((b) => {
+              const desbanir = el('button', { class: 'cg-membro__botao', type: 'button', hidden: !podeDesbanir }, ['Desbanir']);
+              desbanir.addEventListener('click', () => {
+                desbanir.disabled = true;
+                void desbanirPessoa(op.groupId, b.uid)
+                  .then(() => showToast(`${b.nome} pode voltar pelo convite.`))
+                  .catch((e) => {
+                    desbanir.disabled = false;
+                    falhou(e, 'Não deu para desbanir.');
+                  });
+              });
+              return el('li', { class: 'rg-linha' }, [
+                avatarEl(b.nome.slice(0, 2).toUpperCase(), 'md', '', undefined, b.uid),
+                el('span', { class: 'rg-texto' }, [
+                  el('b', {}, [b.nome]),
+                  el('small', {}, [`Banido por ${nomeDe(b.por, '')} · ${dataHora(b.em)}${b.motivo === '' ? '' : ` · ${b.motivo}`}`]),
+                ]),
+                desbanir,
+              ]);
+            })),
+    ];
+  }
+
+  /* --- COMANDOS PERSONALIZADOS (etapa 6) -------------------------------------- */
+
+  let listaDeComandos: ComandoDoGrupo[] | null = null;
+  let pararComandos: (() => void) | null = null;
+  /** O comando aberto no formulário ('novo' = criando). */
+  let editandoComando: string | null = null;
+  let rascunhoComando = { nome: '', descricao: '', resposta: '', cargos: [] as string[] };
+
+  function secaoComandos(): HTMLElement[] {
+    if (pararComandos === null) {
+      pararComandos = ouvirComandos(
+        op.groupId,
+        (l) => {
+          listaDeComandos = l;
+          op.redesenhar();
+        },
+        (e) => {
+          if (!isPermissionDenied(e)) console.error('[comandos]', e);
+          listaDeComandos = [];
+          op.redesenhar();
+        },
+      );
+    }
+    const podeCriar = pode(ctx(), op.eu, 'criar-comandos');
+    const podeTodos = pode(ctx(), op.eu, 'gerenciar-comandos');
+    const podeMexer = (c: ComandoDoGrupo): boolean => podeTodos || (podeCriar && c.criadoPor === op.eu);
+    const abrir = (c: ComandoDoGrupo | null): void => {
+      editandoComando = c === null ? 'novo' : c.id;
+      rascunhoComando = c === null ? { nome: '', descricao: '', resposta: '', cargos: [] } : { nome: c.nome, descricao: c.descricao, resposta: c.resposta, cargos: [...c.cargos] };
+      op.redesenhar();
+    };
+    const novo = el('button', { class: 'cg-criar', type: 'button', hidden: !podeCriar }, ['+ Criar comando']);
+    novo.addEventListener('click', () => abrir(null));
+
+    const formulario = (): HTMLElement => {
+      const r = rascunhoComando;
+      const nome = el('input', { id: 'cmd-nome', class: 'settings__input cg-input', type: 'text', maxlength: 32, placeholder: 'regras', autocomplete: 'off' });
+      nome.value = r.nome;
+      nome.addEventListener('input', () => (r.nome = nome.value.toLowerCase().replace(/[^a-z0-9-]/g, '')));
+      const desc = el('input', { id: 'cmd-desc', class: 'settings__input cg-input', type: 'text', maxlength: 100, placeholder: 'Mostra as regras do grupo', autocomplete: 'off' });
+      desc.value = r.descricao;
+      desc.addEventListener('input', () => (r.descricao = desc.value));
+      const resp = el('textarea', { id: 'cmd-resposta', class: 'settings__input settings__textarea', rows: 5, maxlength: 2000, placeholder: '1. Respeito com todo mundo…' });
+      resp.value = r.resposta;
+      resp.addEventListener('input', () => (r.resposta = resp.value));
+      const quem = el('div', { class: 'cg-chips', role: 'group', 'aria-label': 'Quem pode usar' }, normais().map((c) => {
+        const on = r.cargos.includes(c.id);
+        const b = el('button', { class: `cg-chip${on ? ' is-on' : ''}`, type: 'button', 'aria-pressed': String(on) }, [bolinhaDoCargo(c), c.nome]);
+        b.addEventListener('click', () => {
+          r.cargos = on ? r.cargos.filter((x) => x !== c.id) : [...r.cargos, c.id];
+          op.redesenhar();
+        });
+        return b;
+      }));
+      const salvar = el('button', { class: 'cg-criar', type: 'button' }, ['Salvar comando']);
+      const cancelar = el('button', { class: 'cg-botao', type: 'button' }, ['Cancelar']);
+      cancelar.addEventListener('click', () => {
+        editandoComando = null;
+        op.redesenhar();
+      });
+      salvar.addEventListener('click', () => {
+        salvar.disabled = true;
+        const id = editandoComando === 'novo' ? null : editandoComando;
+        void salvarComando(op.groupId, id, { nome: r.nome, descricao: r.descricao, resposta: r.resposta, cargos: r.cargos })
+          .then(() => {
+            showToast(`/${r.nome} salvo.`);
+            editandoComando = null;
+            op.redesenhar();
+          })
+          .catch((e) => {
+            salvar.disabled = false;
+            falhou(e, 'Não deu para salvar o comando.');
+          });
+      });
+      return el('div', { class: 'cmd-form' }, [
+        el('div', { class: 'cg-campo' }, [el('label', { class: 'cg-rotulo', for: 'cmd-nome' }, ['Nome (o que vem depois do /)']), nome]),
+        el('div', { class: 'cg-campo' }, [el('label', { class: 'cg-rotulo', for: 'cmd-desc' }, ['Descrição (aparece na lista do /)']), desc]),
+        el('div', { class: 'cg-campo' }, [el('label', { class: 'cg-rotulo', for: 'cmd-resposta' }, ['O que o comando responde']), resp]),
+        el('div', { class: 'cg-campo' }, [
+          el('span', { class: 'cg-rotulo' }, ['Quem pode usar']),
+          quem,
+          el('p', { class: 'settings__help' }, [r.cargos.length === 0 ? 'Nenhum cargo marcado: todo mundo pode usar.' : 'Só quem tem um dos cargos marcados.']),
+        ]),
+        el('div', { class: 'cmd-form__botoes' }, [salvar, cancelar]),
+      ]);
+    };
+
+    const itens = (listaDeComandos ?? []).map((c) => {
+      const editar = el('button', { class: 'cg-acao', type: 'button', title: `Editar /${c.nome}`, 'aria-label': `Editar /${c.nome}`, hidden: !podeMexer(c) }, ['✎']);
+      editar.addEventListener('click', () => abrir(c));
+      const apagar = el('button', { class: 'cg-acao', type: 'button', title: `Apagar /${c.nome}`, 'aria-label': `Apagar /${c.nome}`, hidden: !podeMexer(c) }, ['🗑']);
+      apagar.addEventListener('click', () => {
+        apagar.disabled = true;
+        void apagarComando(op.groupId, c.id)
+          .then(() => showToast(`/${c.nome} apagado.`))
+          .catch((e) => {
+            apagar.disabled = false;
+            falhou(e, 'Não deu para apagar o comando.');
+          });
+      });
+      return editandoComando === c.id
+        ? formulario()
+        : el('li', { class: 'rg-linha' }, [
+            el('span', { class: 'rg-texto' }, [
+              el('b', {}, [`/${c.nome}`]),
+              el('small', {}, [c.descricao || c.resposta.slice(0, 80)]),
+            ]),
+            el('span', { class: 'cg-acoes' }, [editar, apagar]),
+          ]);
+    });
+
+    return [
+      el('header', { class: 'settings__header' }, [
+        el('h2', { class: 'settings__title' }, ['Comandos']),
+        el('p', { class: 'settings__subtitle' }, ['Comandos com / só deste grupo (ex.: /regras, /ip). Quem digita "/" na caixa de mensagem vê a lista.']),
+      ]),
+      novo,
+      editandoComando === 'novo' ? formulario() : el('span', { hidden: true }),
+      listaDeComandos === null
+        ? el('p', { class: 'settings__help' }, ['Carregando…'])
+        : listaDeComandos.length === 0 && editandoComando !== 'novo'
+          ? el('p', { class: 'settings__help' }, ['Nenhum comando ainda.'])
+          : el('ul', { class: 'rg-lista', 'aria-label': 'Comandos' }, itens),
+    ];
+  }
+
   return {
+    comandos: secaoComandos,
     cargos: () => (tela.tipo === 'editar' ? editor(tela) : lista()),
     membros: secaoMembros,
+    registro: secaoRegistro,
+    banidos: secaoBanidos,
     sujo,
     async salvar() {
       if (tela.tipo !== 'editar' || rascunho === null || !sujo()) return;
       const c = cargoDe(tela.id);
       if (c === undefined) return;
       if (rascunho.nome.trim() === '' && c.todos !== true) throw new Error('O cargo precisa de um nome.');
-      await salvarCargo(c.id, rascunho, c.todos === true);
+      await salvarCargo(op.groupId, c.id, rascunho);
       salvoDoRascunho = { ...rascunho, nome: rascunho.nome.trim(), permissoes: [...rascunho.permissoes] };
       rascunho = { ...salvoDoRascunho, permissoes: [...salvoDoRascunho.permissoes] };
     },
@@ -733,8 +1038,16 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
     parar() {
       pararCargos();
       pararMembros();
+      pararRegistro?.();
+      pararBanidos?.();
+      pararComandos?.();
     },
   };
+}
+
+function dataHora(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function dataCurta(iso: string): string {

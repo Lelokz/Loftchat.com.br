@@ -39,6 +39,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import type { DocumentData, Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
@@ -51,6 +52,7 @@ import { safeImage } from './images';
 import { parseStatus } from './profile-extras';
 import { parseCategories } from './channel-layout';
 import { generateInviteCode } from './invite-code';
+import { lerRegras } from './permissoes';
 import type {
   Attachment,
   Channel,
@@ -149,6 +151,9 @@ function toGroup(id: string, data: DocumentData): Group {
     ...(typeof data['welcome'] === 'string' && data['welcome'].trim() !== ''
       ? { welcome: data['welcome'].slice(0, 500) }
       : {}),
+    ...(typeof data['permsCategorias'] === 'object' && data['permsCategorias'] !== null
+      ? { permsCategorias: Object.fromEntries(Object.entries(data['permsCategorias'] as Record<string, unknown>).map(([k, v]) => [k, lerRegras(v)])) }
+      : {}),
   };
 }
 
@@ -163,6 +168,8 @@ function toChannel(id: string, data: DocumentData): Channel {
     createdAt: typeof data['createdAt'] === 'string' ? data['createdAt'] : '',
     ...(typeof data['emoji'] === 'string' && data['emoji'] !== '' ? { emoji: data['emoji'].slice(0, 16) } : {}),
     ...(typeof data['categoryId'] === 'string' && data['categoryId'] !== '' ? { categoryId: data['categoryId'] } : {}),
+    ...(typeof data['permissoes'] === 'object' && data['permissoes'] !== null ? { permissoes: lerRegras(data['permissoes']) } : {}),
+    ...(typeof data['lento'] === 'number' && data['lento'] > 0 ? { lento: data['lento'] } : {}),
   };
 }
 
@@ -217,6 +224,12 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
   if (typeof data['editedAt'] === 'string') {
     Object.assign(message, { editedAt: data['editedAt'] });
   }
+  // 0.8.5: comando e spoiler.
+  const comando = data['comando'] as { nome?: unknown } | undefined;
+  if (typeof comando === 'object' && comando !== null && typeof comando.nome === 'string' && /^[a-z0-9-]{1,32}$/.test(comando.nome)) {
+    Object.assign(message, { comando: { nome: comando.nome } });
+  }
+  if (data['spoiler'] === true) Object.assign(message, { spoiler: true });
 
   const reply = data['replyTo'];
   if (reply !== undefined && reply !== null && typeof reply === 'object') {
@@ -513,12 +526,18 @@ export function subscribeGroupMembers(
   const userUnsubs = new Map<string, Unsubscribe>();
   const memberDocs = new Map<string, Member>();
   const resolved = new Set<string>();
-  const doVinculo = new Map<string, Pick<Member, 'cargos' | 'entrouEm' | 'convite'>>();
+  const doVinculo = new Map<string, Pick<Member, 'cargos' | 'entrouEm' | 'convite' | 'perms' | 'topo' | 'canais' | 'castigoAte' | 'apelido'>>();
   let membershipsSeen = false;
 
   const emit = (): void => {
     const loaded = membershipsSeen && [...userUnsubs.keys()].every((id) => resolved.has(id));
-    const list = [...memberDocs.values()].map((m) => ({ ...m, ...doVinculo.get(m.id) })).sort((a, b) =>
+    // 0.8.5: com apelido no grupo, o nome que aparece é o apelido.
+    const list = [...memberDocs.values()]
+      .map((m) => {
+        const v = doVinculo.get(m.id);
+        return v?.apelido !== undefined ? { ...m, ...v, displayName: v.apelido, nomeReal: m.displayName } : { ...m, ...v };
+      })
+      .sort((a, b) =>
       a.displayName.localeCompare(b.displayName, 'pt-BR'),
     );
     onChange(list, loaded);
@@ -537,10 +556,22 @@ export function subscribeGroupMembers(
         const cargos: unknown = membership.get('cargos');
         const entrouEm: unknown = membership.get('joinedAt');
         const convite: unknown = membership.get('inviteCode');
+        const perms: unknown = membership.get('perms');
+        const topo: unknown = membership.get('topo');
+        const canais: unknown = membership.get('canais');
+        const castigo: unknown = membership.get('castigoAte');
+        const textos = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string') : []);
         doVinculo.set(memberId, {
-          cargos: Array.isArray(cargos) ? cargos.filter((c): c is string => typeof c === 'string') : [],
+          cargos: textos(cargos),
           ...(typeof entrouEm === 'string' ? { entrouEm } : {}),
           ...(typeof convite === 'string' ? { convite } : {}),
+          ...(Array.isArray(perms) ? { perms: textos(perms) } : {}),
+          ...(typeof topo === 'number' ? { topo } : {}),
+          ...(typeof canais === 'object' && canais !== null
+            ? { canais: Object.fromEntries(Object.entries(canais as Record<string, unknown>).map(([k, v]) => [k, textos(v)])) }
+            : {}),
+          ...(castigo instanceof Timestamp ? { castigoAte: castigo.toDate().toISOString() } : {}),
+          ...(typeof membership.get('apelido') === 'string' && membership.get('apelido') !== '' ? { apelido: String(membership.get('apelido')).slice(0, 32) } : {}),
         });
       }
 
@@ -643,28 +674,44 @@ export function subscribeMessages(
 export const LIMITE_DA_GALERIA = 300;
 
 /**
- * GALERIA DO GRUPO (0.8.0): imagens, GIFs e vídeos de TODOS os canais, das
- * mais novas para as mais velhas, só dos últimos 60 dias (os arquivos somem
- * do carteiro depois disso). Precisa do índice groupId + kind + sentAt.
+ * GALERIA DO GRUPO (0.8.0): imagens, GIFs e vídeos, das mais novas para as
+ * mais velhas, só dos últimos 60 dias (os arquivos somem do carteiro depois
+ * disso). 0.8.5: UMA consulta por canal que a pessoa vê — o banco fecha as
+ * mensagens canal a canal. Índice groupId + channelId + kind + sentAt.
  */
 export function subscribeGaleria(
   groupId: string,
+  canais: string[],
   desde: string,
   onChange: (messages: Message[]) => void,
   onError: ErrorHandler,
 ): Unsubscribe {
-  return onSnapshot(
-    query(
-      collection(db, 'messages'),
-      where('groupId', '==', groupId),
-      where('kind', 'in', ['image', 'gif', 'video']),
-      where('sentAt', '>=', desde),
-      orderBy('sentAt', 'desc'),
-      limit(LIMITE_DA_GALERIA),
+  const porCanal = new Map<string, Message[]>();
+  const juntar = (): void => {
+    if (porCanal.size < canais.length) return;
+    const todas = [...porCanal.values()].flat().sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+    onChange(todas.slice(0, LIMITE_DA_GALERIA));
+  };
+  if (canais.length === 0) queueMicrotask(() => onChange([]));
+  const paradas = canais.map((canal) =>
+    onSnapshot(
+      query(
+        collection(db, 'messages'),
+        where('groupId', '==', groupId),
+        where('channelId', '==', canal),
+        where('kind', 'in', ['image', 'gif', 'video']),
+        where('sentAt', '>=', desde),
+        orderBy('sentAt', 'desc'),
+        limit(LIMITE_DA_GALERIA),
+      ),
+      (snapshot) => {
+        porCanal.set(canal, snapshot.docs.map((entry) => toMessage(entry.id, entry.data())).filter((m) => m.attachment !== undefined && m.kind !== 'text'));
+        juntar();
+      },
+      onError,
     ),
-    (snapshot) => onChange(snapshot.docs.map((entry) => toMessage(entry.id, entry.data())).filter((m) => m.attachment !== undefined && m.kind !== 'text')),
-    onError,
   );
+  return () => paradas.forEach((p) => p());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -703,6 +750,19 @@ export const MAX_MESSAGE_PAGES = 10;
  * instante. Com valor concreto a compensação de latência põe ela no lugar certo.
  * A dívida é relógio dessincronizado entre máquinas.
  */
+/* 0.8.5 MODO LENTO: o app diz se este canal pede a marca (canal lento e eu sem "Ignorar o modo lento"). */
+let marcarLento: (channelId: string) => boolean = () => false;
+let aoMandarNoCanal: (channelId: string) => void = () => undefined;
+export function ligarModoLento(precisa: (channelId: string) => boolean, mandou: (channelId: string) => void): void {
+  marcarLento = precisa;
+  aoMandarNoCanal = mandou;
+}
+
+/** Liga/desliga o modo lento de um canal (permissão "Editar canais"). */
+export async function mudarModoLento(channelId: string, segundos: number): Promise<void> {
+  await withTimeout(updateDoc(doc(db, 'channels', channelId), { lento: Math.max(0, Math.min(21600, Math.round(segundos))) }));
+}
+
 export async function sendMessage(
   groupId: string,
   channelId: string,
@@ -710,24 +770,39 @@ export async function sendMessage(
   rawBody: string,
   replyTo?: ReplyTo,
   midia?: Midia,
+  /** 0.8.5: a mensagem vem de um comando (e/ou é spoiler). */
+  extra?: { comando?: string; spoiler?: boolean },
 ): Promise<void> {
   const body = rawBody.trim();
   if (body === '' && midia === undefined) return;
 
   const sentAt = nowIso();
-  const nova = await withTimeout(
-    addDoc(collection(db, 'messages'), {
-      groupId,
-      channelId,
-      authorId,
-      kind: midia?.kind ?? 'text',
-      body,
-      sentAt,
-      ...(midia === undefined ? {} : { attachment: midia.attachment }),
-      // Só entra quando existe: documento com `replyTo: undefined` é recusado.
-      ...(replyTo === undefined ? {} : { replyTo }),
-    }),
-  );
+  const dados = {
+    groupId,
+    channelId,
+    authorId,
+    kind: midia?.kind ?? 'text',
+    body,
+    sentAt,
+    ...(midia === undefined ? {} : { attachment: midia.attachment }),
+    // Só entra quando existe: documento com `replyTo: undefined` é recusado.
+    ...(replyTo === undefined ? {} : { replyTo }),
+    ...(extra?.comando === undefined ? {} : { comando: { nome: extra.comando } }),
+    ...(extra?.spoiler === true ? { spoiler: true } : {}),
+  };
+  let nova: { id: string };
+  if (marcarLento(channelId)) {
+    // 0.8.5 MODO LENTO: a mensagem vai junto com a marca de horário (o banco confere o intervalo).
+    const ref = doc(collection(db, 'messages'));
+    const lote = writeBatch(db);
+    lote.set(ref, dados);
+    lote.set(doc(db, 'lentos', `${channelId}_${authorId}`), { channelId, em: serverTimestamp() });
+    await withTimeout(lote.commit());
+    nova = ref;
+  } else {
+    nova = await withTimeout(addDoc(collection(db, 'messages'), dados));
+  }
+  aoMandarNoCanal(channelId);
   avisarCarteiro('grupo', nova.id);
   // Não lidas (0.4.5): o canal guarda a hora e o autor da última mensagem.
   void updateDoc(doc(db, 'channels', channelId), { ultimaEm: sentAt, ultimaDe: authorId }).catch(() => undefined);
@@ -1108,12 +1183,14 @@ export async function deleteGroupCascade(
       advance(step);
     }
   }
-  // 0.8.5: os cargos (poucos), junto com os convites na barra de progresso.
-  for (;;) {
-    const count = await deletePage('cargos', groupId, null);
-    if (count === 0) break;
-    removed += count;
-    advance('invites');
+  // 0.8.5: cargos, comandos, registro e banidos, junto com os convites na barra.
+  for (const colecao of ['cargos', 'comandos', 'registro', 'banidos']) {
+    for (;;) {
+      const count = await deletePage(colecao, groupId, null);
+      if (count === 0) break;
+      removed += count;
+      advance('invites');
+    }
   }
 
   // 4. Memberships dos OUTROS. A minha fica para o fim — apagá-la aqui me

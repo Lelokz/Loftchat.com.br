@@ -103,3 +103,28 @@ export async function canaisDoGrupo(grupo: string): Promise<{ id: string; nome: 
     .filter((l) => l.document !== undefined)
     .map((l) => ({ id: l.document!.name.split('/').pop()!, nome: l.document!.fields.name?.stringValue ?? '' }));
 }
+
+/** Qualquer coleção de um grupo (id + campos já lidos), como dono do projeto. */
+export async function doGrupo(colecao: string, grupo: string): Promise<{ id: string; d: Record<string, unknown> }[]> {
+  const r = await fetch(`${FS}:runQuery`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: colecao }],
+        where: { fieldFilter: { field: { fieldPath: 'groupId' }, op: 'EQUAL', value: { stringValue: grupo } } },
+      },
+    }),
+  });
+  const ler = (v: Record<string, unknown>): unknown =>
+    'stringValue' in v ? v['stringValue']
+    : 'integerValue' in v ? Number(v['integerValue'])
+    : 'booleanValue' in v ? v['booleanValue']
+    : 'arrayValue' in v ? (((v['arrayValue'] as { values?: Record<string, unknown>[] }).values ?? []).map(ler))
+    : 'mapValue' in v ? Object.fromEntries(Object.entries((v['mapValue'] as { fields?: Record<string, Record<string, unknown>> }).fields ?? {}).map(([k, x]) => [k, ler(x)]))
+    : null;
+  const linhas = (await r.json()) as { document?: { name: string; fields?: Record<string, Record<string, unknown>> } }[];
+  return linhas
+    .filter((l) => l.document !== undefined)
+    .map((l) => ({ id: l.document!.name.split('/').pop()!, d: Object.fromEntries(Object.entries(l.document!.fields ?? {}).map(([k, v]) => [k, ler(v)])) }));
+}

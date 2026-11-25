@@ -1,4 +1,5 @@
 import './styles/fonts.css';
+import { recalcularDepois } from './lib/cargos';
 import './styles/emoji.css';
 import './styles/tokens.css';
 import './styles/reset.css';
@@ -364,6 +365,7 @@ async function showInvite(user: User, code: string): Promise<void> {
         // O código vai junto: é a única forma de a regra saber que existe um
         // convite válido para este grupo.
         await joinGroup(groupId, user.uid, code);
+        recalcularDepois(groupId);
         pendingGroupFocus = groupId;
         navigate('/');
       },

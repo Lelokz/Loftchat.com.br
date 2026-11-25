@@ -65,6 +65,10 @@ export interface ChannelsEditorOptions {
   onChange: (draft: ChannelsDraft, refocus?: string) => void;
   /** Mudou só texto (nome): atualiza a barra sem redesenhar (o foco fica no campo). */
   onTextChange: () => void;
+  /** 0.8.5: o que a pessoa pode mexer aqui (ausente = tudo). */
+  pode?: { nomes: boolean; ordem: boolean; categorias: boolean };
+  /** 0.8.5: abre as permissões de um canal ou de uma categoria (sem isto, o botão não aparece). */
+  aoPermissoes?: (alvo: { canal: string } | { categoria: string; nome: string }) => void;
 }
 
 const ROTULO_TIPO: Record<ChannelKind, string> = { text: 'texto', voice: 'voz' };
@@ -254,6 +258,15 @@ export function renderChannelsEditor(options: ChannelsEditorOptions): HTMLElemen
         nome,
         el('span', { class: 'gc-kind' }, [canal.kind === 'voice' ? '🔊' : '#']),
         categoria,
+        ...(options.aoPermissoes === undefined
+          ? []
+          : [
+              (() => {
+                const b = el('button', { class: 'gc-perms', type: 'button', title: `Permissões de ${canal.name}`, 'aria-label': `Permissões de ${canal.name}` }, ['🔒']);
+                b.addEventListener('click', () => options.aoPermissoes?.({ canal: canal.id }));
+                return b;
+              })(),
+            ]),
       ]),
       grade,
     ]);
@@ -312,6 +325,9 @@ export function renderChannelsEditor(options: ChannelsEditorOptions): HTMLElemen
       cabeca = el('div', { class: 'gc-head' }, [
         nome,
         el('span', { class: 'gc-head-actions' }, [
+          ...(options.aoPermissoes === undefined
+            ? []
+            : [botao('Permissões', `Permissões da categoria ${cat.name}`, () => options.aoPermissoes?.({ categoria: cat.id, nome: cat.name.trim() || 'Sem nome' }))]),
           botao('Subir', `Subir a categoria ${cat.name}`, () => trocar(pos, pos - 1), pos === 0),
           botao('Descer', `Descer a categoria ${cat.name}`, () => trocar(pos, pos + 1), pos === draft.categories.length - 1),
           botao('Apagar', `Apagar a categoria ${cat.name}`, () =>
@@ -344,6 +360,18 @@ export function renderChannelsEditor(options: ChannelsEditorOptions): HTMLElemen
   });
 
   raizEl = el('div', { class: 'gc-blocks' }, blocos);
+  // 0.8.5: o que a pessoa não pode, fica travado (o banco recusaria).
+  const pode = options.pode ?? { nomes: true, ordem: true, categorias: true };
+  if (!pode.nomes) for (const x of raizEl.querySelectorAll<HTMLInputElement | HTMLButtonElement>('.gc-name, .gc-emoji')) x.disabled = true;
+  if (!pode.ordem) {
+    for (const x of raizEl.querySelectorAll<HTMLElement>('.gc-handle')) x.hidden = true;
+    for (const x of raizEl.querySelectorAll<HTMLSelectElement>('.gc-cat')) x.disabled = true;
+  }
+  if (!pode.categorias) {
+    for (const x of raizEl.querySelectorAll<HTMLInputElement>('.gc-cat-name')) x.disabled = true;
+    for (const x of raizEl.querySelectorAll<HTMLElement>('.gc-head-actions')) x.hidden = true;
+    nova.hidden = true;
+  }
 
   return [
     el('header', { class: 'settings__header' }, [

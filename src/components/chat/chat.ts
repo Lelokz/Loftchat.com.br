@@ -17,6 +17,9 @@ export interface ChatProps {
   aoFigurinha?: (figurinha: Figurinha) => void;
   /** 0.5.5: mensagem de voz. */
   aoVoz?: (gravacao: Gravacao) => void;
+  /** 0.8.5: comandos com "/" e as pessoas para o "@". */
+  comandos?: () => { nome: string; desc: string; args: string }[];
+  pessoas?: () => string[];
   /** Gavetas do mobile. Os botões existem sempre; o CSS os esconde no desktop. */
   onOpenChannels: () => void;
   onOpenMembers: () => void;
@@ -134,6 +137,8 @@ export function renderChat(props: ChatProps): ChatParts {
         ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
         ...(props.aoFigurinha === undefined ? {} : { aoFigurinha: props.aoFigurinha }),
       ...(props.aoVoz === undefined ? {} : { aoVoz: props.aoVoz }),
+        ...(props.comandos === undefined ? {} : { comandos: props.comandos }),
+        ...(props.pessoas === undefined ? {} : { pessoas: props.pessoas }),
       }),
     ]),
     messagesSlot,

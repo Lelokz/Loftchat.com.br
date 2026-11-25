@@ -718,3 +718,65 @@
 .message--figurinha .message__meta {
   padding: 0 var(--space-2);
 }
+
+/* 0.8.5: comandos ("usou /dado" + cartão), /me em itálico e spoiler. */
+.message__comando {
+  display: grid;
+  gap: 6px;
+}
+
+.message__comando-uso {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.message__comando-uso b {
+  color: var(--accent-text);
+}
+
+.message__comando-cartao {
+  padding: 10px 14px;
+  border: 1px solid var(--vidro-traco);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--vidro-claro);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.message__text--acao {
+  font-style: italic;
+}
+
+.message__spoiler {
+  cursor: pointer;
+  border-radius: 6px;
+  background: var(--text-muted);
+  color: transparent !important;
+  transition: background-color 150ms, color 150ms;
+  user-select: none;
+}
+
+.message__spoiler * {
+  visibility: hidden;
+}
+
+.message__spoiler.is-aberto {
+  background: transparent;
+  color: inherit !important;
+  cursor: auto;
+  user-select: auto;
+}
+
+.message__spoiler.is-aberto * {
+  visibility: visible;
+}
+
+/* No meu balão (roxo), o "usou /x" precisa de contraste. */
+.message--mine .message__comando-uso {
+  color: rgb(255 255 255 / 75%);
+}
+
+.message--mine .message__comando-uso b {
+  color: #fff;
+}

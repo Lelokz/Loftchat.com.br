@@ -95,6 +95,9 @@ function bloco_(titulo: string, people: Member[]): HTMLElement {
               el('span', { class: 'member__linha' }, [
                 corDoCargo(el('span', { class: 'member__name', title: member.displayName }, [member.displayName]), member),
                 iconeDoCargo(member),
+                member.castigoAte !== undefined && Date.parse(member.castigoAte) > Date.now()
+                  ? el('span', { class: 'castigo-selo', title: 'De castigo' }, ['⏳'])
+                  : null,
               ]),
               // O status da pessoa (etapa 2d), se ela pôs um e ainda vale.
               statusLine(member.customStatus, 'member__status') ?? false,

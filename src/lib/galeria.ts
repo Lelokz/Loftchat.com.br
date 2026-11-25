@@ -32,14 +32,16 @@ function avisar(): void {
  * Começa (ou reaproveita) a escuta do grupo e chama `aoMudar` agora e a cada
  * mudança. Devolve a função de soltar; sem ninguém ouvindo, a escuta para.
  */
-export function ouvirGaleria(groupId: string, aoMudar: Ouvinte): () => void {
-  if (groupId !== grupo) {
+export function ouvirGaleria(groupId: string, canais: string[], aoMudar: Ouvinte): () => void {
+  const chave = `${groupId}|${[...canais].sort().join(',')}`;
+  if (chave !== grupo) {
     parar?.();
-    grupo = groupId;
+    grupo = chave;
     estado = { carregada: false, itens: [], erro: false };
     const desde = new Date(Date.now() - SESSENTA_DIAS).toISOString();
     parar = subscribeGaleria(
       groupId,
+      canais,
       desde,
       (itens) => {
         estado = { carregada: true, itens, erro: false };

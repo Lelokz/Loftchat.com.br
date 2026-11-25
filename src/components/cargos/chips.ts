@@ -14,6 +14,8 @@ export interface ChipsProps {
   /** Os cargos do grupo, do mais alto ao mais baixo (sem o @todos). */
   cargos: Cargo[];
   podeEditar: boolean;
+  /** Cargos que eu não posso dar nem tirar (no meu nível ou acima). */
+  travado?: (c: Cargo) => boolean;
   aoDar: (cargoId: string, dar: boolean) => Promise<void>;
 }
 
@@ -50,7 +52,7 @@ export function chipsDeCargos(props: ChipsProps): HTMLElement {
     const meus = props.cargos.filter((c) => tem.has(c.id));
     const chips = meus.map((c) => {
       const chip = el('span', { class: 'cg-chip', role: 'listitem' }, [bolinhaDoCargo(c), iconeDoCargoEl(c), el('span', {}, [c.nome])]);
-      if (props.podeEditar) {
+      if (props.podeEditar && props.travado?.(c) !== true) {
         const x = el('button', { class: 'cg-chip__x', type: 'button', title: `Tirar o cargo ${c.nome}`, 'aria-label': `Tirar o cargo ${c.nome}` }, ['×']);
         x.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -65,7 +67,7 @@ export function chipsDeCargos(props: ChipsProps): HTMLElement {
       : null;
     mais?.addEventListener('click', (e) => {
       e.stopPropagation();
-      abrirEscolha(mais, props.cargos, tem, mudar);
+      abrirEscolha(mais, props.cargos, tem, mudar, props.travado ?? (() => false));
     });
     caixa.replaceChildren(...chips, ...(mais === null ? [] : [mais]));
     if (meus.length === 0 && mais === null) caixa.append(el('span', { class: 'cg-nenhum' }, ['Sem cargos.']));
@@ -87,6 +89,7 @@ function abrirEscolha(
   cargos: Cargo[],
   tem: Set<string>,
   mudar: (cargoId: string, dar: boolean) => Promise<void>,
+  travado: (c: Cargo) => boolean,
 ): void {
   fecharEscolhaDeCargos();
   const busca = el('input', { class: 'cg-escolha__busca', type: 'search', placeholder: 'Procurar cargo', 'aria-label': 'Procurar cargo' });
@@ -98,7 +101,15 @@ function abrirEscolha(
     lista.replaceChildren(
       ...itens.map((c) => {
         const marcado = tem.has(c.id);
-        const op = el('button', { class: 'cg-escolha__op', type: 'button', role: 'checkbox', 'aria-checked': String(marcado) }, [
+        const preso = travado(c);
+        const op = el('button', {
+          class: 'cg-escolha__op',
+          type: 'button',
+          role: 'checkbox',
+          'aria-checked': String(marcado),
+          disabled: preso,
+          title: preso ? 'Este cargo está no seu nível ou acima.' : '',
+        }, [
           bolinhaDoCargo(c),
           iconeDoCargoEl(c),
           el('span', { class: 'cg-escolha__nome' }, [c.nome]),

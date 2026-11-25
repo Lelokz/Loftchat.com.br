@@ -60,6 +60,87 @@ service cloud.firestore {
         && get(groupPath(groupId)).data.ownerId == uid();
     }
 
+    /*
+     * CARGOS E PERMISSÕES (0.8.5). O carteiro calcula o que cada pessoa pode
+     * e grava na membership dela: `perms` (no servidor), `canais` (canal a
+     * canal, só onde há regra própria), `topo` (posição do cargo mais alto) e
+     * `castigoAte`. Sem `perms` (grupo de antes dos cargos, ou o carteiro
+     * ainda não passou), vale o @todos — e sem @todos, o que todo membro já
+     * podia fazer antes. O dono sempre pode tudo.
+     */
+    function minha(groupId) {
+      return get(membershipPath(groupId)).data;
+    }
+
+    function todosPath(groupId) {
+      return /databases/$(database)/documents/cargos/$(groupId + '_todos');
+    }
+
+    function permsPadrao(groupId) {
+      return exists(todosPath(groupId))
+        ? get(todosPath(groupId)).data.permissoes
+        : [
+        'apelido-proprio', 'ver-canal', 'ler-antigas', 'mandar-mensagens', 'responder', 'mandar-fotos',
+        'mandar-gifs', 'mandar-videos', 'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'previa-links',
+        'mencionar-pessoas', 'usar-comandos', 'ver-galeria', 'ver-sala', 'entrar', 'falar',
+        'transmitir', 'transmitir-som', 'camera', 'ver-chat-sala', 'escrever-chat-sala', 'mandar-enquetes',
+        'votar-enquetes', 'visualizacao-unica', 'transcricao', 'mini-jogos-iniciar', 'mini-jogos-jogar', 'reagir',
+        'mandar-arquivos'
+      ];
+    }
+
+    function permsServidor(groupId) {
+      return minha(groupId).get('perms', permsPadrao(groupId));
+    }
+
+    function emCastigo(groupId) {
+      return minha(groupId).get('castigoAte', null) != null
+        && minha(groupId).castigoAte > request.time;
+    }
+
+    /** Pode fazer `p` no servidor (castigo tira tudo, menos ver e ler). */
+    function pode(groupId, p) {
+      return isOwner(groupId)
+        || (isMember(groupId) && !emCastigo(groupId)
+            && permsServidor(groupId).hasAny(['administrador', p]));
+    }
+
+    /** O canal (ou a categoria dele, sincronizada) tem regra própria? */
+    function temRegras(groupId, channelId) {
+      let canal = get(/databases/$(database)/documents/channels/$(channelId)).data;
+      return canal.get('permissoes', {}).size() > 0
+        || (canal.get('categoryId', '') != ''
+            && get(groupPath(groupId)).data.get('permsCategorias', {}).get(canal.get('categoryId', ''), {}).size() > 0);
+    }
+
+    /**
+     * O que posso NESTE canal. Calculado pelo carteiro em `canais`; se ainda
+     * não foi calculado e o canal tem regra própria, nada (fecha até o
+     * carteiro passar — canal privado nunca abre por engano).
+     */
+    function permsDoCanal(groupId, channelId) {
+      let m = minha(groupId);
+      return channelId in m.get('canais', {})
+        ? m.canais[channelId]
+        : (temRegras(groupId, channelId) ? [] : permsServidor(groupId));
+    }
+
+    /** Pode fazer `p` neste canal (com as regras próprias do canal). */
+    function podeNoCanal(groupId, channelId, p) {
+      return isOwner(groupId)
+        || (isMember(groupId) && !emCastigo(groupId)
+            && permsDoCanal(groupId, channelId).hasAny(['administrador', p]));
+    }
+
+    /** Vê o canal (castigo não tira isto): texto pede "Ver canal"; voz, "Ver a sala". */
+    function podeVer(groupId, channelId) {
+      return isOwner(groupId)
+        || (isMember(groupId)
+            && permsDoCanal(groupId, channelId).hasAny(['administrador',
+                 get(/databases/$(database)/documents/channels/$(channelId)).data.get('kind', 'text') == 'voice'
+                   ? 'ver-sala' : 'ver-canal']));
+    }
+
     // "Este grupo ainda não existe" é a assinatura de estar criando ele agora,
     // dentro do writeBatch. Ver observação 2 no topo.
     function groupBeingCreated(groupId) {
@@ -446,7 +527,7 @@ service cloud.firestore {
     match /pinnedMessages/{pinId} {
       allow read: if signedIn() && (
         ('channelId' in resource.data)
-          ? isMember(resource.data.groupId)
+          ? podeVer(resource.data.groupId, resource.data.channelId)
           : resource.data.threadId.split('_').hasAny([uid()])
       );
 
@@ -454,14 +535,14 @@ service cloud.firestore {
       // membro poder fixar viraria bagunça). No PV, qualquer um dos dois.
       allow create: if signedIn() && (
         ('channelId' in request.resource.data)
-          ? isOwner(request.resource.data.groupId)
+          ? podeNoCanal(request.resource.data.groupId, request.resource.data.channelId, 'fixar')
           : request.resource.data.threadId.split('_').hasAny([uid()])
       ) && request.resource.data.pinnedBy == uid();
 
       // Mesma gente que pode fixar pode desafixar.
       allow delete: if signedIn() && (
         ('channelId' in resource.data)
-          ? isOwner(resource.data.groupId)
+          ? podeNoCanal(resource.data.groupId, resource.data.channelId, 'desafixar')
           : resource.data.threadId.split('_').hasAny([uid()])
       );
 
@@ -479,8 +560,17 @@ service cloud.firestore {
       // grupo, nem contornando a tela. Nome obrigatório (etapa 3a).
       allow create: if verified() && request.resource.data.ownerId == uid()
         && groupNameOk(request.resource.data.get('name', ''));
-      allow update: if isOwner(groupId)
+      // 0.8.5: cada campo com a sua permissão. `permsCategorias` (regras das
+      // categorias) só o carteiro grava.
+      allow update: if isMember(groupId)
         && request.resource.data.ownerId == resource.data.ownerId
+        && !groupChanged('permsCategorias')
+        && (!groupChanged('name') || pode(groupId, 'editar-nome'))
+        && (!groupChanged('photo') || pode(groupId, 'editar-foto'))
+        && (!groupChanged('description') || pode(groupId, 'editar-descricao'))
+        && (!groupChanged('welcome') || pode(groupId, 'editar-boas-vindas'))
+        && (!groupChanged('accentId') || pode(groupId, 'editar-cor'))
+        && (!groupChanged('categories') || pode(groupId, 'gerenciar-categorias') || pode(groupId, 'ordenar-canais'))
         && groupLookOk();
       allow delete: if isOwner(groupId);
 
@@ -521,10 +611,10 @@ service cloud.firestore {
 
     match /groupArt/{groupId} {
       allow read: if isMember(groupId);
-      allow create, update: if isOwner(groupId)
+      allow create, update: if pode(groupId, 'editar-banner')
         && request.resource.data.keys().hasOnly(['banner'])
         && (!('banner' in request.resource.data) || imageOk(request.resource.data.banner, 300000));
-      allow delete: if isOwner(groupId);
+      allow delete: if isOwner(groupId) || pode(groupId, 'editar-banner');
     }
 
     /* --------------------------- memberships ---------------------------- */
@@ -550,6 +640,9 @@ service cloud.firestore {
                && groupBeingCreated(request.resource.data.groupId))
              ||
              (request.resource.data.role == 'member'
+               && !exists(/databases/$(database)/documents/banidos/$(request.resource.data.groupId + '_' + uid()))
+               && !('perms' in request.resource.data) && !('canais' in request.resource.data)
+               && !('castigoAte' in request.resource.data) && request.resource.data.get('cargos', []).size() == 0
                && inviteMatches(
                     request.resource.data.groupId,
                     request.resource.data.get('inviteCode', '')
@@ -566,51 +659,73 @@ service cloud.firestore {
       // muda. É também o que impede alguém se auto-declarar dono depois.
       // PENDÊNCIA: transferir posse vai precisar mexer aqui.
       //
-      // 0.8.5 CARGOS (etapa 1): o dono dá e tira cargos — e SÓ o campo
-      // `cargos` muda, uma lista curta de ids. A etapa 2 troca "dono" pela
-      // permissão "Dar e tirar cargos" (com hierarquia).
-      allow update: if isOwner(resource.data.groupId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cargos'])
-        && request.resource.data.cargos is list
-        && request.resource.data.cargos.size() <= 50;
+      // 0.8.5: cargos, perms, topo, canais e castigo — tudo pelo carteiro,
+      // que confere permissão e hierarquia antes de gravar.
+      allow update: if false;
     }
 
     /* ------------------------------ cargos ------------------------------ */
     // 0.8.5: cargos livres do grupo. Ler é de todo membro (a cor e o ícone
-    // aparecem para todo mundo). MEXER, nesta etapa, é só do dono. O @todos
-    // tem id fixo `${groupId}_todos`.
+    // aparecem para todo mundo). O @todos tem id fixo `${groupId}_todos`.
 
     match /cargos/{cargoId} {
       allow read: if isMember(resource.data.groupId);
-
-      allow create: if isOwner(request.resource.data.groupId)
-        && cargoOk(request.resource.data)
-        && ((request.resource.data.get('todos', false) == true)
-              == (cargoId == request.resource.data.groupId + '_todos'));
-
-      allow update: if isOwner(resource.data.groupId)
-        && request.resource.data.groupId == resource.data.groupId
-        && request.resource.data.get('todos', false) == resource.data.get('todos', false)
-        && cargoOk(request.resource.data);
-
-      // O @todos também sai (a cascata de apagar o grupo leva tudo); o app
-      // nunca oferece apagar ele.
+      // Criar, editar, ordenar e apagar: pelo carteiro (permissão "Gerenciar
+      // cargos" + hierarquia). O dono apaga na cascata de apagar o grupo.
+      allow create, update: if false;
       allow delete: if isOwner(resource.data.groupId);
-
-      function cargoOk(d) {
-        return d.groupId is string
-          && d.nome is string && d.nome.size() >= 1 && d.nome.size() <= 40
-          && d.posicao is number
-          && d.permissoes is list && d.permissoes.size() <= 120
-          && (!('icone' in d) || (d.icone is string && d.icone.size() <= 16))
-          && (!('imagem' in d) || (d.imagem is string && d.imagem.size() <= 30000));
-      }
     }
+
+    /* ------------------------------- lentos ----------------------------- */
+    // 0.8.5: a marca do modo lento (`${canal}_${uid}`): só a própria pessoa,
+    // e sempre com a hora do servidor (não dá para "voltar no tempo").
+
+    match /lentos/{lentoId} {
+      allow read: if signedIn() && lentoId.split('_')[1] == uid();
+      allow create, update: if signedIn()
+        && lentoId == request.resource.data.channelId + '_' + uid()
+        && request.resource.data.em == request.time
+        && request.resource.data.keys().hasOnly(['channelId', 'em']);
+    }
+
+    /* ------------------------------ registro ---------------------------- */
+    // 0.8.5: quem fez o quê no grupo. Só o carteiro escreve; lê quem tem
+    // "Ver registro de auditoria".
+
+    match /registro/{registroId} {
+      allow read: if pode(resource.data.groupId, 'ver-registro');
+      allow create, update: if false;
+      // A cascata de apagar o grupo leva o registro junto.
+      allow delete: if isOwner(resource.data.groupId);
+    }
+
+    /* ------------------------------ comandos ---------------------------- */
+    // 0.8.5: comandos personalizados do grupo (/regras…). Todo membro lê (a
+    // lista do "/"); quem cria e edita é o carteiro (permissões de comando).
+
+    match /comandos/{comandoId} {
+      allow read: if isMember(resource.data.groupId);
+      allow create, update: if false;
+      allow delete: if isOwner(resource.data.groupId);
+    }
+
+    /* ------------------------------ banidos ----------------------------- */
+    // 0.8.5: `${groupId}_${uid}`. Só o carteiro escreve; lê quem pode desbanir.
+
+    match /banidos/{banidoId} {
+      allow read: if pode(resource.data.groupId, 'desbanir') || pode(resource.data.groupId, 'banir');
+      allow create, update: if false;
+      allow delete: if isOwner(resource.data.groupId);
+    }
+
 
     /* ----------------------------- channels ----------------------------- */
 
     match /channels/{channelId} {
       // Ler é de todo membro. MEXER é só do dono.
+      // Ler a LISTA de canais é de todo membro (a consulta é por grupo, e regra
+      // não filtra canal a canal). O que é privado é o CONTEÚDO: mensagens e
+      // fixadas cobram `podeVer`. O app esconde da lista o canal que não vê.
       allow read: if isMember(resource.data.groupId);
 
       // O `groupBeingCreated` cobre os três canais iniciais criados no mesmo
@@ -620,14 +735,23 @@ service cloud.firestore {
       // groupId que não existe. São documentos órfãos, invisíveis para todo
       // mundo — nenhuma query do app os alcança, e assim que o grupo existe de
       // verdade só o dono escreve nele.
-      allow create: if isOwner(request.resource.data.groupId)
+      allow create: if (pode(request.resource.data.groupId, 'criar-canais')
+          && !('permissoes' in request.resource.data))
         || groupBeingCreated(request.resource.data.groupId);
 
       // Renomear canal não pode mudá-lo de grupo nem de tipo. Etapa 3b: nome,
       // emoji, categoria e posição são cobrados quando mudam.
-      allow update: if isOwner(resource.data.groupId)
+      // 0.8.5: nome/emoji = "Editar canais"; categoria/posição = "Mudar a
+      // ordem" (ou editar). As regras do canal (`permissoes`) só o carteiro.
+      allow update: if isMember(resource.data.groupId)
         && request.resource.data.groupId == resource.data.groupId
         && request.resource.data.kind == resource.data.kind
+        && !channelChanged('permissoes')
+        && ((!channelChanged('name') && !channelChanged('emoji') && !channelChanged('lento'))
+              || podeNoCanal(resource.data.groupId, channelId, 'editar-canais'))
+        && ((!channelChanged('categoryId') && !channelChanged('position'))
+              || pode(resource.data.groupId, 'ordenar-canais')
+              || podeNoCanal(resource.data.groupId, channelId, 'editar-canais'))
         && channelLookOk();
 
       function channelChanged(field) {
@@ -641,7 +765,9 @@ service cloud.firestore {
                 || (d.emoji is string && d.emoji.size() <= 16))
           && (!channelChanged('categoryId') || !('categoryId' in d)
                 || (d.categoryId is string && d.categoryId.size() <= 40))
-          && (!channelChanged('position') || (d.position is int && d.position >= 0 && d.position < 1000));
+          && (!channelChanged('position') || (d.position is int && d.position >= 0 && d.position < 1000))
+          // 0.8.5: modo lento, de 0 (desligado) a 6 horas.
+          && (!channelChanged('lento') || (d.lento is int && d.lento >= 0 && d.lento <= 21600));
       }
 
       /*
@@ -655,7 +781,7 @@ service cloud.firestore {
         && request.resource.data.ultimaEm > resource.data.get('ultimaEm', '')
         && request.resource.data.ultimaDe == uid();
 
-      allow delete: if isOwner(resource.data.groupId);
+      allow delete: if podeNoCanal(resource.data.groupId, channelId, 'apagar-canais');
     }
 
     /* ------------------------------- lidas ------------------------------- */
@@ -732,10 +858,47 @@ service cloud.firestore {
     // vezes as 50 mensagens de cada lista.
 
     match /messages/{messageId} {
-      allow read: if isMember(resource.data.groupId);
+      // 0.8.5: só quem vê o canal lê (canal privado é privado de verdade).
+      allow read: if podeVer(resource.data.groupId, resource.data.channelId);
 
+      // 0.8.5: escrever no canal + a permissão do tipo (foto, GIF, vídeo,
+      // áudio, figurinha). Na sala de voz vale "Escrever no chat da sala".
       allow create: if isMember(request.resource.data.groupId)
-        && request.resource.data.authorId == uid();
+        && request.resource.data.authorId == uid()
+        && podeEscrever(request.resource.data.groupId, request.resource.data.channelId)
+        && tipoPermitido(request.resource.data)
+        && lentoOk(request.resource.data.groupId, request.resource.data.channelId);
+
+      /*
+       * MODO LENTO (0.8.5): com `lento` (segundos) no canal, a mensagem vai
+       * junto (no mesmo lote) com `lentos/{canal}_{uid}` marcando AGORA, e a
+       * marca anterior tem de ter pelo menos `lento` segundos. Quem tem
+       * "Ignorar o modo lento" não precisa.
+       */
+      function lentoOk(g, c) {
+        let segundos = get(/databases/$(database)/documents/channels/$(c)).data.get('lento', 0);
+        let marca = /databases/$(database)/documents/lentos/$(c + '_' + uid());
+        return segundos == 0
+          || podeNoCanal(g, c, 'ignorar-lento')
+          || (existsAfter(marca) && getAfter(marca).data.em == request.time
+              && (!exists(marca) || get(marca).data.em + duration.value(segundos, 's') <= request.time));
+      }
+
+      function podeEscrever(g, c) {
+        return podeNoCanal(g, c,
+          get(/databases/$(database)/documents/channels/$(c)).data.get('kind', 'text') == 'voice'
+            ? 'escrever-chat-sala' : 'mandar-mensagens');
+      }
+      function tipoPermitido(d) {
+        let k = d.get('kind', 'text');
+        return k == 'text'
+          || (k == 'image' && podeNoCanal(d.groupId, d.channelId, 'mandar-fotos'))
+          || (k == 'gif' && podeNoCanal(d.groupId, d.channelId, 'mandar-gifs'))
+          || (k == 'video' && podeNoCanal(d.groupId, d.channelId, 'mandar-videos'))
+          || (k == 'audio' && podeNoCanal(d.groupId, d.channelId, 'mandar-audio'))
+          || (k == 'sticker' && podeNoCanal(d.groupId, d.channelId, 'mandar-figurinhas'))
+          || (k == 'file' && podeNoCanal(d.groupId, d.channelId, 'mandar-arquivos'));
+      }
 
       // Editar é só do autor: ninguém põe palavra na boca de ninguém. Nem o
       // dono do grupo — ele pode APAGAR (moderação), não reescrever.
@@ -756,7 +919,8 @@ service cloud.firestore {
       // ficariam no banco para sempre, sem grupo e sem membership, portanto
       // ilegíveis e inapagáveis por qualquer pessoa.
       allow delete: if signedIn()
-        && (resource.data.authorId == uid() || isOwner(resource.data.groupId));
+        && (resource.data.authorId == uid() || isOwner(resource.data.groupId)
+            || podeNoCanal(resource.data.groupId, resource.data.channelId, 'apagar-dos-outros'));
     }
 
     /* ------------------------------ invites ----------------------------- */
@@ -777,13 +941,13 @@ service cloud.firestore {
       // groupId a um grupo meu é provável pelas restrições e passa; uma listagem
       // da coleção inteira não é provável e continua negada. A varredura global
       // de convites segue impossível.
-      allow list: if isOwner(resource.data.groupId);
+      allow list: if isOwner(resource.data.groupId) || pode(resource.data.groupId, 'gerenciar-convites');
 
-      allow create: if isOwner(request.resource.data.groupId)
+      allow create: if pode(request.resource.data.groupId, 'criar-convites')
         && request.resource.data.createdBy == uid();
 
       allow update: if false;
-      allow delete: if isOwner(resource.data.groupId);
+      allow delete: if isOwner(resource.data.groupId) || pode(resource.data.groupId, 'gerenciar-convites');
     }
 
     /* ------------------------- voiceParticipants ------------------------ */
@@ -798,20 +962,32 @@ service cloud.firestore {
     match /voiceParticipants/{participantId} {
       allow read: if isMember(resource.data.groupId);
 
-      allow create: if isMember(request.resource.data.groupId)
+      // 0.8.5: entrar pede "Entrar"; falar e transmitir são cobrados no que
+      // o documento diz (muted / sharingScreen).
+      allow create: if podeNoCanal(request.resource.data.groupId, request.resource.data.channelId, 'entrar')
         && request.resource.data.uid == uid()
-        && participantId == request.resource.data.channelId + '_' + uid();
+        && participantId == request.resource.data.channelId + '_' + uid()
+        && vozOk(request.resource.data);
+
+      function vozOk(d) {
+        return (d.get('muted', true) == true || podeNoCanal(d.groupId, d.channelId, 'falar'))
+          && (d.get('sharingScreen', false) != true || podeNoCanal(d.groupId, d.channelId, 'transmitir'));
+      }
 
       // Só mexo no meu, e não posso me mudar de canal nem de grupo por update —
       // isso burlaria a checagem do id determinístico feita na criação.
       allow update: if resource.data.uid == uid()
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.channelId == resource.data.channelId
-        && request.resource.data.groupId == resource.data.groupId;
+        && request.resource.data.groupId == resource.data.groupId
+        && (request.resource.data.get('muted', true) == resource.data.get('muted', true)
+              && request.resource.data.get('sharingScreen', false) == resource.data.get('sharingScreen', false)
+            || vozOk(request.resource.data));
 
       // Eu saio; o dono também pode tirar alguém da sala do próprio grupo.
       allow delete: if signedIn()
-        && (resource.data.uid == uid() || isOwner(resource.data.groupId));
+        && (resource.data.uid == uid() || isOwner(resource.data.groupId)
+            || podeNoCanal(resource.data.groupId, resource.data.channelId, 'tirar-da-chamada'));
     }
 
     /* ------------------------------ signals ----------------------------- */

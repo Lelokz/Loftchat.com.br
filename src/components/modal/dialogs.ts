@@ -10,7 +10,7 @@
  */
 
 import { el } from '../../lib/dom';
-import { firestoreErrorMessage } from '../../lib/firestore-errors';
+import { firestoreErrorMessage, textoDoErro } from '../../lib/firestore-errors';
 import type { DeleteProgress, DeleteStep } from '../../lib/firestore';
 import type { ChannelKind } from '../../types/models';
 import { modalField, openModal } from './modal';
@@ -19,7 +19,8 @@ import type { ModalController } from './modal';
 /** Erro na tela + registro no console como complemento, nunca como único sinal. */
 function surface(controller: ModalController, error: unknown, action: string): void {
   console.error(action, error);
-  controller.setError(firestoreErrorMessage(error, action));
+  // 0.8.5: o carteiro devolve o motivo em português (ex.: "Essa pessoa está no seu nível ou acima.").
+  controller.setError(textoDoErro(error, action));
 }
 
 /* -------------------------------------------------------------------------- */

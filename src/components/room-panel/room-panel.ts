@@ -22,6 +22,9 @@ export interface RoomPanelProps {
   aoFigurinha?: (figurinha: Figurinha) => void;
   /** 0.5.5: mensagem de voz. */
   aoVoz?: (gravacao: Gravacao) => void;
+  /** 0.8.5: comandos com "/" e as pessoas para o "@". */
+  comandos?: () => { nome: string; desc: string; args: string }[];
+  pessoas?: () => string[];
 }
 
 export interface RoomPanelParts {
@@ -63,6 +66,8 @@ export function renderRoomPanel(props: RoomPanelProps): RoomPanelParts {
       ...(props.aoArquivos === undefined ? {} : { aoArquivos: props.aoArquivos }),
       ...(props.aoFigurinha === undefined ? {} : { aoFigurinha: props.aoFigurinha }),
       ...(props.aoVoz === undefined ? {} : { aoVoz: props.aoVoz }),
+      ...(props.comandos === undefined ? {} : { comandos: props.comandos }),
+      ...(props.pessoas === undefined ? {} : { pessoas: props.pessoas }),
     }),
   ]);
   const outroSlot = el('div', { class: 'members__body column-scroll scroll-area', role: 'tabpanel' });

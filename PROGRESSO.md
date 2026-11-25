@@ -2,6 +2,45 @@
 
 Estado em 15/11/2026.
 
+## Cargos, permissões, moderação e comandos (25/11/2026) — versão 0.8.5
+
+Plano aprovado (modelo do Discord de verdade, lido em docs.discord.com:
+cargo LIVRE, só Dono + Administrador pré-definidos, @todos = o básico).
+
+- **Dados**: `cargos/{id}` (o @todos = `${groupId}_todos`), `memberships`
+  ganha `cargos`, e o CARTEIRO grava `perms`, `topo`, `canais` (canal a
+  canal, só onde há regra), `castigoAte` (timestamp) e `apelido`. Canal:
+  `permissoes` (regras ✓/✗ por alvo: cargo, 'todos', 'u:<uid>') e `lento`.
+  Categoria: `groups.permsCategorias[catId]` (canal sem regra própria =
+  sincronizado com a categoria). `registro`, `banidos`, `comandos`, `lentos`.
+- **Cálculo** (src/lib/permissoes.ts, o MESMO código no app e no carteiro):
+  @todos + cargos somados; "administrador"/dono = tudo; no canal @todos →
+  cargos (nega, depois permite) → pessoa; negar "ver" tira o resto.
+- **Carteiro** `POST /cargos {grupo, acao}`: criar/salvar/apagar/ordenar/dar
+  cargo, regras de canal/categoria, expulsar, castigo, banir/desbanir,
+  apelido, passar o dono, /limpar, comandos do grupo — confere permissão e
+  HIERARQUIA (ninguém mexe em quem/cargo do seu nível ou acima, nem dá o que
+  não tem), grava como dono do projeto, recalcula todo mundo e anota no
+  registro. Notificação de canal privado só vai para quem vê o canal.
+- **Regras**: `pode()`, `podeNoCanal()`, `podeVer()` leem o que o carteiro
+  calculou; sem cálculo vale o @todos; canal com regra e sem cálculo fica
+  FECHADO. Mensagens/fixadas só de quem vê o canal (a galeria agora busca
+  canal por canal — índice novo). Cargos/memberships/registro/banidos/
+  comandos: cliente não escreve. Modo lento: mensagem + `lentos/{canal}_{uid}`
+  no mesmo lote, conferido com getAfter.
+- **App**: `pode()` (lib/permissions.ts) espelha as regras; menus, caixa de
+  mensagem (trava com o motivo: sem permissão, castigo, modo lento), voz
+  (entrar/falar/transmitir), lista de canais (esconde o que não vê),
+  Configurações do grupo por seção, "Ver o grupo como este cargo".
+- **Telas**: Cargos (lista com arrastar, editor Aparência/Permissões/Membros
+  com prévia), Membros, Comandos, Registro, Banidos; Permissões do canal
+  (✗ ／ ✓, canal privado, sincronizar); castigo/banir/apelido/passar o
+  grupo/modo lento; "/" com a lista, dicas e "@" sugerindo pessoas;
+  mensagens "usou /x", /me em itálico, spoiler.
+- Testes: cargos, permissoes, moderacao, comandos (todos com o carteiro local).
+- Lição: NÃO mexer em firestore.rules com testes rodando (o emulador recarrega
+  as regras no meio e os testes falham por regra pela metade).
+
 ## Galeria do grupo (24/11/2026) — versão 0.8.0
 
 O Leo: a galeria é DO GRUPO. Botão no cabeçalho do chat "não faz sentido";

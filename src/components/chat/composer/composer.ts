@@ -1,7 +1,7 @@
 import './composer.css';
 
 import { el, iconEl } from '../../../lib/dom';
-import { firestoreErrorMessage } from '../../../lib/firestore-errors';
+import { textoDoErro } from '../../../lib/firestore-errors';
 import { attachIcon, micIcon, sendIcon, stickerIcon, trashIcon } from '../../../lib/icons';
 import { enviosDe, ouvirEnvios } from '../../../lib/envios';
 import { comecarGravacao, MAX_VOZ_MS, relogio } from '../../../lib/gravador';
@@ -39,6 +39,31 @@ export interface ComposerProps {
    * está vazio: toca para gravar, 🗑 joga fora, ➤ manda.
    */
   aoVoz?: (gravacao: Gravacao) => void;
+  /** 0.8.5: os comandos que a pessoa pode usar aqui (digitar "/" abre a lista). */
+  comandos?: () => { nome: string; desc: string; args: string }[];
+  /** 0.8.5: as pessoas do grupo (o "@" dentro de um comando sugere). */
+  pessoas?: () => string[];
+}
+
+/**
+ * 0.8.5 CARGOS: o que a pessoa pode mandar nesta conversa. `motivo` = não
+ * pode escrever (sem permissão, ou de castigo) — o campo trava com o motivo.
+ */
+export interface LimitesDoComposer {
+  motivo: string | null;
+  fotos: boolean;
+  gifs: boolean;
+  videos: boolean;
+  audio: boolean;
+  figurinhas: boolean;
+}
+
+const limitadores = new WeakMap<HTMLElement, (l: LimitesDoComposer) => void>();
+
+/** Aplica os limites numa caixa de mensagem já na tela. */
+export function limitarComposer(composer: HTMLElement | null | undefined, l: LimitesDoComposer): void {
+  if (composer === null || composer === undefined) return;
+  limitadores.get(composer)?.(l);
 }
 
 /** Teto de crescimento do campo antes de virar rolagem interna. */
@@ -60,6 +85,8 @@ export function renderComposer({
   destino = '',
   aoFigurinha,
   aoVoz,
+  comandos,
+  pessoas,
 }: ComposerProps): HTMLElement {
   const input = el('textarea', {
     class: 'composer__input',
@@ -87,10 +114,14 @@ export function renderComposer({
   let gravando: { gravador: Gravador | null; parar: () => void } | null = null;
   let modoMic: boolean | null = null;
 
+  /* 0.8.5: limites do cargo (ver limitarComposer). */
+  let limites: LimitesDoComposer = { motivo: null, fotos: true, gifs: true, videos: true, audio: true, figurinhas: true };
+  const dicaNormal = input.placeholder;
+
   /** Campo vazio → microfone; com texto → Enviar. */
   function modoDoBotao(): void {
     if (aoVoz === undefined || gravando !== null) return;
-    const mic = input.value.trim() === '';
+    const mic = input.value.trim() === '' && limites.audio;
     if (mic === modoMic) return;
     modoMic = mic;
     const nome = mic ? 'Gravar mensagem de voz' : 'Enviar';
@@ -131,7 +162,8 @@ export function renderComposer({
       await onSend(body);
     } catch (error) {
       console.error('Não foi possível enviar a mensagem.', error);
-      setError(firestoreErrorMessage(error, 'Não foi possível enviar.'));
+      // 0.8.5: comando com erro (sem permissão, faltou a pessoa…) mostra o motivo.
+      setError(textoDoErro(error, 'Não foi possível enviar.'));
 
       // Devolve o texto para a pessoa não perder o que escreveu — mas só se ela
       // ainda não começou outra mensagem, senão eu apagaria o que ela digitou
@@ -143,6 +175,110 @@ export function renderComposer({
       }
     }
   }
+
+  /* --- 0.8.5: a lista do "/" (e do "@" dentro do comando) ------------------- */
+  const menuCmd = el('div', { class: 'cmd-menu', role: 'listbox', 'aria-label': 'Comandos', hidden: true });
+  let opcoesCmd: { rotulo: HTMLElement[]; aplicar: () => void }[] = [];
+  let selCmd = 0;
+  /** O texto de quando a pessoa fechou a lista com Esc (não reabre até mudar). */
+  let fechadoEm: string | null = null;
+  function desenharMenuCmd(): void {
+    if (comandos === undefined) return;
+    const v = input.value;
+    if (fechadoEm !== null && fechadoEm === v) {
+      menuCmd.hidden = true;
+      opcoesCmd = [];
+      return;
+    }
+    fechadoEm = null;
+    opcoesCmd = [];
+    let dica: HTMLElement | null = null;
+    const soNome = /^\/([a-z0-9-]*)$/i.exec(v);
+    const comArgs = /^\/([a-z0-9-]+)\s([\s\S]*)$/i.exec(v);
+    if (soNome !== null) {
+      const q = soNome[1]!.toLowerCase();
+      for (const c of comandos().filter((x) => x.nome.startsWith(q) && !(x.args === '' && x.nome === q)).slice(0, 12)) {
+        opcoesCmd.push({
+          rotulo: [el('b', {}, [`/${c.nome}`]), c.args !== '' ? el('span', { class: 'cmd-menu__args' }, [c.args]) : null, el('small', {}, [c.desc])].filter((x): x is HTMLElement => x !== null),
+          aplicar: () => {
+            input.value = `/${c.nome}${c.args === '' ? '' : ' '}`;
+            autoGrow();
+            desenharMenuCmd();
+            input.focus();
+          },
+        });
+      }
+    } else if (comArgs !== null) {
+      const c = comandos().find((x) => x.nome === comArgs[1]!.toLowerCase());
+      if (c !== undefined) {
+        dica = el('div', { class: 'cmd-menu__dica' }, [el('b', {}, [`/${c.nome}`]), ' ', c.args, ' — ', c.desc]);
+        // "@" no fim: sugere as pessoas.
+        const arroba = /@([^@]*)$/.exec(comArgs[2]!);
+        if (arroba !== null && pessoas !== undefined && !/\s{2}/.test(arroba[1]!)) {
+          const q = arroba[1]!.toLowerCase();
+          for (const nome of pessoas().filter((n) => n.toLowerCase().startsWith(q)).slice(0, 8)) {
+            opcoesCmd.push({
+              rotulo: [el('b', {}, [`@${nome}`])],
+              aplicar: () => {
+                input.value = `${v.slice(0, v.length - arroba[0].length)}@${nome} `;
+                autoGrow();
+                desenharMenuCmd();
+                input.focus();
+              },
+            });
+          }
+        }
+      }
+    }
+    selCmd = Math.min(selCmd, Math.max(0, opcoesCmd.length - 1));
+    menuCmd.hidden = opcoesCmd.length === 0 && dica === null;
+    menuCmd.replaceChildren(
+      ...(dica === null ? [] : [dica]),
+      ...opcoesCmd.map((o, i) => {
+        const b = el('button', { class: `cmd-menu__op${i === selCmd ? ' is-on' : ''}`, type: 'button', role: 'option', 'aria-selected': String(i === selCmd) }, o.rotulo);
+        b.addEventListener('mousedown', (e) => e.preventDefault());
+        b.addEventListener('click', () => o.aplicar());
+        return b;
+      }),
+    );
+  }
+  input.addEventListener(
+    'keydown',
+    (event) => {
+      // A lista na tela pode estar velha (ou escondida por engano): confere antes.
+      if (['Enter', 'Tab', 'ArrowDown', 'ArrowUp'].includes(event.key)) desenharMenuCmd();
+      if (menuCmd.hidden) return;
+      if (event.key === 'Escape') {
+        fechadoEm = input.value;
+        menuCmd.hidden = true;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (opcoesCmd.length === 0) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        selCmd = (selCmd + (event.key === 'ArrowDown' ? 1 : -1) + opcoesCmd.length) % opcoesCmd.length;
+        desenharMenuCmd();
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      } else if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
+        opcoesCmd[selCmd]?.aplicar();
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    },
+    { capture: true },
+  );
+  input.addEventListener('input', () => {
+    selCmd = 0;
+    desenharMenuCmd();
+  });
+  input.addEventListener('blur', () =>
+    setTimeout(() => {
+      if (document.activeElement !== input) menuCmd.hidden = true;
+    }, 150),
+  );
+  input.addEventListener('focus', () => desenharMenuCmd());
 
   input.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' || event.shiftKey) return;
@@ -162,7 +298,7 @@ export function renderComposer({
       void terminarGravacao(true);
       return;
     }
-    if (aoVoz !== undefined && input.value.trim() === '') {
+    if (aoVoz !== undefined && input.value.trim() === '' && limites.audio) {
       void comecarAGravar();
       return;
     }
@@ -194,6 +330,11 @@ export function renderComposer({
             : {
                 montarFigurinhas: (onde: HTMLElement) =>
                   montarAbaFigurinhas(onde, (f) => {
+                    if (!limites.figurinhas) {
+                      setError('Você não pode mandar figurinhas aqui.');
+                      fecharPainel();
+                      return;
+                    }
                     aoFigurinha(f);
                     fecharPainel();
                   }),
@@ -220,7 +361,12 @@ export function renderComposer({
   const fila = el('div', { class: 'composer__envios', 'aria-live': 'polite' });
 
   function mandarArquivos(lista: FileList | File[] | null): void {
-    const arquivos = [...(lista ?? [])].filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'));
+    const todos = [...(lista ?? [])].filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'));
+    // 0.8.5: só o que o cargo deixa (foto, GIF, vídeo).
+    const pode = (f: File): boolean =>
+      f.type === 'image/gif' ? limites.gifs : f.type.startsWith('video/') ? limites.videos : limites.fotos;
+    const arquivos = limites.motivo === null ? todos.filter(pode) : [];
+    if (arquivos.length < todos.length) setError('Você não pode mandar esse tipo de arquivo aqui.');
     if (arquivos.length === 0 || aoArquivos === undefined) return;
     const legenda = input.value.trim();
     input.value = '';
@@ -355,12 +501,35 @@ export function renderComposer({
   }
 
   const element = el('div', { class: 'composer' }, [
+    menuCmd,
     errorBox,
     fila,
     linha,
     escolher,
     painel?.element ?? false,
   ]);
+
+  limitadores.set(element, (l) => {
+    const igual = JSON.stringify(l) === JSON.stringify(limites);
+    limites = l;
+    if (igual) return;
+    const travado = l.motivo !== null;
+    input.disabled = travado;
+    input.placeholder = travado ? l.motivo! : dicaNormal;
+    sendButton.disabled = travado;
+    element.classList.toggle('composer--travado', travado);
+    if (botaoAnexo !== null) botaoAnexo.hidden = travado || !(l.fotos || l.gifs || l.videos);
+    if (botaoPainel !== null) botaoPainel.hidden = travado;
+    modoMic = null;
+    if (aoVoz !== undefined && gravando === null && !l.audio && input.value.trim() === '') {
+      // Sem áudio: o botão volta a ser "Enviar".
+      sendButton.title = 'Enviar';
+      sendButton.classList.remove('composer__send--mic');
+      sendButton.replaceChildren(iconEl(sendIcon(18)), el('span', { class: 'sr-only' }, ['Enviar']));
+      modoMic = false;
+    }
+    modoDoBotao();
+  });
 
   modoDoBotao();
   if (aoArquivos !== undefined || aoVoz !== undefined) {

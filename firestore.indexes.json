@@ -11,13 +11,33 @@
       ]
     },
     {
-      "_comment": "Galeria do grupo (0.8.0): where groupId ==, kind in [image, gif, video], sentAt >= 60 dias atrás, orderBy sentAt desc, limit 300 — ver subscribeGaleria.",
+      "_comment": "Galeria do grupo (0.8.5): uma consulta POR CANAL — where groupId ==, channelId ==, kind in [image, gif, video], sentAt >= 60 dias atrás, orderBy sentAt desc, limit 300 — ver subscribeGaleria. (O índice da 0.8.0, sem channelId, fica no banco para a versão velha do app.)",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "channelId", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "_comment": "Galeria da 0.8.0 (todas as mensagens do grupo de uma vez). Fica enquanto houver app 0.8.0 por aí; com as regras da 0.8.5 só o dono consegue usar.",
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "groupId", "order": "ASCENDING" },
         { "fieldPath": "kind", "order": "ASCENDING" },
         { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "_comment": "Registro de auditoria (0.8.5): where groupId ==, orderBy em desc, limit 200 — ver lib/cargos.ts (ouvirRegistro).",
+      "collectionGroup": "registro",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "em", "order": "DESCENDING" }
       ]
     },
     {

@@ -170,3 +170,110 @@ export const PERMISSOES_DO_TODOS: string[] = [
   'reagir',
   'mandar-arquivos',
 ];
+
+/* --- O CÁLCULO (o app e o carteiro usam este mesmo código) ------------------- */
+
+/** As que valem por canal; as outras são só do servidor. */
+export const PERMISSOES_DO_CANAL = new Set([
+  'ver-canal', 'ler-antigas', 'mandar-mensagens', 'responder', 'mandar-fotos', 'mandar-gifs', 'mandar-videos',
+  'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'previa-links', 'mencionar-pessoas', 'mencionar-cargos',
+  'mencionar-todos', 'usar-comandos', 'fixar', 'desafixar', 'apagar-dos-outros', 'apagar-varias', 'ignorar-lento',
+  'ver-galeria', 'ver-sala', 'entrar', 'falar', 'transmitir', 'transmitir-som', 'camera', 'sala-cheia',
+  'silenciar-outros', 'ensurdecer-outros', 'parar-transmissao', 'mover', 'tirar-da-chamada', 'ver-chat-sala',
+  'escrever-chat-sala', 'status-sala', 'mandar-enquetes', 'votar-enquetes', 'encerrar-enquetes',
+  'visualizacao-unica', 'transcricao', 'mini-jogos-iniciar', 'mini-jogos-jogar', 'reagir', 'mandar-arquivos',
+  'criar-convites', 'editar-canais', 'permissoes-canais', 'apagar-canais',
+]);
+
+const DE_TEXTO = ['ler-antigas', 'mandar-mensagens', 'responder', 'mandar-fotos', 'mandar-gifs', 'mandar-videos', 'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'previa-links', 'mencionar-pessoas', 'mencionar-cargos', 'mencionar-todos', 'usar-comandos', 'fixar', 'desafixar', 'apagar-dos-outros', 'apagar-varias', 'ignorar-lento', 'mandar-enquetes', 'votar-enquetes', 'visualizacao-unica', 'reagir', 'mandar-arquivos'];
+const DE_VOZ = ['entrar', 'falar', 'transmitir', 'transmitir-som', 'camera', 'sala-cheia', 'silenciar-outros', 'ensurdecer-outros', 'parar-transmissao', 'mover', 'tirar-da-chamada', 'mini-jogos-iniciar', 'mini-jogos-jogar'];
+const DE_ESCREVER = ['mandar-fotos', 'mandar-gifs', 'mandar-videos', 'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'mencionar-todos', 'mandar-enquetes', 'visualizacao-unica', 'mandar-arquivos'];
+
+/** Regra de um canal para um alvo: id do cargo, 'todos' (o @todos) ou 'u:<uid>'. */
+export interface RegraDoCanal {
+  permite: string[];
+  nega: string[];
+}
+export type RegrasDoCanal = Record<string, RegraDoCanal>;
+
+/** Lê as regras com cuidado (o que vier estranho vira nada). */
+export function lerRegras(v: unknown): RegrasDoCanal {
+  const saida: RegrasDoCanal = {};
+  if (typeof v !== 'object' || v === null) return saida;
+  for (const [alvo, r] of Object.entries(v as Record<string, unknown>)) {
+    const regra = (r ?? {}) as Record<string, unknown>;
+    const permite = permissoesValidas(regra['permite']).filter((p) => PERMISSOES_DO_CANAL.has(p));
+    const nega = permissoesValidas(regra['nega']).filter((p) => PERMISSOES_DO_CANAL.has(p) && !permite.includes(p));
+    if (permite.length + nega.length > 0) saida[alvo] = { permite, nega };
+  }
+  return saida;
+}
+
+export interface CargoParaCalculo {
+  id: string;
+  posicao: number;
+  permissoes: string[];
+  todos?: boolean | undefined;
+}
+
+export const SEM_TOPO = 99999;
+
+/** O que a pessoa pode no servidor e em que posição está (topo menor = mais alto). */
+export function calcServidor(uid: string, dono: string, cargos: CargoParaCalculo[], meus: string[]): { perms: string[]; topo: number; admin: boolean } {
+  const todas = TODAS_AS_PERMISSOES.map((p) => p.id);
+  if (uid === dono) return { perms: todas, topo: -1, admin: true };
+  const todos = cargos.find((c) => c.todos === true);
+  const base = new Set(todos?.permissoes ?? PERMISSOES_DO_TODOS);
+  let topo = SEM_TOPO;
+  for (const c of cargos) {
+    if (c.todos === true || !meus.includes(c.id)) continue;
+    for (const p of c.permissoes) base.add(p);
+    topo = Math.min(topo, c.posicao);
+  }
+  if (base.has('administrador')) return { perms: todas, topo, admin: true };
+  return { perms: [...base], topo, admin: false };
+}
+
+/** As permissões num canal: @todos → cargos (negar, depois permitir) → a pessoa. */
+export function calcCanal(uid: string, servidor: string[], admin: boolean, meus: string[], regras: RegrasDoCanal, voz = false): string[] {
+  if (admin) return servidor;
+  const p = new Set(servidor);
+  const aplica = (nega: string[], permite: string[]): void => {
+    for (const x of nega) p.delete(x);
+    for (const x of permite) p.add(x);
+  };
+  const t = regras['todos'];
+  if (t !== undefined) aplica(t.nega, t.permite);
+  const negaCargos = new Set<string>();
+  const permiteCargos = new Set<string>();
+  for (const id of meus) {
+    const r = regras[id];
+    if (r === undefined) continue;
+    r.nega.forEach((x) => negaCargos.add(x));
+    r.permite.forEach((x) => permiteCargos.add(x));
+  }
+  aplica([...negaCargos], [...permiteCargos]);
+  const eu = regras[`u:${uid}`];
+  if (eu !== undefined) aplica(eu.nega, eu.permite);
+  // Negar "ver" tira o resto (texto: "Ver canal"; voz: "Ver a sala"); sem
+  // "entrar" não fala; sem "mandar" não manda nada.
+  if (!p.has(voz ? 'ver-sala' : 'ver-canal')) {
+    for (const x of [...DE_TEXTO, ...DE_VOZ, 'ver-canal', 'ver-sala', 'ver-chat-sala', 'escrever-chat-sala', 'status-sala', 'ver-galeria']) p.delete(x);
+  }
+  if (voz && !p.has('entrar')) for (const x of DE_VOZ) p.delete(x);
+  if (!p.has('mandar-mensagens')) for (const x of DE_ESCREVER) p.delete(x);
+  return [...p];
+}
+
+/** As regras que valem para o canal: as dele, ou (sem regra própria) as da categoria. */
+export function regrasQueValem(regrasDoCanal: RegrasDoCanal, categoria: string | undefined, porCategoria: Record<string, RegrasDoCanal>): RegrasDoCanal {
+  if (categoria !== undefined && categoria !== '' && Object.keys(regrasDoCanal).length === 0) return porCategoria[categoria] ?? {};
+  return regrasDoCanal;
+}
+
+/** Quem tem pelo menos uma destas vê "Configurações do grupo". */
+export const PERMS_DAS_CONFIGURACOES = [
+  'editar-nome', 'editar-foto', 'editar-banner', 'editar-descricao', 'editar-cor', 'editar-boas-vindas',
+  'editar-canais', 'ordenar-canais', 'gerenciar-categorias', 'gerenciar-cargos', 'dar-cargos',
+  'expulsar', 'banir', 'castigo', 'ver-registro', 'desbanir', 'permissoes-canais', 'criar-comandos', 'gerenciar-comandos',
+];

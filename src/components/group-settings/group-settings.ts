@@ -1,4 +1,5 @@
 import '../settings/settings.css';
+import { recalcularDepois } from '../../lib/cargos';
 import './group-settings.css';
 
 import { el, iconEl } from '../../lib/dom';
@@ -34,9 +35,15 @@ export interface GroupSettingsOptions {
   memberCount: number;
   /** Os canais do grupo, para a seção "Canais" (etapa 3b). */
   channels: Channel[];
+  /** 0.8.5: quem abriu, o que pode (permissões do grupo) e "ver como cargo". */
+  eu: string;
+  pode: (perm: string) => boolean;
+  aoVerComo: (cargoId: string) => void;
+  /** 0.8.5 etapa 3: abre as permissões de um canal ou categoria (só no grupo aberto). */
+  aoPermissoes?: (alvo: { canal: string } | { categoria: string; nome: string }) => void;
 }
 
-type Secao = 'visao' | 'canais' | 'cargos' | 'membros' | 'boas';
+type Secao = 'visao' | 'canais' | 'cargos' | 'membros' | 'boas' | 'registro' | 'banidos' | 'comandos';
 
 interface Rascunho {
   name: string;
@@ -130,6 +137,22 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     iconEl(peopleIcon(18)),
     el('span', {}, ['Membros']),
   ]);
+  // 0.8.5 etapa 4: Registro e Banidos, na parte "Moderação".
+  const registroBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    el('span', { class: 'icon', 'aria-hidden': 'true' }, ['📜']),
+    el('span', {}, ['Registro']),
+  ]);
+  const banidosBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    el('span', { class: 'icon', 'aria-hidden': 'true' }, ['🚫']),
+    el('span', {}, ['Banidos']),
+  ]);
+  const comandosBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    el('span', { class: 'icon', 'aria-hidden': 'true' }, ['⌘']),
+    el('span', {}, ['Comandos']),
+  ]);
+  comandosBotao.addEventListener('click', () => irPara('comandos'));
+  registroBotao.addEventListener('click', () => irPara('registro'));
+  banidosBotao.addEventListener('click', () => irPara('banidos'));
   cargosBotao.addEventListener('click', () => irPara('cargos'));
   membrosBotao.addEventListener('click', () => irPara('membros'));
   boasBotao.addEventListener('click', () => irPara('boas'));
@@ -146,6 +169,27 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     dialog.classList.add('settings--secao-aberta');
     desenhar();
   }
+  // 0.8.5: cada seção só aparece para quem pode mexer nela.
+  const p = options.pode;
+  const podeVisao = ['editar-nome', 'editar-foto', 'editar-banner', 'editar-descricao', 'editar-cor'].some(p);
+  const podeCanais = ['editar-canais', 'ordenar-canais', 'gerenciar-categorias', 'permissoes-canais'].some(p);
+  const podeCargos = p('gerenciar-cargos') || p('dar-cargos');
+  const podeMembros = ['dar-cargos', 'expulsar', 'banir', 'castigo'].some(p);
+  const podeBoas = p('editar-boas-vindas');
+  visao.hidden = !podeVisao;
+  canaisBotao.hidden = !podeCanais;
+  cargosBotao.hidden = !podeCargos;
+  membrosBotao.hidden = !podeMembros;
+  boasBotao.hidden = !podeBoas;
+  secao = podeVisao ? 'visao' : podeCanais ? 'canais' : podeCargos ? 'cargos' : podeMembros ? 'membros' : 'boas';
+  const podeComandos = p('criar-comandos') || p('gerenciar-comandos');
+  comandosBotao.hidden = !podeComandos;
+  const podeRegistro = p('ver-registro');
+  const podeBanidos = p('banir') || p('desbanir');
+  registroBotao.hidden = !podeRegistro;
+  banidosBotao.hidden = !podeBanidos;
+  const rotuloModeracao = el('span', { class: 'settings__nav-label', hidden: !podeRegistro && !podeBanidos }, ['Moderação']);
+  if (!podeVisao && !podeCanais && !podeCargos && !podeMembros && !podeBoas) secao = podeComandos ? 'comandos' : podeRegistro ? 'registro' : 'banidos';
   const nomeNoMenu = el('span', { class: 'group-settings__nav-name' }, [group.name]);
   const menu = el('nav', { class: 'settings__nav', 'aria-label': 'Seções do grupo' }, [
     el('span', { class: 'settings__nav-label' }, ['Grupo']),
@@ -154,7 +198,11 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     canaisBotao,
     cargosBotao,
     membrosBotao,
+    comandosBotao,
     boasBotao,
+    rotuloModeracao,
+    registroBotao,
+    banidosBotao,
   ]);
 
   const conteudo = el('div', { class: 'settings__content' });
@@ -195,8 +243,14 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   const cargosSecao = criarSecaoCargos({
     groupId: group.id,
     ownerId: group.ownerId,
+    eu: options.eu,
+    grupo: group,
+    aoVerComo: (cargoId) => {
+      dialog.close();
+      options.aoVerComo(cargoId);
+    },
     redesenhar: () => {
-      if (aberta === dialog && (secao === 'cargos' || secao === 'membros')) desenhar();
+      if (aberta === dialog && (secao === 'cargos' || secao === 'membros' || secao === 'registro' || secao === 'banidos' || secao === 'comandos')) desenhar();
       else atualizarBarra();
     },
     mudou: () => atualizarBarra(),
@@ -323,6 +377,15 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     erroGeral = el('p', { class: 'settings__error', role: 'alert' });
     erroGeral.hidden = true;
 
+    // 0.8.5: cada campo com a sua permissão.
+    nome.disabled = !p('editar-nome');
+    descricao.disabled = !p('editar-descricao');
+    if (!p('editar-cor')) for (const b of cores.querySelectorAll('button')) b.disabled = true;
+    const fotoCampo = imagem('grupo');
+    const bannerCampo = imagem('banner');
+    fotoCampo.classList.toggle('gs-travado', !p('editar-foto'));
+    bannerCampo.classList.toggle('gs-travado', !p('editar-banner'));
+
     return [
       el('header', { class: 'settings__header' }, [
         el('h2', { class: 'settings__title' }, ['Visão geral']),
@@ -330,7 +393,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
       ]),
       el('div', { class: 'settings__field' }, [
         el('span', { class: 'settings__label' }, ['Imagens do grupo']),
-        el('div', { class: 'settings__images group-settings__images' }, [imagem('grupo'), imagem('banner')]),
+        el('div', { class: 'settings__images group-settings__images' }, [fotoCampo, bannerCampo]),
         el('p', { class: 'settings__help' }, ['A foto aparece na aba do grupo; o banner, no cartão do grupo.']),
       ]),
       el('div', { class: 'settings__field' }, [
@@ -391,12 +454,12 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
 
   function desenhar(refocus?: string): void {
     erroGeral = null;
-    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['cargos', cargosBotao], ['membros', membrosBotao], ['boas', boasBotao]] as const) {
+    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['cargos', cargosBotao], ['membros', membrosBotao], ['boas', boasBotao], ['registro', registroBotao], ['banidos', banidosBotao], ['comandos', comandosBotao]] as const) {
       botao.classList.toggle('is-active', qual === secao);
       if (qual === secao) botao.setAttribute('aria-current', 'page');
       else botao.removeAttribute('aria-current');
     }
-    const largo = secao === 'cargos' || secao === 'membros';
+    const largo = secao === 'cargos' || secao === 'membros' || secao === 'registro' || secao === 'banidos' || secao === 'comandos';
     dialog.classList.toggle('settings--com-previa', secao !== 'canais' && !largo);
     dialog.classList.toggle('group-settings--larga', largo);
     const rolagem = conteudo.scrollTop;
@@ -404,16 +467,27 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
       conteudo.replaceChildren(el('p', { class: 'settings__help' }, ['Carregando o grupo…']));
     } else if (largo) {
       // Quem está digitando continua no mesmo campo quando a tela redesenha.
-      const foco = document.activeElement instanceof HTMLInputElement && conteudo.contains(document.activeElement) ? document.activeElement : null;
+      const ativo = document.activeElement;
+      const foco = (ativo instanceof HTMLInputElement || ativo instanceof HTMLTextAreaElement) && conteudo.contains(ativo) ? ativo : null;
       const idDoFoco = foco?.id ?? '';
       const posicao = foco?.selectionStart ?? null;
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });
       erroGeral.hidden = true;
-      conteudo.replaceChildren(...(secao === 'cargos' ? cargosSecao.cargos() : cargosSecao.membros()), erroGeral);
+      const partes =
+        secao === 'cargos'
+          ? cargosSecao.cargos()
+          : secao === 'membros'
+            ? cargosSecao.membros()
+            : secao === 'registro'
+              ? cargosSecao.registro()
+              : secao === 'comandos'
+                ? cargosSecao.comandos()
+                : cargosSecao.banidos();
+      conteudo.replaceChildren(...partes, erroGeral);
       conteudo.scrollTop = rolagem;
       if (idDoFoco !== '') {
         const de = document.getElementById(idDoFoco);
-        if (de instanceof HTMLInputElement) {
+        if (de instanceof HTMLInputElement || de instanceof HTMLTextAreaElement) {
           de.focus();
           if (posicao !== null) de.setSelectionRange(posicao, posicao);
         }
@@ -427,6 +501,8 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
       erroGeral.hidden = true;
       conteudo.replaceChildren(
         ...renderChannelsEditor({
+          pode: { nomes: p('editar-canais'), ordem: p('ordenar-canais') || p('editar-canais'), categorias: p('gerenciar-categorias') },
+          ...(options.aoPermissoes !== undefined && p('permissoes-canais') ? { aoPermissoes: options.aoPermissoes } : {}),
           draft: atualCanais,
           onChange: (draft, foco) => {
             atualCanais = draft;
@@ -498,6 +574,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
             position: c.position,
           }));
         await saveChannelLayout(group.id, atualCanais.categories, categoriasMudaram, mudados);
+        recalcularDepois(group.id);
         for (const c of atualCanais.channels) noBanco.set(c.id, { ...c, name: c.name.trim() });
         categoriasNoBanco = atualCanais.categories.map((c) => ({ id: c.id, name: c.name.trim() }));
         salvoCanais = normalizeDraft({ categories: categoriasNoBanco, channels: [...noBanco.values()] });

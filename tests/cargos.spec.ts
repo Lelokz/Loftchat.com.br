@@ -13,7 +13,7 @@ import {
   writeMessageAt,
 } from './helpers';
 import type { TestAccount } from './helpers';
-import { canaisDoGrupo, comoDono } from './carteiro-local';
+import { canaisDoGrupo, comoDono, ligarCarteiroLocal } from './carteiro-local';
 
 /**
  * CARGOS (0.8.5, etapa 1): o dono cria, edita (nome, cor, ícone, bloco,
@@ -23,9 +23,16 @@ import { canaisDoGrupo, comoDono } from './carteiro-local';
  */
 
 const contas: TestAccount[] = [];
+let desligar: (() => void) | undefined;
 test.describe.configure({ mode: 'serial' });
 test.skip(process.env['FIRESTORE_EMULATOR_HOST'] === undefined, 'só no emulador');
+test.beforeAll(async () => {
+  test.setTimeout(90_000);
+  // Toda mudança de cargo passa pelo carteiro (0.8.5, etapa 2).
+  desligar = await ligarCarteiroLocal();
+});
 test.afterAll(async () => {
+  desligar?.();
   await limparTudo(contas, 'cargos — limpeza');
 });
 

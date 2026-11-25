@@ -564,6 +564,26 @@ function cartaoDoYouTube(id: string): HTMLElement {
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
 function renderContent(message: MessageBase): HTMLElement {
+  // 0.8.5: resultado de comando ("usou /dado" + cartão) e spoiler.
+  if (message.comando !== undefined && message.kind === "text") {
+    const nome = message.comando.nome;
+    const texto = el("p", { class: `message__text${nome === "me" ? " message__text--acao" : ""}` }, textoComLinks(message.body));
+    // /me: só a ação em itálico, sem o "usou".
+    if (nome === "me") return el("div", { class: "message__content" }, [texto]);
+    return el("div", { class: "message__content message__comando" }, [
+      el("span", { class: "message__comando-uso" }, ["usou ", el("b", {}, [`/${nome}`])]),
+      nome === "me" || nome === "shrug" ? texto : el("div", { class: "message__comando-cartao" }, [texto]),
+    ]);
+  }
+  if (message.spoiler === true && message.kind === "text") {
+    const texto = el("p", { class: "message__text message__spoiler", role: "button", tabindex: 0, title: "Spoiler: toque para ver" }, textoComLinks(message.body));
+    const abrir = (): void => texto.classList.add("is-aberto");
+    texto.addEventListener("click", abrir);
+    texto.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") abrir();
+    });
+    return texto;
+  }
   switch (message.kind) {
     case "text": {
       const texto = el("p", { class: "message__text" }, textoComLinks(message.body));

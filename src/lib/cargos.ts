@@ -1,21 +1,9 @@
-import {
-  arrayRemove,
-  arrayUnion,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 
-import { db } from './firebase';
-import { PERMISSOES_DO_TODOS, permissoesValidas } from './permissoes';
+import { auth, db } from './firebase';
+import { CARTEIRO } from './avisos';
+import { permissoesValidas } from './permissoes';
 import type { Cargo, CorDoCargo, Insignia, Member } from '../types/models';
 
 /**
@@ -74,94 +62,75 @@ export function ordenar(cargos: Cargo[]): Cargo[] {
   return [...cargos].sort((a, b) => Number(a.todos === true) - Number(b.todos === true) || a.posicao - b.posicao || a.criadoEm.localeCompare(b.criadoEm));
 }
 
-/** Sem @todos ainda (grupo de antes dos cargos): cria ele e o Administrador. */
-export async function garantirBasicos(groupId: string, cargos: Cargo[]): Promise<void> {
-  if (cargos.some((c) => c.todos === true)) return;
-  const agora = new Date().toISOString();
-  const lote = writeBatch(db);
-  lote.set(doc(db, 'cargos', idDoTodos(groupId)), {
-    groupId,
-    nome: '@todos',
-    cor: null,
-    posicao: 9999,
-    separado: false,
-    mencionavel: false,
-    permissoes: PERMISSOES_DO_TODOS,
-    todos: true,
-    criadoEm: agora,
-  });
-  if (!cargos.some((c) => c.permissoes.includes('administrador'))) {
-    lote.set(doc(collection(db, 'cargos')), {
-      groupId,
-      nome: 'Administrador',
-      cor: { a: '#b23a48' },
-      icone: '⚡',
-      posicao: 0,
-      separado: true,
-      mencionavel: false,
-      permissoes: ['administrador'],
-      criadoEm: agora,
+/**
+ * Toda mudança em cargos passa pelo CARTEIRO (carteiro/src/cargos.ts), que
+ * confere a permissão e a hierarquia, grava e recalcula o que cada um pode.
+ * O erro vem com o motivo em português.
+ */
+export async function pedirAoCarteiro(groupId: string, acao: string, extra: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+  const usuario = auth.currentUser;
+  if (usuario === null) throw new Error('Entre de novo para continuar.');
+  const token = await usuario.getIdToken();
+  let r: Response;
+  try {
+    r = await fetch(`${CARTEIRO}/cargos`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ grupo: groupId, acao, ...extra }),
     });
+  } catch {
+    throw new Error('Sem conexão com o servidor. Tente de novo.');
   }
-  await lote.commit();
+  const corpo = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!r.ok) throw new Error(typeof corpo['erro'] === 'string' ? corpo['erro'] : 'Não deu certo. Tente de novo.');
+  return corpo;
+}
+
+/** Grupo de antes dos cargos: o carteiro cria o @todos e o Administrador e calcula tudo. */
+export async function garantirBasicos(groupId: string, _cargos: Cargo[]): Promise<void> {
+  await pedirAoCarteiro(groupId, 'recalcular');
 }
 
 export type CamposDoCargo = Pick<Cargo, 'nome' | 'cor' | 'icone' | 'imagem' | 'separado' | 'mencionavel' | 'permissoes'>;
 
-function camposParaGravar(c: CamposDoCargo): Record<string, unknown> {
-  return {
-    nome: c.nome.trim().slice(0, MAX_NOME_DO_CARGO),
-    cor: c.cor === null ? null : c.cor.b === undefined ? { a: c.cor.a } : { a: c.cor.a, b: c.cor.b },
-    icone: c.icone ?? '',
-    imagem: c.imagem ?? '',
-    separado: c.separado,
-    mencionavel: c.mencionavel,
-    permissoes: permissoesValidas(c.permissoes),
-  };
+/** Cargo novo, embaixo do último. Devolve o id. */
+export async function criarCargo(groupId: string): Promise<string> {
+  const r = await pedirAoCarteiro(groupId, 'criar');
+  return String(r['id'] ?? '');
 }
 
-/** Cargo novo, logo abaixo do último (antes do @todos). Devolve o id. */
-export async function criarCargo(groupId: string, cargos: Cargo[]): Promise<string> {
-  const ref = doc(collection(db, 'cargos'));
-  const ultimo = cargos.filter((c) => c.todos !== true).reduce((m, c) => Math.max(m, c.posicao), -1);
-  await setDoc(ref, {
-    groupId,
-    ...camposParaGravar({ nome: 'cargo novo', cor: null, separado: false, mencionavel: false, permissoes: [] }),
-    posicao: ultimo + 1,
-    criadoEm: new Date().toISOString(),
+export async function salvarCargo(groupId: string, id: string, campos: CamposDoCargo): Promise<void> {
+  await pedirAoCarteiro(groupId, 'salvar', {
+    cargo: id,
+    campos: {
+      nome: campos.nome.trim().slice(0, MAX_NOME_DO_CARGO),
+      cor: campos.cor,
+      icone: campos.icone ?? '',
+      imagem: campos.imagem ?? '',
+      separado: campos.separado,
+      mencionavel: campos.mencionavel,
+      permissoes: permissoesValidas(campos.permissoes),
+    },
   });
-  return ref.id;
 }
 
-export async function salvarCargo(id: string, campos: CamposDoCargo, todos: boolean): Promise<void> {
-  const gravar = camposParaGravar(campos);
-  // O @todos não tem nome, cor, ícone nem bloco: só permissões.
-  await updateDoc(doc(db, 'cargos', id), todos ? { permissoes: gravar['permissoes'] } : gravar);
+/** Nova ordem (do mais alto para o mais baixo). */
+export async function reordenarCargos(groupId: string, ids: string[]): Promise<void> {
+  await pedirAoCarteiro(groupId, 'ordenar', { ids });
 }
 
-/** Nova ordem (do mais alto para o mais baixo), numa gravação só. */
-export async function reordenarCargos(ids: string[]): Promise<void> {
-  const lote = writeBatch(db);
-  ids.forEach((id, i) => lote.update(doc(db, 'cargos', id), { posicao: i }));
-  await lote.commit();
-}
-
-/** Apaga o cargo e tira ele de quem tinha. */
-export async function apagarCargo(groupId: string, id: string, membros: Member[]): Promise<void> {
-  const lote = writeBatch(db);
-  for (const m of membros) {
-    if (m.cargos?.includes(id)) lote.update(doc(db, 'memberships', `${groupId}_${m.id}`), { cargos: arrayRemove(id) });
-  }
-  lote.delete(doc(db, 'cargos', id));
-  await lote.commit();
+/** Apaga o cargo (e tira de quem tinha). */
+export async function apagarCargo(groupId: string, id: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'apagar', { cargo: id });
 }
 
 export async function darCargo(groupId: string, memberId: string, cargoId: string, dar: boolean): Promise<void> {
-  await updateDoc(doc(db, 'memberships', `${groupId}_${memberId}`), { cargos: dar ? arrayUnion(cargoId) : arrayRemove(cargoId) });
+  await pedirAoCarteiro(groupId, 'dar', { membro: memberId, cargo: cargoId, dar });
 }
 
-export async function apagarCargoSemMembros(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'cargos', id));
+/** Tira alguém do grupo (permissão "Expulsar" + hierarquia). */
+export async function expulsar(groupId: string, memberId: string, motivo = ''): Promise<void> {
+  await pedirAoCarteiro(groupId, 'expulsar', { membro: memberId, motivo });
 }
 
 /* --- o que aparece junto do nome --------------------------------------------- */
@@ -211,4 +180,142 @@ export async function quemConvidou(codigo: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Pede ao carteiro para recalcular as permissões do grupo, sem esperar e sem
+ * reclamar se falhar (ex.: entrei no grupo, criei canal, mudei canal de
+ * categoria). Enquanto não recalcula, canal com regra própria fica fechado.
+ */
+export function recalcularDepois(groupId: string): void {
+  void pedirAoCarteiro(groupId, 'recalcular').catch(() => undefined);
+}
+
+/* --- moderação (etapa 4), tudo pelo carteiro --------------------------------- */
+
+export async function porDeCastigo(groupId: string, memberId: string, segundos: number, motivo: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'castigo', { membro: memberId, segundos, motivo });
+}
+
+export async function tirarCastigo(groupId: string, memberId: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'tirar-castigo', { membro: memberId });
+}
+
+export async function banir(groupId: string, memberId: string, motivo: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'banir', { membro: memberId, motivo });
+}
+
+export async function desbanir(groupId: string, uid: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'desbanir', { membro: uid });
+}
+
+export async function mudarApelido(groupId: string, memberId: string, apelido: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'apelido', { membro: memberId, apelido });
+}
+
+export async function passarDono(groupId: string, memberId: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'dono', { membro: memberId });
+}
+
+/* --- registro e banidos (leitura) -------------------------------------------- */
+
+export interface LinhaDoRegistro {
+  id: string;
+  quem: string;
+  quemNome: string;
+  acao: string;
+  alvo: string;
+  alvoNome: string;
+  detalhe: string;
+  em: string;
+}
+
+export interface Banido {
+  uid: string;
+  nome: string;
+  motivo: string;
+  por: string;
+  em: string;
+}
+
+const texto = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+export function ouvirRegistro(groupId: string, aoMudar: (l: LinhaDoRegistro[]) => void, aoErrar: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'registro'), where('groupId', '==', groupId), orderBy('em', 'desc'), limit(200)),
+    (snap) =>
+      aoMudar(
+        snap.docs.map((d) => ({
+          id: d.id,
+          quem: texto(d.get('quem')),
+          quemNome: texto(d.get('quemNome')),
+          acao: texto(d.get('acao')),
+          alvo: texto(d.get('alvo')),
+          alvoNome: texto(d.get('alvoNome')),
+          detalhe: texto(d.get('detalhe')),
+          em: texto(d.get('em')),
+        })),
+      ),
+    aoErrar,
+  );
+}
+
+export function ouvirBanidos(groupId: string, aoMudar: (l: Banido[]) => void, aoErrar: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'banidos'), where('groupId', '==', groupId)),
+    (snap) =>
+      aoMudar(
+        snap.docs
+          .map((d) => ({ uid: texto(d.get('uid')), nome: texto(d.get('nome')) || 'Alguém', motivo: texto(d.get('motivo')), por: texto(d.get('por')), em: texto(d.get('em')) }))
+          .sort((a, b) => b.em.localeCompare(a.em)),
+      ),
+    aoErrar,
+  );
+}
+
+/* --- comandos personalizados (etapa 6) --------------------------------------- */
+
+export interface ComandoDoGrupo {
+  id: string;
+  nome: string;
+  descricao: string;
+  resposta: string;
+  /** Quem pode usar: ids de cargos (vazio = todo mundo). */
+  cargos: string[];
+  criadoPor: string;
+}
+
+export function ouvirComandos(groupId: string, aoMudar: (l: ComandoDoGrupo[]) => void, aoErrar: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'comandos'), where('groupId', '==', groupId)),
+    (snap) =>
+      aoMudar(
+        snap.docs
+          .map((d) => ({
+            id: d.id,
+            nome: texto(d.get('nome')),
+            descricao: texto(d.get('descricao')),
+            resposta: texto(d.get('resposta')),
+            cargos: Array.isArray(d.get('cargos')) ? (d.get('cargos') as unknown[]).filter((x): x is string => typeof x === 'string') : [],
+            criadoPor: texto(d.get('criadoPor')),
+          }))
+          .filter((c) => /^[a-z0-9-]{1,32}$/.test(c.nome))
+          .sort((a, b) => a.nome.localeCompare(b.nome)),
+      ),
+    aoErrar,
+  );
+}
+
+export async function salvarComando(groupId: string, id: string | null, campos: Omit<ComandoDoGrupo, 'id' | 'criadoPor'>): Promise<string> {
+  const r = await pedirAoCarteiro(groupId, 'comando-salvar', { ...(id === null ? {} : { comando: id }), campos });
+  return String(r['id'] ?? '');
+}
+
+export async function apagarComando(groupId: string, id: string): Promise<void> {
+  await pedirAoCarteiro(groupId, 'comando-apagar', { comando: id });
+}
+
+export async function limparMensagens(groupId: string, canal: string, quantidade: number): Promise<number> {
+  const r = await pedirAoCarteiro(groupId, 'limpar', { canal, quantidade });
+  return Number(r['apagadas'] ?? 0);
 }
