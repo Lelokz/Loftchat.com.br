@@ -140,6 +140,8 @@ export interface VoiceRoomProps {
   onVirarCamera: () => void;
   onFoco: (uid: string | null) => void;
   onToggleEsconderSemCamera: () => void;
+  /** 0.9.5: ligação no PV ainda tocando — "Chamando Fulano…". */
+  chamando?: string | null;
 }
 
 export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
@@ -334,6 +336,10 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
    * ninguém) e conexão que não fechou (você não ouve alguém específico).
    */
   const notices: (HTMLElement | false)[] = [];
+
+  if (props.chamando !== undefined && props.chamando !== null) {
+    notices.push(el('p', { class: 'room__chamando', role: 'status' }, [`Chamando ${props.chamando}…`]));
+  }
 
   if (props.engineError !== null) {
     notices.push(el('p', { class: 'room__notice', role: 'alert' }, [props.engineError]));

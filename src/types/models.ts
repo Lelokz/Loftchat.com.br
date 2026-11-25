@@ -385,6 +385,8 @@ export interface MessageBase {
   comando?: { nome: string };
   /** 0.8.5: texto escondido até tocar (/spoiler). */
   spoiler?: boolean;
+  /** 0.9.5: registro de uma ligação no PV. */
+  chamada?: { duracaoMs?: number; perdida: boolean; comCamera: boolean };
 }
 
 /**

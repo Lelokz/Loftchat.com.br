@@ -25,6 +25,7 @@ import {
   subscribePinnedChannelMessages,
   subscribePinnedDmMessages,
   subscribeVoiceParticipants,
+  sendDmMessage,
   MAX_MESSAGE_PAGES,
 } from '../lib/firestore';
 import {
@@ -34,8 +35,20 @@ import {
   VOICE_ROOM_LIMIT,
 } from '../lib/voice-presence';
 import type { PresenceSession } from '../lib/voice-presence';
-import { clearMySignals } from '../lib/voice-signaling';
+import { clearMySignals, clearPairSignals } from '../lib/voice-signaling';
 import { MAX_CAMERAS, startVoiceEngine } from '../lib/voice-engine';
+import { loadCameraSettings } from '../lib/camera-settings';
+import {
+  duracaoDaLigacao,
+  grupoDoPv,
+  ligar,
+  mudarEstado,
+  ouvirChamada,
+  ouvirChamadasParaMim,
+  tocandoAgora,
+  TEMPO_DE_TOQUE_MS,
+} from '../lib/chamadas';
+import type { Chamada } from '../lib/chamadas';
 import { emAppAndroid } from '../lib/android';
 import { capturarTelaDoAndroid, transmissaoDoAndroidDisponivel } from '../lib/android-tela';
 import type { PeerDiagnostic, ScreenAudioExtra, VoiceEngine } from '../lib/voice-engine';
@@ -70,6 +83,8 @@ export interface VoiceSession {
   groupId: string;
   channelId: string;
   channelName: string;
+  /** 0.9.5: ligação no PV — o uid da outra pessoa (aí groupId = channelId = `pv_{par}`). */
+  pv?: string;
 }
 
 export interface AppState {
@@ -188,6 +203,10 @@ export interface AppState {
   /** 0.9.5: minha câmera está ligada? E pausada (app do celular atrás)? */
   cameraOn: boolean;
   cameraPaused: boolean;
+  /** 0.9.5: alguém me ligando agora no PV (o cartão/tela de chamada). */
+  chamadaRecebida: Chamada | null;
+  /** 0.9.5: eu ligando para alguém, ainda sem atender. */
+  chamandoPv: { para: string; comCamera: boolean } | null;
   /**
    * O motor de voz terminou de subir?
    *
@@ -334,6 +353,12 @@ export interface Store {
   cameraElementOf(uid: string): HTMLVideoElement | null;
   /** A minha câmera, para o meu próprio bloco. */
   localCameraStream(): MediaStream | null;
+  /** 0.9.5: ligar no PV (com ou sem câmera). Devolve o motivo da recusa, ou null. */
+  ligarNoPv(friendUid: string, comCamera: boolean): Promise<string | null>;
+  atenderChamada(comCamera: boolean): Promise<string | null>;
+  recusarChamada(): void;
+  /** Avisos da ligação ("Fulano recusou"), para virar toast. */
+  onAvisoDeChamada(listener: (texto: string) => void): () => void;
   /**
    * Quem começou ou parou de falar.
    *
@@ -421,6 +446,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     screenMaximized: false,
     cameraOn: false,
     cameraPaused: false,
+    chamadaRecebida: null,
+    chamandoPv: null,
     voiceReady: false,
     voiceEngineError: null,
     members: [],
@@ -496,6 +523,15 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
   /** Desliga a chamada por inteiro: motor, presença e estado. */
   async function stopVoice(): Promise<void> {
+    // 0.9.5: a ligação no PV (se era uma) sai junto.
+    if (pv !== null) {
+      if (pv.timer !== null) window.clearTimeout(pv.timer);
+      pv.pararChamada?.();
+      pv = null;
+    }
+    stopPvRoster?.();
+    stopPvRoster = null;
+    rawVoicePv = [];
     const dying = engine;
     engine = null;
     await dying?.destroy().catch((error: unknown) => {
@@ -514,6 +550,248 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
    * outra coisa.
    */
   let rawVoice: VoiceParticipant[] = [];
+
+  /** Sobe o motor de voz (grupo ou ligação no PV). Devolve o motivo do erro, ou null. */
+  async function subirMotor(groupId: string, channelId: string): Promise<string | null> {
+    try {
+      engine = await startVoiceEngine({
+        channelId,
+        groupId,
+        myUid: user.uid,
+        onError: onListenerError,
+        callbacks: {
+          onSpeaking: (uid, speaking) => {
+            for (const listener of speakingListeners) listener(uid, speaking);
+          },
+          onPeersChanged: () => {
+            const failedNow = engine?.failedPeers() ?? [];
+            const videoNow = engine?.peersWithVideo() ?? [];
+            // Só toca no estado quando MUDA: onconnectionstatechange dispara
+            // várias vezes por conexão durante a negociação.
+            const patchNext: Partial<AppState> = {};
+            if (failedNow.join() !== state.voiceFailedPeers.join()) {
+              patchNext.voiceFailedPeers = failedNow;
+            }
+            if (videoNow.join() !== state.voiceVideoPeers.join()) {
+              patchNext.voiceVideoPeers = videoNow;
+            }
+            if (Object.keys(patchNext).length > 0) patch(patchNext);
+          },
+          onAudioBlocked: () => patch({ voiceAudioBlocked: true }),
+          // O botão NATIVO do navegador parou a transmissão. Sem isto o app
+          // continuaria dizendo que eu transmito, e o meu documento mentiria
+          // para todo mundo no canal.
+          onScreenShareEnded: () => {
+            patch({ screenSharing: false, screenLabel: null, screenMaximized: false });
+            void presence?.setSharingScreen(false);
+          },
+          // 0.9.5: a câmera parou sozinha — o botão e o meu bloco acompanham.
+          onCameraEnded: () => {
+            void engine?.stopCamera();
+            patch({ cameraOn: false, cameraPaused: false });
+            void presence?.setCamera(false, false);
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Não foi possível iniciar o áudio.', error);
+      // Persistente na sala, não só um toast que some: a sala continua na
+      // tela e precisa dizer por que está muda.
+      patch({
+        voiceEngineError:
+          'Não foi possível iniciar o áudio desta sala. Saia e entre de novo.',
+      });
+      return 'Não foi possível iniciar o áudio da chamada.';
+    }
+
+    patch({ voiceReady: true, voiceMicDenied: engine.micDenied() });
+    syncEngineWithRoster();
+    return null;
+  }
+
+  /* --- LIGAÇÃO NO PV (0.9.5) ------------------------------------------------ */
+
+  /** O roster da ligação no PV (fica à parte do roster do grupo aberto). */
+  let rawVoicePv: VoiceParticipant[] = [];
+  let stopPvRoster: Unsubscribe | null = null;
+  let pv: {
+    outro: string;
+    par: string;
+    grupo: string;
+    souQuemLigou: boolean;
+    comCamera: boolean;
+    /** Quando a ligação foi atendida (ms), ou null se ainda toca. */
+    atendidaEm: number | null;
+    outroEntrou: boolean;
+    encerrando: boolean;
+    pararChamada: Unsubscribe | null;
+    timer: number | null;
+  } | null = null;
+  const avisosDeChamada = new Set<(texto: string) => void>();
+  const avisarChamada = (texto: string): void => {
+    for (const ouvinte of avisosDeChamada) ouvinte(texto);
+  };
+  const nomeDe = (uid: string): string =>
+    state.friendProfiles.get(uid)?.displayName ?? state.members.find((m) => m.id === uid)?.displayName ?? 'Seu amigo';
+
+  /** A outra pessoa saiu da ligação (fechou o app, caiu): a ligação acaba. */
+  function vigiarOutroNoPv(live: VoiceParticipant[]): void {
+    if (pv === null) return;
+    const aqui = live.some((p) => p.groupId === pv!.grupo && p.uid === pv!.outro);
+    if (aqui) {
+      pv.outroEntrou = true;
+      return;
+    }
+    if (pv.outroEntrou) void encerrarPv('outro-saiu');
+  }
+
+  /**
+   * Fim da ligação, por qualquer caminho. Quem fica sabendo PRIMEIRO escreve
+   * o registro no chat ("Ligação · 12 min" ou "Chamada perdida") — o outro,
+   * vendo o estado "encerrada", só sai.
+   */
+  async function encerrarPv(motivo: 'manual' | 'perdida' | 'recusada' | 'outro-saiu' | 'outro-encerrou'): Promise<void> {
+    const p = pv;
+    if (p === null || p.encerrando) return;
+    p.encerrando = true;
+    if (p.timer !== null) window.clearTimeout(p.timer);
+    p.pararChamada?.();
+    p.pararChamada = null;
+
+    const registrar = async (perdida: boolean): Promise<void> => {
+      const duracaoMs = p.atendidaEm === null ? undefined : Date.now() - p.atendidaEm;
+      const texto = perdida ? 'Chamada perdida' : `Ligação · ${duracaoDaLigacao(duracaoMs ?? 0)}`;
+      await sendDmMessage(user.uid, p.outro, texto, undefined, undefined, {
+        perdida,
+        comCamera: p.comCamera,
+        ...(duracaoMs === undefined ? {} : { duracaoMs }),
+      }).catch((e: unknown) => console.error('[chamadas] não deu para registrar a ligação.', e));
+    };
+
+    if (motivo === 'manual' || motivo === 'outro-saiu') {
+      if (p.atendidaEm !== null) {
+        await mudarEstado(p.par, 'encerrada').catch(() => {});
+        await registrar(false);
+      } else if (p.souQuemLigou) {
+        await mudarEstado(p.par, 'cancelada').catch(() => {});
+        await registrar(true);
+      }
+    } else if (motivo === 'perdida') {
+      await mudarEstado(p.par, 'perdida').catch(() => {});
+      await registrar(true);
+    } else if (motivo === 'recusada') {
+      await registrar(true);
+    }
+
+    await stopVoice();
+    patch({
+      voice: null,
+      centerView: 'chat',
+      chamandoPv: null,
+      voiceMicDenied: false,
+      voiceAudioBlocked: false,
+      voiceFailedPeers: [],
+      screenSharing: false,
+      screenLabel: null,
+      screenMaximized: false,
+      cameraOn: false,
+      cameraPaused: false,
+      voiceReady: false,
+      voiceEngineError: null,
+    });
+  }
+
+  /** Liga a câmera direto (ligação "com câmera": o botão já foi a escolha). */
+  async function ligarCameraDireto(): Promise<void> {
+    if (engine === null) return;
+    const ajustes = loadCameraSettings();
+    try {
+      await engine.startCamera(ajustes.cameraId, ajustes.frente);
+    } catch (error) {
+      console.error('Não foi possível ligar a câmera.', error);
+      avisarChamada(textoDoErroDaCamera(error));
+      return;
+    }
+    patch({ cameraOn: true, cameraPaused: false });
+    await presence?.setCamera(true, false).catch(() => {});
+  }
+
+  /** Entra na "sala" da ligação com esta pessoa (os dois usam a mesma). */
+  async function entrarNaVozDoPv(outro: string, comCamera: boolean, souQuemLigou: boolean): Promise<string | null> {
+    await stopVoice();
+    const grupo = grupoDoPv(user.uid, outro);
+    // A sinalização da ligação ANTERIOR (nos dois sentidos) não pode ser lida
+    // como nova — a "resposta" velha envenenava a próxima ligação. A outra
+    // pessoa ainda não está aqui (ou só oferta quando eu aparecer), então
+    // limpar agora não apaga nada desta ligação.
+    await clearMySignals(grupo, grupo, user.uid).catch(() => {});
+    await clearPairSignals(grupo, user.uid, outro).catch(() => {});
+    try {
+      presence = await joinVoiceChannel(user, grupo, grupo, {
+        onDisplaced: () => void encerrarPv('manual'),
+      });
+    } catch (error) {
+      console.error('Não foi possível entrar na ligação.', error);
+      return 'Não foi possível entrar na ligação.';
+    }
+    pv = {
+      outro,
+      par: pairId(user.uid, outro),
+      grupo,
+      souQuemLigou,
+      comCamera,
+      atendidaEm: souQuemLigou ? null : Date.now(),
+      outroEntrou: false,
+      encerrando: false,
+      pararChamada: null,
+      timer: null,
+    };
+    stopPvRoster = subscribeVoiceParticipants(
+      grupo,
+      (participantes) => {
+        rawVoicePv = participantes;
+        refreshVoiceParticipants();
+      },
+      (erro) => console.error('[chamadas] roster da ligação falhou.', erro),
+    );
+    if (state.activeDmUid !== outro) {
+      patch({ activeDmUid: outro });
+      watchDmMessages(pairId(user.uid, outro));
+    }
+    patch({
+      view: 'home',
+      voice: { groupId: grupo, channelId: grupo, channelName: nomeDe(outro), pv: outro },
+      centerView: 'voice',
+      voiceMuted: false,
+      voiceMicDenied: false,
+      voiceAudioBlocked: false,
+      voiceFailedPeers: [],
+      voiceVideoPeers: [],
+      voiceReady: false,
+      voiceEngineError: null,
+    });
+    const motivo = await subirMotor(grupo, grupo);
+    if (motivo !== null) return motivo;
+    if (comCamera) await ligarCameraDireto();
+    return null;
+  }
+
+  /* --- chamadas chegando ------------------------------------------------------ */
+
+  let chamadasCruas: Chamada[] = [];
+  function avaliarChamadaRecebida(): void {
+    let agora = chamadasCruas.find((c) => tocandoAgora(c) && !state.blockedUids.includes(c.de)) ?? null;
+    // Já estou nessa ligação (atendi): não toca de novo.
+    if (agora !== null && state.voice?.pv === agora.de) agora = null;
+    const antes = state.chamadaRecebida;
+    if (agora?.par === antes?.par && agora?.criadaEm === antes?.criadaEm) return;
+    patch({ chamadaRecebida: agora });
+  }
+  const pararChamadasRecebidas = ouvirChamadasParaMim(user.uid, (lista) => {
+    chamadasCruas = lista;
+    avaliarChamadaRecebida();
+  });
+  const relogioDasChamadas = window.setInterval(avaliarChamadaRecebida, 3000);
 
   /**
    * O roster mudou de um jeito que a tela precisa notar?
@@ -539,7 +817,15 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     });
 
   function refreshVoiceParticipants(): void {
-    const live = rawVoice.filter((participant) => isLive(participant.lastSeen));
+    /*
+     * Ligação no PV ainda TOCANDO: só eu conto na sala. A lista que chega
+     * primeiro vem do cache do aparelho e pode ter a outra pessoa da ligação
+     * ANTERIOR — e aí "ela entrou e saiu" encerrava a ligação nova sozinha.
+     * Ela passa a contar quando atende de verdade (estado "atendida").
+     */
+    const doPv = pv !== null && pv.atendidaEm === null ? rawVoicePv.filter((p) => p.uid === user.uid) : rawVoicePv;
+    const live = [...rawVoice, ...doPv].filter((participant) => isLive(participant.lastSeen));
+    vigiarOutroNoPv(live);
     if (sameRoster(live, state.voiceParticipants)) return;
     patch({ voiceParticipants: live });
     // O roster é a ÚNICA fonte de quem deve ter conexão — inclusive quando
@@ -1164,7 +1450,12 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     },
 
     openDm(friendUid) {
-      if (friendUid === state.activeDmUid) return;
+      if (friendUid === state.activeDmUid) {
+        // 0.9.5: na ligação com essa pessoa, tocar na conversa volta ao chat
+        // de texto (a faixa da chamada leva de volta para a ligação).
+        if (state.voice?.pv === friendUid && state.centerView === 'voice') patch({ centerView: 'chat' });
+        return;
+      }
       patch({ activeDmUid: friendUid });
       watchDmMessages(pairId(user.uid, friendUid));
     },
@@ -1281,64 +1572,15 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
         voiceEngineError: null,
       });
 
-      try {
-        engine = await startVoiceEngine({
-          channelId,
-          groupId,
-          myUid: user.uid,
-          onError: onListenerError,
-          callbacks: {
-            onSpeaking: (uid, speaking) => {
-              for (const listener of speakingListeners) listener(uid, speaking);
-            },
-            onPeersChanged: () => {
-              const failedNow = engine?.failedPeers() ?? [];
-              const videoNow = engine?.peersWithVideo() ?? [];
-              // Só toca no estado quando MUDA: onconnectionstatechange dispara
-              // várias vezes por conexão durante a negociação.
-              const patchNext: Partial<AppState> = {};
-              if (failedNow.join() !== state.voiceFailedPeers.join()) {
-                patchNext.voiceFailedPeers = failedNow;
-              }
-              if (videoNow.join() !== state.voiceVideoPeers.join()) {
-                patchNext.voiceVideoPeers = videoNow;
-              }
-              if (Object.keys(patchNext).length > 0) patch(patchNext);
-            },
-            onAudioBlocked: () => patch({ voiceAudioBlocked: true }),
-            // O botão NATIVO do navegador parou a transmissão. Sem isto o app
-            // continuaria dizendo que eu transmito, e o meu documento mentiria
-            // para todo mundo no canal.
-            onScreenShareEnded: () => {
-              patch({ screenSharing: false, screenLabel: null, screenMaximized: false });
-              void presence?.setSharingScreen(false);
-            },
-            // 0.9.5: a câmera parou sozinha — o botão e o meu bloco acompanham.
-            onCameraEnded: () => {
-              void engine?.stopCamera();
-              patch({ cameraOn: false, cameraPaused: false });
-              void presence?.setCamera(false, false);
-            },
-          },
-        });
-      } catch (error) {
-        console.error('Não foi possível iniciar o áudio.', error);
-        // Persistente na sala, não só um toast que some: a sala continua na
-        // tela e precisa dizer por que está muda.
-        patch({
-          voiceEngineError:
-            'Não foi possível iniciar o áudio desta sala. Saia e entre de novo.',
-        });
-        return 'Não foi possível iniciar o áudio da chamada.';
-      }
-
-      patch({ voiceReady: true, voiceMicDenied: engine.micDenied() });
-      syncEngineWithRoster();
-      return null;
+      return subirMotor(groupId, channelId);
     },
 
     disconnectVoice() {
       if (state.voice === null) return;
+      if (state.voice.pv !== undefined && pv !== null) {
+        void encerrarPv('manual');
+        return;
+      }
       void stopVoice();
       patch({
         voice: null,
@@ -1366,6 +1608,15 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     openVoiceRoom() {
       const voice = state.voice;
       if (voice === null) return;
+      // 0.9.5: a ligação no PV mora no PV daquela pessoa.
+      if (voice.pv !== undefined) {
+        if (state.activeDmUid !== voice.pv) {
+          patch({ activeDmUid: voice.pv });
+          watchDmMessages(pairId(user.uid, voice.pv));
+        }
+        patch({ view: 'home', centerView: 'voice' });
+        return;
+      }
       if (voice.groupId !== state.activeGroupId) selectGroup(voice.groupId);
       patch({ view: 'group', centerView: 'voice' });
     },
@@ -1498,12 +1749,85 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     cameraElementOf: (uid) => engine?.cameraElementOf(uid) ?? null,
     localCameraStream: () => engine?.localCamera() ?? null,
 
+    async ligarNoPv(friendUid, comCamera) {
+      if (state.blockedUids.includes(friendUid)) return 'Não dá para ligar para quem está bloqueado.';
+      if (state.voice?.pv === friendUid) {
+        patch({ view: 'home', centerView: 'voice' });
+        return null;
+      }
+      let chamada: Chamada;
+      try {
+        chamada = await ligar(user.uid, friendUid, comCamera);
+      } catch (error) {
+        console.error('[chamadas] não deu para ligar.', error);
+        return 'Não deu para ligar agora. Vocês precisam ser amigos.';
+      }
+      const motivo = await entrarNaVozDoPv(friendUid, comCamera, true);
+      if (motivo !== null) {
+        void mudarEstado(chamada.par, 'cancelada').catch(() => {});
+        return motivo;
+      }
+      if (pv === null) return null;
+      patch({ chamandoPv: { para: friendUid, comCamera } });
+      // 30 s tocando sem resposta: chamada perdida.
+      pv.timer = window.setTimeout(() => {
+        if (pv !== null && pv.atendidaEm === null) void encerrarPv('perdida');
+      }, TEMPO_DE_TOQUE_MS);
+      pv.pararChamada = ouvirChamada(chamada.par, (c) => {
+        if (pv === null || c === null) return;
+        if (c.estado === 'atendida' && pv.atendidaEm === null) {
+          pv.atendidaEm = Date.now();
+          if (pv.timer !== null) window.clearTimeout(pv.timer);
+          pv.timer = null;
+          patch({ chamandoPv: null });
+          // Agora a outra pessoa conta na sala (ver refreshVoiceParticipants).
+          refreshVoiceParticipants();
+        } else if (c.estado === 'recusada') {
+          avisarChamada(`${nomeDe(friendUid)} recusou a ligação.`);
+          void encerrarPv('recusada');
+        } else if (c.estado === 'encerrada') {
+          void encerrarPv('outro-encerrou');
+        }
+      });
+      return null;
+    },
+
+    async atenderChamada(comCamera) {
+      const c = state.chamadaRecebida;
+      if (c === null) return null;
+      patch({ chamadaRecebida: null });
+      await mudarEstado(c.par, 'atendida').catch(() => {});
+      const motivo = await entrarNaVozDoPv(c.de, comCamera, false);
+      if (motivo !== null) return motivo;
+      if (pv !== null) {
+        pv.comCamera = c.comCamera || comCamera;
+        pv.pararChamada = ouvirChamada(c.par, (x) => {
+          if (x?.estado === 'encerrada') void encerrarPv('outro-encerrou');
+        });
+      }
+      return null;
+    },
+
+    recusarChamada() {
+      const c = state.chamadaRecebida;
+      if (c === null) return;
+      patch({ chamadaRecebida: null });
+      void mudarEstado(c.par, 'recusada').catch(() => {});
+    },
+
+    onAvisoDeChamada(listener) {
+      avisosDeChamada.add(listener);
+      return () => avisosDeChamada.delete(listener);
+    },
+
     onSpeaking(listener) {
       speakingListeners.add(listener);
       return () => speakingListeners.delete(listener);
     },
 
     dispose() {
+      pararChamadasRecebidas();
+      window.clearInterval(relogioDasChamadas);
       stopFriendships();
       stopBlocks();
       stopDmThreads();

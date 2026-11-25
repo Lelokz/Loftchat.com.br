@@ -50,3 +50,14 @@
   color: var(--text-muted);
   font-size: var(--font-size-sm);
 }
+
+/* 0.9.5: botões de ligar no topo do PV. O espaço empurra eles para a direita. */
+.dm-chat__ligar-espaco {
+  flex: 1 1 auto;
+}
+
+.dm-chat__ligar {
+  width: 38px;
+  height: 38px;
+  flex: none;
+}

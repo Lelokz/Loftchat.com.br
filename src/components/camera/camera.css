@@ -291,3 +291,171 @@
   background-color: var(--accent);
   color: #fff;
 }
+
+/* --- chamada chegando (PV) ---------------------------------------------------- */
+
+.chamada {
+  position: fixed;
+  z-index: 70;
+  left: 50%;
+  top: 84px;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 32px));
+  padding: 40px 22px 22px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(160deg, #241645, #140e26);
+  box-shadow: 0 30px 90px rgb(0 0 0 / 65%);
+  color: #f3efff;
+  text-align: center;
+}
+
+.chamada--cheia {
+  inset: 0;
+  top: 0;
+  left: 0;
+  transform: none;
+  width: auto;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 90px 24px calc(60px + env(safe-area-inset-bottom, 0px));
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(circle at 50% 30%, #3a2470, #120c22 70%);
+}
+
+.chamada__foto {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: max-content;
+  margin: 6px auto 12px;
+}
+
+.chamada__foto::before,
+.chamada__foto::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border: 2px solid rgb(47 166 106 / 55%);
+  border-radius: 50%;
+  animation: chamada-anel 1.6s ease-out infinite;
+}
+
+.chamada__foto::after {
+  inset: -22px;
+  border-color: rgb(47 166 106 / 22%);
+  animation-delay: 0.4s;
+}
+
+@keyframes chamada-anel {
+  from { transform: scale(0.92); opacity: 1; }
+  to { transform: scale(1.12); opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chamada__foto::before,
+  .chamada__foto::after {
+    animation: none;
+  }
+}
+
+.chamada .chamada__avatar {
+  width: 92px;
+  height: 92px;
+  font-size: 30px;
+}
+
+.chamada--cheia .chamada__avatar {
+  width: 128px;
+  height: 128px;
+  font-size: 42px;
+}
+
+.chamada--cheia .chamada__foto {
+  margin-top: 40px;
+}
+
+.chamada__nome {
+  margin: 10px 0 2px;
+  font-size: 20px;
+}
+
+.chamada--cheia .chamada__nome {
+  margin-top: 34px;
+  font-size: 28px;
+}
+
+.chamada__texto {
+  margin: 0;
+  color: #cfc6f0;
+  font-size: 14px;
+}
+
+.chamada--cheia .chamada__texto {
+  font-size: 16px;
+}
+
+.chamada__origem {
+  margin: 10px 0 0;
+  color: #a99fd0;
+  font-size: 13px;
+}
+
+.chamada__acoes {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.chamada--cheia .chamada__acoes {
+  gap: 30px;
+  align-self: end;
+}
+
+.chamada__acao {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: #e6dfff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chamada__botao {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.chamada--cheia .chamada__botao {
+  width: 68px;
+  height: 68px;
+}
+
+.chamada__botao--atender {
+  background-color: #2f9e6e;
+}
+
+.chamada__botao--recusar {
+  background-color: var(--danger);
+}
+
+/* Na sala da ligação: "Chamando Fulano…" até atender. */
+.room__chamando {
+  margin: var(--space-3) auto 0;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-align: center;
+  width: max-content;
+  max-width: calc(100% - 32px);
+}

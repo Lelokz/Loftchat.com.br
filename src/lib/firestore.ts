@@ -230,6 +230,17 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
     Object.assign(message, { comando: { nome: comando.nome } });
   }
   if (data['spoiler'] === true) Object.assign(message, { spoiler: true });
+  // 0.9.5: registro de ligação no PV ("Ligação · 12 min", "Chamada perdida").
+  const chamada = data['chamada'] as { duracaoMs?: unknown; perdida?: unknown; comCamera?: unknown } | undefined;
+  if (typeof chamada === 'object' && chamada !== null) {
+    Object.assign(message, {
+      chamada: {
+        perdida: chamada.perdida === true,
+        comCamera: chamada.comCamera === true,
+        ...(typeof chamada.duracaoMs === 'number' && chamada.duracaoMs >= 0 ? { duracaoMs: chamada.duracaoMs } : {}),
+      },
+    });
+  }
 
   const reply = data['replyTo'];
   if (reply !== undefined && reply !== null && typeof reply === 'object') {
@@ -1339,6 +1350,8 @@ export async function sendDmMessage(
   rawBody: string,
   replyTo?: ReplyTo,
   midia?: Midia,
+  /** 0.9.5: registro de ligação (o texto vai junto, para quem estiver em versão velha). */
+  chamada?: { duracaoMs?: number; perdida: boolean; comCamera: boolean },
 ): Promise<void> {
   const body = rawBody.trim();
   if (body === '' && midia === undefined) return;
@@ -1356,6 +1369,7 @@ export async function sendDmMessage(
     sentAt,
     ...(midia === undefined ? {} : { attachment: midia.attachment }),
     ...(replyTo === undefined ? {} : { replyTo }),
+    ...(chamada === undefined ? {} : { chamada }),
   });
   batch.set(
     doc(db, 'dmThreads', threadId),
@@ -1388,7 +1402,8 @@ export async function sendDmMessage(
     }
     throw error;
   }
-  avisarCarteiro('pv', nova.id);
+  // Ligação atendida não vira notificação (os dois estavam lá); perdida, sim.
+  if (chamada === undefined || chamada.perdida) avisarCarteiro('pv', nova.id);
 }
 
 /** Edita o TEXTO de uma mensagem privada. Só o autor, e só o texto — mesma disciplina de `editMessage`. */

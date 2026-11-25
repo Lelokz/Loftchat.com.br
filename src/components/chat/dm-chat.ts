@@ -1,7 +1,7 @@
 import './dm-chat.css';
 
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { menuIcon, peopleIcon } from '../../lib/icons';
+import { cameraIcon, menuIcon, peopleIcon, phoneIcon } from '../../lib/icons';
 import { panelToggleButton } from './chat';
 
 /** Quem é o outro lado do PV — o cabeçalho não sabe de `UserProfile`, só disto. */
@@ -27,6 +27,8 @@ export interface DmChatProps {
   onOpenPanel: () => void;
   /** Etapa 5d: no computador, mostra/esconde o painel da direita. */
   onTogglePanel: () => void;
+  /** 0.9.5: ligar (de voz ou com câmera). Ausente = sem botões (bloqueado). */
+  onLigar?: (comCamera: boolean) => void;
 }
 
 /**
@@ -100,6 +102,7 @@ export function renderDmChat(props: DmChatProps): DmChatParts {
         ? false
         : el('span', { class: 'dm-chat__handle' }, [`@${friend.username}`]),
     ]),
+    ...botoesDeLigar(props),
     panelToggleButton(props.onTogglePanel),
     panelButton,
   ]);
@@ -125,4 +128,20 @@ export function renderDmBlockedNotice(friendName: string): HTMLElement {
   return el('p', { class: 'dm-chat__blocked', role: 'status' }, [
     `Você bloqueou ${friendName}. Desbloqueie na aba Bloqueados para voltar a conversar.`,
   ]);
+}
+
+/** 0.9.5: "Ligar" e "Ligar com câmera" no topo do PV. */
+function botoesDeLigar(props: DmChatProps): HTMLElement[] {
+  const ligar = props.onLigar;
+  if (ligar === undefined) return [];
+  const botao = (comCamera: boolean): HTMLElement => {
+    const rotulo = comCamera ? 'Ligar com câmera' : 'Ligar';
+    const b = el('button', { class: 'icon-button dm-chat__ligar', type: 'button', title: rotulo }, [
+      iconEl(comCamera ? cameraIcon(19) : phoneIcon(19)),
+      el('span', { class: 'sr-only' }, [rotulo]),
+    ]);
+    b.addEventListener('click', () => ligar(comCamera));
+    return b;
+  };
+  return [botao(false), botao(true)];
 }

@@ -55,6 +55,7 @@ import { renderRoomPanel } from './components/room-panel/room-panel';
 import { acompanharChamadaNoAndroid, emAppAndroid, telaCheiaNoAndroid } from './lib/android';
 import { loadCameraSettings, onCameraSettings, saveCameraSettings } from './lib/camera-settings';
 import { abrirPreviaDaCamera } from './components/camera/previa';
+import { pararChamada, renderChamadaRecebida, tocarChamada } from './components/camera/chamada';
 import { MAX_CAMERAS } from './lib/voice-engine';
 import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-panel';
 import { memberListContent } from './components/member-list/member-list';
@@ -1242,19 +1243,31 @@ export function mountApp(
     );
   }
 
+  /** 0.9.5: a ligação no PV está na tela (no lugar do PV daquela pessoa)? */
+  function vendoLigacaoDoPv(state: AppState): boolean {
+    const voice = state.voice;
+    return (
+      voice !== null &&
+      voice.pv !== undefined &&
+      state.view === 'home' &&
+      state.centerView === 'voice' &&
+      state.activeDmUid === voice.pv
+    );
+  }
+
   /** A faixa só existe quando estou conectado E não estou olhando a sala. */
   function buildCallBar(state: AppState): CallBarProps | undefined {
     const voice = state.voice;
     if (voice === null) return undefined;
-    if (isViewingRoom(state)) return undefined;
+    if (isViewingRoom(state) || vendoLigacaoDoPv(state)) return undefined;
 
     const otherGroup =
-      voice.groupId === state.activeGroupId
+      voice.pv !== undefined || voice.groupId === state.activeGroupId
         ? null
         : (state.groups.find((g) => g.id === voice.groupId)?.name ?? 'outro grupo');
 
     return {
-      channelName: voiceChannelName(state),
+      channelName: voice.pv !== undefined ? `Ligação com ${voice.channelName}` : voiceChannelName(state),
       otherGroupName: otherGroup,
       muted: state.voiceMuted,
       onOpenRoom: () => store.openVoiceRoom(),
@@ -1393,7 +1406,18 @@ export function mountApp(
    * da sala — alguém sem `users` ainda está ocupando um dos quatro lugares.
    */
   function presenceView(state: AppState, participant: VoiceParticipant): VoicePresenceView {
-    const member = state.members.find((m) => m.id === participant.uid);
+    const member =
+      state.members.find((m) => m.id === participant.uid) ??
+      // 0.9.5: na ligação do PV a pessoa não é do grupo aberto.
+      (participant.uid === user.uid
+        ? me
+        : state.voice?.pv === participant.uid
+          ? (() => {
+              const f = friendView(state, participant.uid);
+              const amigo: Member = { id: f.uid, displayName: f.displayName, initials: f.initials, status: 'online', ...(f.photo === undefined ? {} : { photo: f.photo }) };
+              return amigo;
+            })()
+          : undefined);
     const displayName = member?.displayName ?? 'Usuário';
     return {
       uid: participant.uid,
@@ -1477,7 +1501,7 @@ export function mountApp(
     if (voice === null) return 'Entre numa chamada para ligar a câmera.';
     if (navigator.mediaDevices?.getUserMedia === undefined) return 'Este aparelho não deixa usar a câmera.';
     if (!state.voiceReady) return 'Conectando à sala…';
-    if (!posso(state, 'camera', voice.channelId)) return 'Seu cargo não deixa ligar a câmera nesta sala.';
+    if (voice.pv === undefined && !posso(state, 'camera', voice.channelId)) return 'Seu cargo não deixa ligar a câmera nesta sala.';
     const ligadas = state.voiceParticipants.filter((p) => p.channelId === voice.channelId && p.camera && p.uid !== user.uid).length;
     if (!state.cameraOn && ligadas >= MAX_CAMERAS) {
       return `Já tem ${MAX_CAMERAS} câmeras ligadas nesta sala. Espere alguém desligar a dele.`;
@@ -1495,6 +1519,37 @@ export function mountApp(
     if (!celularComCamera() || !store.getState().cameraOn) return;
     void store.setCameraPaused(document.visibilityState === 'hidden');
   });
+
+  /* --- ligação no PV chegando (0.9.5) ------------------------------------------ */
+
+  let cartaoDeChamada: HTMLElement | null = null;
+  store.onAvisoDeChamada((texto) => showToast(texto));
+
+  function atualizarChamadaRecebida(state: AppState): void {
+    const c = state.chamadaRecebida;
+    cartaoDeChamada?.remove();
+    cartaoDeChamada = null;
+    if (c === null) {
+      pararChamada();
+      return;
+    }
+    const f = friendView(state, c.de);
+    cartaoDeChamada = renderChamadaRecebida({
+      uid: c.de,
+      nome: f.displayName,
+      initials: f.initials,
+      photo: f.photo,
+      comCamera: c.comCamera,
+      telaCheia: isMobileLayout(),
+      aoAtender: (comCamera) =>
+        void store.atenderChamada(comCamera).then((motivo) => {
+          if (motivo !== null) showToast(motivo);
+        }),
+      aoRecusar: () => store.recusarChamada(),
+    });
+    document.body.append(cartaoDeChamada);
+    tocarChamada();
+  }
 
   function alternarCamera(): void {
     const state = store.getState();
@@ -1532,7 +1587,7 @@ export function mountApp(
   /** A sala, com quem está mesmo nela. */
   function buildVoiceRoom(state: AppState): HTMLElement | null {
     const voice = state.voice;
-    if (voice === null || voice.groupId !== state.activeGroupId) return null;
+    if (voice === null || (voice.groupId !== state.activeGroupId && voice.pv === undefined)) return null;
     if (entradaNaSala?.canal !== voice.channelId) entradaNaSala = { canal: voice.channelId, em: Date.now() };
 
     const here = state.voiceParticipants.filter((p) => p.channelId === voice.channelId);
@@ -1634,6 +1689,7 @@ export function mountApp(
       onVirarCamera: virarCamera,
       onFoco: focarCamera,
       onToggleEsconderSemCamera: alternarEsconderSemCamera,
+      chamando: state.chamandoPv === null ? null : voice.channelName,
     });
 
     /*
@@ -1834,7 +1890,8 @@ export function mountApp(
     if (quero === state.roomChatChannelId) return;
     queueMicrotask(() => {
       const agora = store.getState();
-      store.watchRoomChat(chatDaSalaLigado && agora.voice !== null ? agora.voice.channelId : null);
+      // 0.9.5: a ligação no PV não tem chat de sala (o chat é o próprio PV).
+      store.watchRoomChat(chatDaSalaLigado && agora.voice !== null && agora.voice.pv === undefined ? agora.voice.channelId : null);
     });
   }
 
@@ -2505,7 +2562,14 @@ export function mountApp(
       // Os dois avisos da sala: sem eles aqui, o aviso só aparecia/sumia quando
       // OUTRA coisa mudava — "Ativar áudio" resolvia o som e o aviso ficava.
       prev.voiceAudioBlocked !== state.voiceAudioBlocked ||
-      prev.voiceMicDenied !== state.voiceMicDenied;
+      prev.voiceMicDenied !== state.voiceMicDenied ||
+      // 0.9.5: a minha câmera e o "Chamando…" da ligação no PV.
+      prev.cameraOn !== state.cameraOn ||
+      prev.cameraPaused !== state.cameraPaused ||
+      prev.chamandoPv !== state.chamandoPv;
+
+    // 0.9.5: alguém me ligando no PV — o cartão (PC) ou a tela cheia (celular).
+    if (prev === null || prev.chamadaRecebida !== state.chamadaRecebida) atualizarChamadaRecebida(state);
 
     const viewChanged = prev === null || prev.view !== state.view;
     /* Troca de visão para a transição 1 (etapa 20): outra tela ou outro grupo. */
@@ -2627,6 +2691,23 @@ export function mountApp(
        * de "montar uma vez, trocar o slot" do chat de grupo, só que a casca
        * nasce por PESSOA (`dmChatFriendUid`) em vez de por canal.
        */
+      // 0.9.5: na ligação com esta pessoa, a sala ocupa o lugar do PV.
+      if (vendoLigacaoDoPv(state)) {
+        if (centerMode !== 'voice' || voiceChanged) {
+          const room = buildVoiceRoom(state);
+          if (room !== null) {
+            centerEl = swapCenter(centerEl, room);
+            centerMode = 'voice';
+            chat = null;
+            chatChannelId = null;
+            dmChat = null;
+            dmChatFriendUid = null;
+          }
+        }
+        previous = state;
+        return;
+      }
+
       if (state.activeDmUid !== null) {
         const friendUid = state.activeDmUid;
         const dmChanged = centerMode !== 'dm' || dmChat === null || dmChatFriendUid !== friendUid;
@@ -2638,6 +2719,10 @@ export function mountApp(
             onOpenChannels: () => setDrawer('left'),
             onOpenPanel: () => setDrawer('right'),
             onTogglePanel: alternarPainel,
+            onLigar: (comCamera) =>
+              void store.ligarNoPv(friendUid, comCamera).then((motivo) => {
+                if (motivo !== null) showToast(motivo);
+              }),
           });
           centerEl = swapCenter(centerEl, parts.element);
           dmChat = parts;

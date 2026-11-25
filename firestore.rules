@@ -180,6 +180,26 @@ service cloud.firestore {
       return pairId.split('_')[0] == uid() ? pairId.split('_')[1] : pairId.split('_')[0];
     }
 
+    /*
+     * LIGAÇÃO NO PV (0.9.5). A chamada de dois amigos usa a mesma voz dos
+     * grupos, com um "grupo" de mentira: `pv_{a}_{b}` (o par em ordem). Só os
+     * dois entram, e ninguém bloqueado.
+     */
+    function parDoPv(g) {
+      return g.split('_')[1] + '_' + g.split('_')[2];
+    }
+    function ehDoPv(g) {
+      return signedIn() && g is string
+        && g.matches('pv_[A-Za-z0-9]+_[A-Za-z0-9]+')
+        && parDoPv(g).split('_').hasAny([uid()])
+        && !blockedBy(otherInPair(parDoPv(g)))
+        && !iBlocked(otherInPair(parDoPv(g)));
+    }
+    /** Membro do grupo, ou um dos dois da ligação no PV. */
+    function naVoz(g) {
+      return isMember(g) || ehDoPv(g);
+    }
+
     // Confere um convite CUJO CÓDIGO o cliente informou.
     function inviteMatches(groupId, code) {
       return code is string
@@ -961,7 +981,7 @@ service cloud.firestore {
     // observação sobre "as regras não filtram" no topo deste arquivo.
 
     match /voiceParticipants/{participantId} {
-      allow read: if isMember(resource.data.groupId);
+      allow read: if naVoz(resource.data.groupId);
 
       // 0.8.5: entrar pede "Entrar"; falar e transmitir são cobrados no que
       // o documento diz (muted / sharingScreen).
@@ -970,12 +990,18 @@ service cloud.firestore {
         && participantId == request.resource.data.channelId + '_' + uid()
         && vozOk(request.resource.data);
 
+      // 0.9.5: ligação no PV — o "canal" é o próprio par, sem cargos.
+      allow create: if ehDoPv(request.resource.data.groupId)
+        && request.resource.data.channelId == request.resource.data.groupId
+        && request.resource.data.uid == uid()
+        && participantId == request.resource.data.channelId + '_' + uid();
+
       function vozOk(d) {
-        return (d.get('muted', true) == true || podeNoCanal(d.groupId, d.channelId, 'falar'))
+        return ehDoPv(d.groupId) || ((d.get('muted', true) == true || podeNoCanal(d.groupId, d.channelId, 'falar'))
           && (d.get('sharingScreen', false) != true || podeNoCanal(d.groupId, d.channelId, 'transmitir'))
           // 0.9.5: câmera = "Ligar câmera".
           && (d.get('camera', false) != true || podeNoCanal(d.groupId, d.channelId, 'camera'))
-          && d.get('camera', false) is bool && d.get('cameraPausada', false) is bool;
+          && d.get('camera', false) is bool && d.get('cameraPausada', false) is bool);
       }
 
       // Só mexo no meu, e não posso me mudar de canal nem de grupo por update —
@@ -1003,9 +1029,9 @@ service cloud.firestore {
     // dois pares negociando ao mesmo tempo.
 
     match /voiceChannels/{channelId}/signals/{signalId} {
-      allow read: if isMember(resource.data.groupId);
+      allow read: if naVoz(resource.data.groupId);
 
-      allow create, update: if isMember(request.resource.data.groupId)
+      allow create, update: if naVoz(request.resource.data.groupId)
         && request.resource.data.from == uid();
 
       // As DUAS pontas da conversa podem apagar, e mais ninguém. Quem recebe
@@ -1017,6 +1043,46 @@ service cloud.firestore {
       allow delete: if signedIn()
         && (resource.data.from == uid() || resource.data.to == uid()
             || isOwner(resource.data.groupId));
+    }
+    /* ------------------------------ chamadas ----------------------------- */
+    // 0.9.5: o TOQUE de uma ligação no PV. Um documento por par ({a}_{b}):
+    // quem liga cria "tocando"; quem recebe atende ou recusa; quem ligou
+    // marca perdida (30 s sem resposta) ou encerrada. Só amigos, sem bloqueio.
+
+    match /chamadas/{par} {
+      // Pelo CONTEÚDO, não pelo id: a consulta "chamadas para mim" é uma
+      // lista, e nela o id do caminho não existe para a regra.
+      allow read: if signedIn() && (resource.data.de == uid() || resource.data.para == uid());
+
+      function chamadaOk(d) {
+        return d.keys().hasOnly(['de', 'para', 'comCamera', 'estado', 'criadaEm', 'atendidaEm', 'fimEm'])
+          && d.de is string && d.para is string && d.de != d.para
+          && par.split('_').hasAll([d.de, d.para])
+          && d.comCamera is bool
+          && d.estado in ['tocando', 'atendida', 'recusada', 'perdida', 'encerrada', 'cancelada']
+          && d.criadaEm is string && d.criadaEm.size() <= 40;
+      }
+
+      // Ligar: sou eu quem liga, para um AMIGO, sem bloqueio entre nós.
+      allow create: if signedIn()
+        && chamadaOk(request.resource.data)
+        && request.resource.data.de == uid()
+        && request.resource.data.estado == 'tocando'
+        && get(/databases/$(database)/documents/friendships/$(par)).data.status == 'accepted'
+        && !blockedBy(otherInPair(par))
+        && !iBlocked(otherInPair(par));
+
+      // Ligar de novo (o documento do par já existe) ou mudar o estado.
+      allow update: if signedIn()
+        && par.split('_').hasAny([uid()])
+        && chamadaOk(request.resource.data)
+        && (request.resource.data.estado != 'tocando'
+            || (request.resource.data.de == uid()
+                && get(/databases/$(database)/documents/friendships/$(par)).data.status == 'accepted'
+                && !blockedBy(otherInPair(par))
+                && !iBlocked(otherInPair(par))));
+
+      allow delete: if signedIn() && par.split('_').hasAny([uid()]);
     }
   }
 }

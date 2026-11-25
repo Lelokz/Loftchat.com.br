@@ -1,0 +1,38 @@
+/* 0.9.5: registro de ligação no PV ("Ligação · 12 min", "Chamada perdida"). */
+
+.message__chamada {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  /* O balão da mensagem já é a moldura: nada de caixa dentro da caixa. */
+  padding: 2px 6px 2px 0;
+}
+
+.message__chamada-icone {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: #2f9e6e;
+  color: #fff;
+}
+
+.message__chamada.is-perdida .message__chamada-icone {
+  background-color: var(--danger);
+  color: var(--danger-on);
+}
+
+.message__chamada-texto {
+  display: grid;
+  line-height: 1.25;
+}
+
+.message__chamada-texto b {
+  font-weight: 700;
+}
+
+.message__chamada-texto small {
+  opacity: 0.75;
+  font-size: var(--font-size-xs);
+}

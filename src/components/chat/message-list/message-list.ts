@@ -1,9 +1,11 @@
 import "./message-list.css";
+import "./chamada.css";
 
 import { avatarEl, el, iconEl } from "../../../lib/dom";
 import { nameColorId } from "../../../lib/person-theme";
 import { iconeDoCargo, corDoCargo } from "../../../lib/dom";
-import { clipIcon, fileIcon } from "../../../lib/icons";
+import { cameraIcon, clipIcon, fileIcon, phoneIcon } from "../../../lib/icons";
+import { duracaoDaLigacao } from "../../../lib/chamadas";
 import {
   formatBytes,
   formatDayLabel,
@@ -564,6 +566,18 @@ function cartaoDoYouTube(id: string): HTMLElement {
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
 function renderContent(message: MessageBase): HTMLElement {
+  // 0.9.5: registro de ligação no PV.
+  if (message.chamada !== undefined) {
+    const c = message.chamada;
+    const titulo = c.perdida ? "Chamada perdida" : "Ligação";
+    const detalhe = c.perdida
+      ? c.comCamera ? "com câmera" : "de voz"
+      : [c.duracaoMs === undefined ? "" : duracaoDaLigacao(c.duracaoMs), c.comCamera ? "com câmera" : ""].filter((t) => t !== "").join(" · ");
+    return el("div", { class: `message__chamada${c.perdida ? " is-perdida" : ""}` }, [
+      el("span", { class: "message__chamada-icone", "aria-hidden": "true" }, [iconEl(c.comCamera ? cameraIcon(18) : phoneIcon(18))]),
+      el("span", { class: "message__chamada-texto" }, [el("b", {}, [titulo]), detalhe !== "" ? el("small", {}, [detalhe]) : null]),
+    ]);
+  }
   // 0.8.5: resultado de comando ("usou /dado" + cartão) e spoiler.
   if (message.comando !== undefined && message.kind === "text") {
     const nome = message.comando.nome;

@@ -215,8 +215,18 @@ export async function joinVoiceChannel(
     },
     async leave() {
       stop();
-      await deleteDoc(ref).catch((error: unknown) => {
-        console.error('Falha ao sair do canal de voz.', error);
+      /*
+       * Sair é idempotente: o objetivo é o documento não existir. Uma escrita
+       * anterior no mesmo documento ainda em voo pode fazer o servidor avaliar
+       * o apagar sem ele ("Null value" na regra) — aí confere e, se ainda
+       * existir, tenta de novo uma vez (0.9.5, achado na ligação do PV).
+       */
+      await deleteDoc(ref).catch(async (error: unknown) => {
+        const aindaExiste = await getDoc(ref).then((d) => d.exists()).catch(() => true);
+        if (!aindaExiste) return;
+        await deleteDoc(ref).catch((denovo: unknown) => {
+          console.error('Falha ao sair do canal de voz.', denovo ?? error);
+        });
       });
     },
   };
