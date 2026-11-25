@@ -2,6 +2,35 @@
 
 Estado em 15/11/2026.
 
+## Reações, encaminhar, arquivos e silenciar (25/11/2026) — versão 0.11.0
+
+Maquetes aprovadas (Arquivo/Loft-desktop/maquete-reacoes e maquete-silenciar).
+
+1. **Permissões que faltavam**: "Mandar visualização única" (menu do + e
+   regras: `podeNoCanal` no carteiro e nas regras) e "Usar transcrição"
+   (botão escondido sem permissão; carteiro recusa).
+2. **Reações** (`components/reacoes`): campo `reacoes: {uid: string[]}` na
+   mensagem; regra `soMinhaReacao()` (cada um só mexe na sua chave, até 6).
+   Pílulas embaixo do balão, barrinha no hover do PC, fileira de emojis no
+   menu, folha no toque longo do celular (engole o toque até soltar o dedo
+   +250 ms, senão reagia sem querer). Teste `reacoes.spec.ts`.
+3. **Encaminhar** (`components/encaminhar`): até 5 destinos (privado e
+   canais de todos os grupos), anexo reaproveitado (não sobe de novo),
+   `encaminhada: true`. Visualização única e registro de ligação não vão.
+   Teste `encaminhar.spec.ts`.
+4. **Arquivos** (`components/arquivo`): tipo `file`, carteiro tipo
+   `arquivo` até 50 MB, servido SEMPRE como download (octet-stream,
+   content-disposition, nosniff, CSP sandbox). Aviso em programa. Cargo
+   "Mandar arquivos". Teste `mandar-arquivos.spec.ts`.
+5. **Silenciar** (`lib/silencios.ts`): `silencios/{uid}.mapa` com
+   `c_<canal>`, `g_<grupo>`, `p_<amigo>` → ISO ou "sempre". O carteiro lê
+   junto com os aparelhos e pula quem silenciou (ligação ainda toca). Não
+   lidas do silenciado ficam cinza e fora das contas. Submenu no menu de
+   contexto (no toque vira folha com título); menu do privado (Marcar como
+   lido, Silenciar conversa, Ver perfil); chip "Silenciado até…" no topo.
+   Consertado junto: tocar num menu aberto da gaveta do celular fechava a
+   gaveta. Teste `silenciar.spec.ts`.
+
 ## Transcrição das mensagens de voz (25/11/2026) — versão 0.10.5
 
 Plano e maquete aprovados (Arquivo/Loft-desktop/maquete-transcricao).

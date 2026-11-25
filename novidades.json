@@ -1,5 +1,17 @@
 [
   {
+    "versao": "0.11.0",
+    "data": "2026-11-25",
+    "itens": [
+      "Reações: passe o mouse numa mensagem (ou segure o dedo no celular) e escolha um emoji. As reações aparecem embaixo do balão; tocar numa pílula põe ou tira a sua, e dá para ver quem reagiu.",
+      "Encaminhar: na barrinha ou no menu da mensagem, escolha até 5 conversas ou canais (de qualquer grupo), com uma mensagem junto se quiser. Chega com o aviso \"Encaminhada\".",
+      "Mandar arquivos: no + do chat, \"Arquivo\" (PDF, ZIP, documento, planilha, mod… até 50 MB). Também dá para arrastar ou colar. Aparece um cartão com o tipo, o nome, o tamanho e o botão de baixar; programas (.exe, .jar, .apk…) vêm com um aviso.",
+      "Silenciar: botão direito (ou dedo segurado) num canal, num grupo ou numa conversa do privado → Silenciar, por 15 minutos, 1 hora, 8 horas, 24 horas ou até você reativar. Não chega notificação, e a bolinha fica cinza.",
+      "O que está silenciado mostra um sininho cortado, e o topo da conversa diz \"Silenciado até…\"; tocar ali reativa. Vale em todos os seus aparelhos. Ligações continuam tocando.",
+      "Cargos: \"Mandar visualização única\", \"Usar transcrição\", \"Reagir\" e \"Mandar arquivos\" agora valem de verdade."
+    ]
+  },
+  {
     "versao": "0.10.5",
     "data": "2026-11-25",
     "itens": [
