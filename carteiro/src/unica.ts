@@ -58,8 +58,8 @@ async function contarUmaVez(env: Env, caminho: string, novo: (n: number) => Dado
   return null;
 }
 
-/** Quem pode ver esta mensagem (fora quem mandou)? */
-async function podeVer(env: Env, tipo: 'pv' | 'grupo', msg: Dados, uid: string): Promise<boolean> {
+/** Quem pode ver esta mensagem (PV: o par; grupo: quem vê o canal). Também usado pela transcrição. */
+export async function podeVer(env: Env, tipo: 'pv' | 'grupo', msg: Dados, uid: string): Promise<boolean> {
   if (tipo === 'pv') {
     const par = String(msg['threadId'] ?? '').split('_');
     return par.length === 2 && par.includes(uid);

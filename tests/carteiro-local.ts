@@ -25,6 +25,8 @@ export async function ligarCarteiroLocal(): Promise<() => void> {
       '--port', String(PORTA),
       '--var', `EMULADOR:${FS_HOST}`,
       '--var', 'SEGREDO_FOTO:segredo-de-teste',
+      // 0.10.5: transcrição de mentira — os testes não gastam o Whisper de verdade.
+      '--var', 'WHISPER_FALSO:1',
       '--persist-to', `${HD}/estado-dev`,
       '--log-level', 'warn',
     ],

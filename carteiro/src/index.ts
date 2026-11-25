@@ -12,11 +12,14 @@
  * POST /arquivo, GET /arquivo/<chave> e a limpeza diária: ver arquivos.ts (0.5.0).
  *
  * POST /unica/abrir: visualização única, ver unica.ts (0.10.0).
+ *
+ * POST /transcrever: transcrição das mensagens de voz, ver transcricao.ts (0.10.5).
  */
 
 import { entregarArquivo, limpar, receberArquivo } from './arquivos';
 import { quemVeOCanal, rotaCargos } from './cargos';
 import { abrirUnica } from './unica';
+import { transcrever } from './transcricao';
 import type { Balde } from './arquivos';
 
 export interface Env {
@@ -27,6 +30,10 @@ export interface Env {
   EMULADOR?: string;
   /** O R2 com os arquivos (0.5.0). */
   ARQUIVOS?: Balde;
+  /** 0.10.5: Workers AI (o Whisper da transcrição). */
+  AI?: { run(modelo: string, entrada: unknown): Promise<unknown> };
+  /** Só no teste local: transcrição de mentira (nada vai para a Cloudflare). */
+  WHISPER_FALSO?: string;
 }
 
 const TEXTO_MAX = 180;
@@ -557,6 +564,11 @@ export default {
       if (req.method === 'POST' && url.pathname === '/unica/abrir') {
         if (env.ARQUIVOS === undefined) return json({ erro: 'arquivos ainda não ligados' }, 503);
         return await abrirUnica(req, env, env.ARQUIVOS);
+      }
+      // 0.10.5: transcrição das mensagens de voz (ver transcricao.ts).
+      if (req.method === 'POST' && url.pathname === '/transcrever') {
+        if (env.ARQUIVOS === undefined) return json({ erro: 'arquivos ainda não ligados' }, 503);
+        return await transcrever(req, env, env.ARQUIVOS);
       }
       // Só no teste local: roda a limpeza como se fosse "agora".
       if (env.EMULADOR !== undefined && req.method === 'POST' && url.pathname === '/teste/limpar' && env.ARQUIVOS !== undefined) {
