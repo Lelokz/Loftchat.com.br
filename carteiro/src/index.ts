@@ -10,10 +10,13 @@
  *   A foto de quem mandou, para a notificação. Só com assinatura do carteiro.
  *
  * POST /arquivo, GET /arquivo/<chave> e a limpeza diária: ver arquivos.ts (0.5.0).
+ *
+ * POST /unica/abrir: visualização única, ver unica.ts (0.10.0).
  */
 
 import { entregarArquivo, limpar, receberArquivo } from './arquivos';
 import { quemVeOCanal, rotaCargos } from './cargos';
+import { abrirUnica } from './unica';
 import type { Balde } from './arquivos';
 
 export interface Env {
@@ -545,6 +548,11 @@ export default {
           return await receberArquivo(req, env.ARQUIVOS, uid);
         }
         if (req.method === 'GET') return await entregarArquivo(req, env.ARQUIVOS, url.pathname.slice('/arquivo/'.length));
+      }
+      // 0.10.0: visualização única (ver unica.ts).
+      if (req.method === 'POST' && url.pathname === '/unica/abrir') {
+        if (env.ARQUIVOS === undefined) return json({ erro: 'arquivos ainda não ligados' }, 503);
+        return await abrirUnica(req, env, env.ARQUIVOS);
       }
       // Só no teste local: roda a limpeza como se fosse "agora".
       if (env.EMULADOR !== undefined && req.method === 'POST' && url.pathname === '/teste/limpar' && env.ARQUIVOS !== undefined) {

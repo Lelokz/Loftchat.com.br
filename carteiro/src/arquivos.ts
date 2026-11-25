@@ -4,6 +4,7 @@
  *
  * POST /arquivo?tipo=imagem|gif|video|capa|figurinha|audio   (com login; o corpo é o arquivo)
  * GET  /arquivo/<chave>                                 (público, com suporte a pedaço — vídeo avança)
+ *      (menos `unica/`: visualização única só sai por POST /unica/abrir, ver unica.ts)
  *
  * LIMPEZA (todo dia): some o que tem mais de 60 dias; passando de 8 GB
  * guardados, o prazo cai para 30. Com 9,5 GB o envio para, então nunca
@@ -44,7 +45,13 @@ export const TIPOS: Record<string, { maximo: number; aceita: RegExp }> = {
   figurinha: { maximo: 1 * MB, aceita: /^image\/(webp|png|gif)$/ },
   // Mensagem de voz (0.5.5): até 5 minutos em Opus dá ~2 MB; 5 MB sobra.
   audio: { maximo: 5 * MB, aceita: /^audio\/(webm|ogg|mp4|aac|mpeg)$/ },
+  // Visualização única (0.10.0): foto ou vídeo. NUNCA sai pelo GET público (unica.ts).
+  unica: { maximo: 50 * MB, aceita: /^(image\/(webp|jpeg|png)|video\/(mp4|webm|quicktime|3gpp|x-matroska))$/ },
 };
+
+/** Pastas que o GET público não entrega. */
+const FECHADAS = new Set(['unica']);
+const PRAZO_DA_UNICA_DIAS = 14;
 
 const LIMITE_GUARDADO = 9.5 * GB;
 const PRAZO_CURTO_A_PARTIR = 8 * GB;
@@ -115,19 +122,19 @@ export async function receberArquivo(req: Request, balde: Balde, uid: string): P
 
   const chave = `${tipo}/${uid}/${sorteio()}`;
   const salvo = await balde.put(chave, req.body, {
-    httpMetadata: { contentType: formato, cacheControl: 'public, max-age=31536000, immutable' },
+    httpMetadata: { contentType: formato, cacheControl: FECHADAS.has(tipo) ? 'no-store' : 'public, max-age=31536000, immutable' },
     customMetadata: { uid },
   });
   if (salvo === null) return json({ erro: 'não salvou' }, 500);
   // Conta o que entrou, até a próxima limpeza recontar tudo.
   if (usoGuardado !== null) usoGuardado.uso.total += tamanho;
-  return json({ chave, url: `${url.origin}/arquivo/${chave}`, tamanho: salvo.size, prazoDias: tipo === 'figurinha' ? 0 : uso.prazoDias });
+  return json({ chave, url: `${url.origin}/arquivo/${chave}`, tamanho: salvo.size, prazoDias: tipo === 'figurinha' ? 0 : tipo === 'unica' ? PRAZO_DA_UNICA_DIAS : uso.prazoDias });
 }
 
 /** Entrega um arquivo. Aceita pedaço (Range), que é o que deixa o vídeo avançar. */
 export async function entregarArquivo(req: Request, balde: Balde, chave: string): Promise<Response> {
   const [tipo, ...resto] = chave.split('/');
-  if (tipo === undefined || !Object.hasOwn(TIPOS, tipo) || !/^[A-Za-z0-9_-]{1,64}\/[a-z0-9]{20}$/.test(resto.join('/'))) {
+  if (tipo === undefined || !Object.hasOwn(TIPOS, tipo) || FECHADAS.has(tipo) || !/^[A-Za-z0-9_-]{1,64}\/[a-z0-9]{20}$/.test(resto.join('/'))) {
     return new Response('não existe', { status: 404, headers: CORS });
   }
   const pedaco = req.headers.get('range');
@@ -161,7 +168,9 @@ export async function limpar(balde: Balde, agora = Date.now()): Promise<Uso & { 
   const somados = todos.reduce((s, o) => s + o.size, 0);
   const prazoDias = somados > PRAZO_CURTO_A_PARTIR ? 30 : 60;
   const vencidos = todos.filter(
-    (o) => !o.key.startsWith('figurinha/') && agora - new Date(o.uploaded).getTime() > prazoDias * DIA,
+    (o) =>
+      !o.key.startsWith('figurinha/') &&
+      agora - new Date(o.uploaded).getTime() > (o.key.startsWith('unica/') ? PRAZO_DA_UNICA_DIAS : prazoDias) * DIA,
   );
   for (let i = 0; i < vencidos.length; i += 1000) {
     await balde.delete(vencidos.slice(i, i + 1000).map((o) => o.key));

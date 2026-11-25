@@ -505,12 +505,30 @@ service cloud.firestore {
      * lado.
      */
 
+    /*
+     * VISUALIZAÇÃO ÚNICA (0.10.0): `unica.vezes` de 1 a 5, só foto ou vídeo,
+     * e o arquivo na pasta fechada do carteiro (`unica/`), que só entrega
+     * pelo POST /unica/abrir contando as vezes. Mensagem sem `unica` não
+     * pode apontar para a pasta fechada (nem o contrário).
+     */
+    function unicaOk(d) {
+      let anexo = d.get('attachment', {});
+      let fechado = anexo.get('chave', '') is string && anexo.get('chave', '').matches('^unica/.*');
+      return !('unica' in d)
+        ? !fechado
+        : (d.unica is map && d.unica.keys().hasOnly(['vezes'])
+           && d.unica.vezes is int && d.unica.vezes >= 1 && d.unica.vezes <= 5
+           && d.get('kind', 'text') in ['image', 'video']
+           && fechado);
+    }
+
     match /dmMessages/{messageId} {
       allow read: if signedIn() && resource.data.threadId.split('_').hasAny([uid()]);
 
       allow create: if signedIn()
         && request.resource.data.threadId.split('_').hasAny([uid()])
         && request.resource.data.authorId == uid()
+        && unicaOk(request.resource.data)
         && !blockedBy(otherInPair(request.resource.data.threadId))
         && !iBlocked(otherInPair(request.resource.data.threadId));
 
@@ -888,6 +906,7 @@ service cloud.firestore {
         && request.resource.data.authorId == uid()
         && podeEscrever(request.resource.data.groupId, request.resource.data.channelId)
         && tipoPermitido(request.resource.data)
+        && unicaOk(request.resource.data)
         && lentoOk(request.resource.data.groupId, request.resource.data.channelId);
 
       /*
@@ -1044,6 +1063,17 @@ service cloud.firestore {
         && (resource.data.from == uid() || resource.data.to == uid()
             || isOwner(resource.data.groupId));
     }
+    /* ------------------------------- unicas ------------------------------ */
+    /*
+     * Quantas vezes cada pessoa já abriu uma visualização única (0.10.0).
+     * Só o CARTEIRO escreve (conta de serviço, fora das regras). Lê quem
+     * abriu (para ver quantas vezes sobram) e quem mandou ("Lucas abriu").
+     */
+    match /unicas/{id} {
+      allow read: if signedIn() && (resource.data.uid == uid() || resource.data.autor == uid());
+      allow write: if false;
+    }
+
     /* ------------------------------ chamadas ----------------------------- */
     // 0.9.5: o TOQUE de uma ligação no PV. Um documento por par ({a}_{b}):
     // quem liga cria "tocando"; quem recebe atende ou recusa; quem ligou
