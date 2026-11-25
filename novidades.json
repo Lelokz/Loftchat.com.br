@@ -1,5 +1,18 @@
 [
   {
+    "versao": "0.9.5",
+    "data": "2026-11-25",
+    "itens": [
+      "Câmera nas salas de voz: botão de câmera na sala (e na barrinha da chamada), com prévia antes de ligar — você se vê, escolhe a câmera e só liga se quiser.",
+      "Vídeo de cada pessoa no bloco dela, em grade; clique num vídeo para ver grande (foco) e duplo clique para tela cheia. Dá para esconder quem está sem câmera.",
+      "Até 8 câmeras por sala, com a qualidade se ajustando sozinha ao tamanho da sala e à internet. Cargos: a permissão \"Ligar câmera\" agora vale.",
+      "No celular: virar entre a câmera da frente e a de trás, e a câmera pausa sozinha quando você sai do app (os outros veem \"Câmera pausada\").",
+      "Ligação no privado: botões Ligar e Ligar com câmera no topo da conversa. Quem recebe vê a chamada (tela cheia no celular), toca por 30 segundos e chega aviso mesmo com o app fechado.",
+      "O chat do privado guarda \"Ligação · 12 min\" ou \"Chamada perdida\".",
+      "Configurações → Voz e vídeo: escolher a câmera, testar com a prévia e espelhar o seu vídeo."
+    ]
+  },
+  {
     "versao": "0.9.0",
     "data": "2026-11-25",
     "itens": [

@@ -2,6 +2,43 @@
 
 Estado em 15/11/2026.
 
+## Câmera e ligação no privado (25/11/2026) — versão 0.9.5
+
+Plano e maquete aprovados (Arquivo/Loft-desktop/maquete-camera). Seis etapas:
+
+1. **Motor**: a câmera é a QUARTA linha de cada conexão (`addTransceiver`
+   depois de microfone, som da tela e vídeo da tela), reservada desde o
+   começo — ligar/desligar é `replaceTrack`, sem renegociar. Quem está numa
+   versão velha adota as três dele e só não recebe a câmera. `ehCamera`
+   reconhece a linha pela ordem (segunda de vídeo). Qualidade: 720p30
+   pedido, orçamento de 3 Mbit/s dividido entre os pares (teto 1,2 por par,
+   0,5 em relay) e resolução menor com a sala cheia (`qualidadeDaCamera`).
+   Roster ganha `camera`/`cameraPausada`; regras cobram "Ligar câmera".
+2. **Sala**: botão na sala e na barrinha, prévia (`components/camera/previa.ts`,
+   escolher câmera e espelhar), vídeo no bloco (`camSlots`, o <video> é do
+   motor e só é MOVIDO), foco no palco (clicar), tela cheia (duplo clique),
+   esconder quem está sem câmera, limite de 8 (`MAX_CAMERAS`).
+3. **Celular**: permissão CAMERA no manifesto (o Capacitor já pede), virar
+   frente/trás, pausa ao esconder o app (`visibilitychange`) e volta pedindo
+   a câmera de novo se o Android tiver cortado.
+4. **Configurações → Voz e vídeo**: câmera, testar com prévia, espelhar
+   (`lib/camera-settings.ts`, neste aparelho). Trocar com ela ligada troca na
+   chamada.
+5. **Ligação no PV**: a mesma voz dos grupos num "grupo" `pv_{a}_{b}` (regras:
+   `ehDoPv`, só os dois, sem bloqueio). Toque em `chamadas/{a}_{b}` (tocando →
+   atendida/recusada/perdida/cancelada/encerrada). Cartão no PC / tela cheia
+   no celular com toque gerado na hora. 30 s sem resposta = perdida. Registro
+   no chat (`chamada` na mensagem do PV). Achados: a lista da ligação que vem
+   do CACHE trazia o outro da ligação anterior e encerrava a nova sozinha
+   (agora o outro só conta depois de atender); sinalização velha limpa nos
+   dois sentidos antes de ligar; sair da voz tolerante a escrita em voo.
+6. **Aviso com o app fechado**: `avisar` do carteiro com `tipo: chamada`
+   (confere quem ligou, tocando e recente); Android em canal "Chamadas" com
+   o toque de chamada, some em 30 s; PC pelo `avisos/{uid}`.
+
+Testes: `camera.spec.ts`, `ligacao.spec.ts`, `voz-audio.spec.ts` (vídeo),
+`carteiro.spec.ts` (aviso de chamada).
+
 ## Fotos e vídeos da galeria no celular (25/11/2026) — versão 0.9.0
 
 Bug: no Android 13+, `<input type=file accept="image/*,video/*">` cai no
