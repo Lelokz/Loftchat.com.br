@@ -746,7 +746,8 @@ service cloud.firestore {
       allow update: if isMember(resource.data.groupId)
         && request.resource.data.groupId == resource.data.groupId
         && request.resource.data.kind == resource.data.kind
-        && !channelChanged('permissoes')
+        && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['name', 'emoji', 'categoryId', 'position', 'lento'])
         && ((!channelChanged('name') && !channelChanged('emoji') && !channelChanged('lento'))
               || podeNoCanal(resource.data.groupId, channelId, 'editar-canais'))
         && ((!channelChanged('categoryId') && !channelChanged('position'))
