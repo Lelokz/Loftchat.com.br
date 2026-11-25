@@ -5,6 +5,8 @@
  * um HTMLElement pronto. Sem estado interno, sem ciclo de vida, sem re-render.
  */
 
+import type { Insignia } from '../types/models';
+
 export type Attrs = Record<string, string | number | boolean | undefined>;
 
 export type Child = Node | string | null | undefined | false;
@@ -90,4 +92,27 @@ export function avatarEl(
     avatar.style.backgroundColor = corDaPessoa(semente);
   }
   return avatar;
+}
+
+/** Só a cor do cargo no nome (sem o ícone) — devolve o mesmo elemento. */
+export function corDoCargo<T extends HTMLElement>(nome: T, pessoa: { insignia?: Insignia | undefined }): T {
+  const i = pessoa.insignia;
+  if (i === undefined || i.cor === null) return nome;
+  nome.classList.add('nome-cargo');
+  nome.style.setProperty('--cor-cargo', i.cor.a);
+  if (i.cor.b !== undefined) {
+    nome.classList.add('nome-cargo--degrade');
+    nome.style.setProperty('--cor-cargo-b', i.cor.b);
+  }
+  return nome;
+}
+
+/** Só o ícone do cargo (ou null) — para pôr logo depois do nome. */
+export function iconeDoCargo(pessoa: { insignia?: Insignia | undefined }): HTMLElement | null {
+  const i = pessoa.insignia;
+  if (i === undefined) return null;
+  const titulo = i.dono && i.icone === '👑' ? 'Dono' : (i.cargos.find((c) => c.imagem !== undefined || c.icone !== undefined)?.nome ?? '');
+  if (i.imagem !== undefined) return el('img', { class: 'icone-cargo icone-cargo--img', src: i.imagem, alt: '', title: titulo, draggable: 'false' });
+  if (i.icone !== undefined) return el('span', { class: 'icone-cargo', 'aria-hidden': 'true', title: titulo }, [i.icone]);
+  return null;
 }

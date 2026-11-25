@@ -17,6 +17,8 @@ export interface PersonPopoverOptions {
   onMessage: () => void;
   onAddFriend: () => Promise<void>;
   onEditProfile: () => void;
+  /** 0.8.5: dentro de um grupo, os cargos e "membro desde" (vai antes dos botões). */
+  noServidor?: HTMLElement;
 }
 
 let aberto: { el: HTMLElement; fechar: () => void } | null = null;
@@ -88,7 +90,12 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
   }
 
   function desenhar(dados: Parameters<typeof renderPersonCard>[0]): void {
-    pop.replaceChildren(renderPersonCard(dados, [el('div', { class: 'person-popover__actions' }, acoes())]));
+    pop.replaceChildren(
+      renderPersonCard(dados, [
+        ...(options.noServidor === undefined ? [] : [options.noServidor]),
+        el('div', { class: 'person-popover__actions' }, acoes()),
+      ]),
+    );
     posicionar();
   }
 
@@ -113,6 +120,8 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
     if (!pop.contains(event.target as Node)) fechar();
   };
   const tecla = (event: KeyboardEvent): void => {
+    // A lista de cargos aberta dentro do perfil fecha primeiro (0.8.5).
+    if (event.key === 'Escape' && pop.querySelector('.cg-escolha') !== null) return;
     if (event.key === 'Escape') {
       event.stopPropagation();
       fechar();

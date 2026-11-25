@@ -1,6 +1,6 @@
 import './voice-room.css';
 
-import { el, iconEl } from '../../lib/dom';
+import { corDoCargo, el, iconEl, iconeDoCargo } from '../../lib/dom';
 import { panelToggleButton } from '../chat/chat';
 import {
   gearIcon,
@@ -223,10 +223,14 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
               ? participant.member.initials
               : el('img', { class: 'avatar__img', src: participant.member.photo, alt: '', draggable: 'false' }),
           ]),
-          el('span', { class: 'room__person-name', title: participant.member.displayName }, [
-            participant.isSelf
-              ? `${participant.member.displayName} (você)`
-              : participant.member.displayName,
+          el('span', { class: 'room__person-nome' }, [
+            corDoCargo(
+              el('span', { class: 'room__person-name', title: participant.member.displayName }, [
+                participant.isSelf ? `${participant.member.displayName} (você)` : participant.member.displayName,
+              ]),
+              participant.member,
+            ),
+            iconeDoCargo(participant.member),
           ]),
           participant.failed &&
             el('span', { class: 'room__person-failed' }, ['sem conexão']),

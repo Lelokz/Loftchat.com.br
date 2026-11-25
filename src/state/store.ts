@@ -6,6 +6,7 @@
  */
 
 import { firstTextChannel } from '../lib/channel-layout';
+import { comInsignias, ouvirCargos } from '../lib/cargos';
 import type { ChannelCategory } from '../lib/channel-layout';
 import type { User } from 'firebase/auth';
 import type { Unsubscribe } from 'firebase/firestore';
@@ -43,6 +44,7 @@ import type {
   DmThread,
   Friendship,
   Group,
+  Cargo,
   Member,
   MemberId,
   Message,
@@ -202,6 +204,8 @@ export interface AppState {
 
   members: Member[];
   membersLoaded: boolean;
+  /** 0.8.5: os cargos do grupo aberto (o @todos junto), do mais alto ao mais baixo. */
+  cargos: Cargo[];
 
   messages: Message[];
   messagesLoaded: boolean;
@@ -401,6 +405,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     voiceEngineError: null,
     members: [],
     membersLoaded: false,
+    cargos: [],
     messages: [],
     messagesLoaded: false,
     messagePages: 1,
@@ -433,6 +438,9 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
   let stopChannels: Unsubscribe | null = null;
   let stopMembers: Unsubscribe | null = null;
+  let stopCargos: Unsubscribe | null = null;
+  /** Os membros como chegam do banco; `state.members` = eles + a insígnia do cargo. */
+  let membrosCrus: Member[] = [];
   let stopMessages: Unsubscribe | null = null;
   let stopVoiceRoster: Unsubscribe | null = null;
   let stopDmMessages: Unsubscribe | null = null;
@@ -949,6 +957,9 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     stopChannels = null;
     stopMembers?.();
     stopMembers = null;
+    stopCargos?.();
+    stopCargos = null;
+    membrosCrus = [];
     stopMessages?.();
     stopMessages = null;
     stopPinnedMessages?.();
@@ -974,6 +985,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       centerView: 'chat',
       members: [],
       membersLoaded: false,
+      cargos: [],
       messages: [],
       messagesLoaded: false,
       messagesError: null,
@@ -1024,10 +1036,20 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       groupListenerError(groupId),
     );
 
+    const dono = (): string | null => state.groups.find((g) => g.id === groupId)?.ownerId ?? null;
     stopMembers = subscribeGroupMembers(
       groupId,
-      (members, loaded) => patch({ members, membersLoaded: loaded }),
+      (members, loaded) => {
+        membrosCrus = members;
+        patch({ members: comInsignias(members, state.cargos, dono()), membersLoaded: loaded });
+      },
       groupListenerError(groupId),
+    );
+    // 0.8.5: cargos — mudou um cargo, a cor/ícone de todo mundo acompanha.
+    stopCargos = ouvirCargos(
+      groupId,
+      (cargos) => patch({ cargos, members: comInsignias(membrosCrus, cargos, dono()) }),
+      (erro) => console.error('[cargos]', erro),
     );
 
     // Uma assinatura para TODOS os canais de voz do grupo: a coluna mostra a
@@ -1415,6 +1437,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       stopGroups();
       stopChannels?.();
       stopMembers?.();
+      stopCargos?.();
       stopMessages?.();
       stopPinnedMessages?.();
       stopRoomMessages?.();

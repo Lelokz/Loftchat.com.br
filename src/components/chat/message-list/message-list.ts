@@ -2,6 +2,7 @@ import "./message-list.css";
 
 import { avatarEl, el, iconEl } from "../../../lib/dom";
 import { nameColorId } from "../../../lib/person-theme";
+import { iconeDoCargo, corDoCargo } from "../../../lib/dom";
 import { clipIcon, fileIcon } from "../../../lib/icons";
 import {
   formatBytes,
@@ -331,7 +332,7 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
           // Nome e horário só na primeira mensagem do bloco.
           !continued &&
             el("div", { class: "message__meta" }, [
-              el(
+              corDoCargo(el(
                 "span",
                 isMine
                   ? { class: "message__author" }
@@ -346,7 +347,9 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
                         nameColorId(author.nameColor) === "padrao" ? undefined : nameColorId(author.nameColor),
                     },
                 [author.displayName],
-              ),
+              ), author),
+              // 0.8.5: o ícone do cargo mais alto, logo depois do nome.
+              iconeDoCargo(author),
               el("time", { class: "message__time", datetime: message.sentAt }, [
                 formatTime(message.sentAt),
               ]),

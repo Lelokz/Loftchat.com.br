@@ -63,3 +63,14 @@
   color: var(--accent-text);
   font-size: var(--font-size-xs);
 }
+
+/* 0.8.5: nome + ícone do cargo na mesma linha (o nome encolhe com reticências). */
+.member__linha {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.member__linha .member__name {
+  min-width: 0;
+}

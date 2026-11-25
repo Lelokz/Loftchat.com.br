@@ -513,11 +513,12 @@ export function subscribeGroupMembers(
   const userUnsubs = new Map<string, Unsubscribe>();
   const memberDocs = new Map<string, Member>();
   const resolved = new Set<string>();
+  const doVinculo = new Map<string, Pick<Member, 'cargos' | 'entrouEm' | 'convite'>>();
   let membershipsSeen = false;
 
   const emit = (): void => {
     const loaded = membershipsSeen && [...userUnsubs.keys()].every((id) => resolved.has(id));
-    const list = [...memberDocs.values()].sort((a, b) =>
+    const list = [...memberDocs.values()].map((m) => ({ ...m, ...doVinculo.get(m.id) })).sort((a, b) =>
       a.displayName.localeCompare(b.displayName, 'pt-BR'),
     );
     onChange(list, loaded);
@@ -530,7 +531,17 @@ export function subscribeGroupMembers(
       const ids = new Set<string>();
       for (const membership of snapshot.docs) {
         const memberId: unknown = membership.get('memberId');
-        if (typeof memberId === 'string') ids.add(memberId);
+        if (typeof memberId !== 'string') continue;
+        ids.add(memberId);
+        // 0.8.5: cargos, quando entrou e por qual convite.
+        const cargos: unknown = membership.get('cargos');
+        const entrouEm: unknown = membership.get('joinedAt');
+        const convite: unknown = membership.get('inviteCode');
+        doVinculo.set(memberId, {
+          cargos: Array.isArray(cargos) ? cargos.filter((c): c is string => typeof c === 'string') : [],
+          ...(typeof entrouEm === 'string' ? { entrouEm } : {}),
+          ...(typeof convite === 'string' ? { convite } : {}),
+        });
       }
 
       for (const [id, unsubscribe] of [...userUnsubs]) {
@@ -1096,6 +1107,13 @@ export async function deleteGroupCascade(
       removed += count;
       advance(step);
     }
+  }
+  // 0.8.5: os cargos (poucos), junto com os convites na barra de progresso.
+  for (;;) {
+    const count = await deletePage('cargos', groupId, null);
+    if (count === 0) break;
+    removed += count;
+    advance('invites');
   }
 
   // 4. Memberships dos OUTROS. A minha fica para o fim — apagá-la aqui me

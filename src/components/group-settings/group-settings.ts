@@ -2,7 +2,9 @@ import '../settings/settings.css';
 import './group-settings.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, faceIcon, gearIcon, menuIcon } from '../../lib/icons';
+import { arrowLeftIcon, closeIcon, faceIcon, gearIcon, menuIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { criarSecaoCargos } from '../cargos/cargos-section';
+import { fecharEscolhaDeCargos } from '../cargos/chips';
 import { MAX_WELCOME, welcomeProblem } from '../../lib/welcome';
 import { renderWelcomeCard } from '../welcome-card/welcome-card';
 import { CARD_COLOR_IDS, CARD_COLORS, cardColorId } from '../../lib/person-theme';
@@ -34,7 +36,7 @@ export interface GroupSettingsOptions {
   channels: Channel[];
 }
 
-type Secao = 'visao' | 'canais' | 'boas';
+type Secao = 'visao' | 'canais' | 'cargos' | 'membros' | 'boas';
 
 interface Rascunho {
   name: string;
@@ -119,11 +121,27 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     iconEl(faceIcon(18)),
     el('span', {}, ['Boas-vindas']),
   ]);
+  // 0.8.5: Cargos e Membros.
+  const cargosBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    iconEl(shieldIcon(18)),
+    el('span', {}, ['Cargos']),
+  ]);
+  const membrosBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    iconEl(peopleIcon(18)),
+    el('span', {}, ['Membros']),
+  ]);
+  cargosBotao.addEventListener('click', () => irPara('cargos'));
+  membrosBotao.addEventListener('click', () => irPara('membros'));
   boasBotao.addEventListener('click', () => irPara('boas'));
   visao.addEventListener('click', () => irPara('visao'));
   canaisBotao.addEventListener('click', () => irPara('canais'));
 
   function irPara(nova: Secao): void {
+    // Cargo com mudança não salva: não sai da seção (a barra pisca).
+    if (secao === 'cargos' && nova !== 'cargos' && cargosSecao.sujo()) {
+      piscarBarra();
+      return;
+    }
     secao = nova;
     dialog.classList.add('settings--secao-aberta');
     desenhar();
@@ -134,6 +152,8 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     nomeNoMenu,
     visao,
     canaisBotao,
+    cargosBotao,
+    membrosBotao,
     boasBotao,
   ]);
 
@@ -163,18 +183,32 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   desfazer.addEventListener('click', () => {
     atual = { ...salvo };
     atualCanais = copiaCanais(salvoCanais);
+    cargosSecao.desfazer();
     desenhar();
   });
   salvar.addEventListener('click', () => void salvarGrupo());
 
   dialog.append(menu, el('main', { class: 'settings__main' }, [voltar, conteudo, barra]), previa, fecharBotao);
 
+  /* --- cargos e membros (0.8.5) ------------------------------------------- */
+
+  const cargosSecao = criarSecaoCargos({
+    groupId: group.id,
+    ownerId: group.ownerId,
+    redesenhar: () => {
+      if (aberta === dialog && (secao === 'cargos' || secao === 'membros')) desenhar();
+      else atualizarBarra();
+    },
+    mudou: () => atualizarBarra(),
+    piscar: () => piscarBarra(),
+  });
+
   /* --- conteúdo ------------------------------------------------------------ */
 
   let erroGeral: HTMLElement | null = null;
 
   function atualizarBarra(): void {
-    barra.hidden = !(carregado && (!iguais(atual, salvo) || !draftsEqual(atualCanais, salvoCanais)));
+    barra.hidden = !(carregado && (!iguais(atual, salvo) || !draftsEqual(atualCanais, salvoCanais) || cargosSecao.sujo()));
     salvar.disabled = salvando;
     desfazer.disabled = salvando;
     salvar.textContent = salvando ? 'Salvando…' : 'Salvar';
@@ -357,15 +391,33 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
 
   function desenhar(refocus?: string): void {
     erroGeral = null;
-    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['boas', boasBotao]] as const) {
+    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['cargos', cargosBotao], ['membros', membrosBotao], ['boas', boasBotao]] as const) {
       botao.classList.toggle('is-active', qual === secao);
       if (qual === secao) botao.setAttribute('aria-current', 'page');
       else botao.removeAttribute('aria-current');
     }
-    dialog.classList.toggle('settings--com-previa', secao !== 'canais');
+    const largo = secao === 'cargos' || secao === 'membros';
+    dialog.classList.toggle('settings--com-previa', secao !== 'canais' && !largo);
+    dialog.classList.toggle('group-settings--larga', largo);
     const rolagem = conteudo.scrollTop;
     if (!carregado) {
       conteudo.replaceChildren(el('p', { class: 'settings__help' }, ['Carregando o grupo…']));
+    } else if (largo) {
+      // Quem está digitando continua no mesmo campo quando a tela redesenha.
+      const foco = document.activeElement instanceof HTMLInputElement && conteudo.contains(document.activeElement) ? document.activeElement : null;
+      const idDoFoco = foco?.id ?? '';
+      const posicao = foco?.selectionStart ?? null;
+      erroGeral = el('p', { class: 'settings__error', role: 'alert' });
+      erroGeral.hidden = true;
+      conteudo.replaceChildren(...(secao === 'cargos' ? cargosSecao.cargos() : cargosSecao.membros()), erroGeral);
+      conteudo.scrollTop = rolagem;
+      if (idDoFoco !== '') {
+        const de = document.getElementById(idDoFoco);
+        if (de instanceof HTMLInputElement) {
+          de.focus();
+          if (posicao !== null) de.setSelectionRange(posicao, posicao);
+        }
+      }
     } else if (secao === 'visao') {
       conteudo.replaceChildren(...visaoGeral());
     } else if (secao === 'boas') {
@@ -421,6 +473,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     atualizarBarra();
     mostrarErro(null);
     try {
+      if (cargosSecao.sujo()) await cargosSecao.salvar();
       if (!iguais(atual, salvo)) await saveGroupProfile(group.id, atual, atual.banner !== salvo.banner);
       if (!draftsEqual(atualCanais, salvoCanais)) {
         const categoriasMudaram =
@@ -465,11 +518,16 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
 
   /* --- abrir e fechar (igual às Configurações pessoais) --------------------- */
 
+  function piscarBarra(): void {
+    atualizarBarra();
+    barra.classList.remove('settings__bar--pisca');
+    void barra.offsetWidth;
+    barra.classList.add('settings__bar--pisca');
+  }
+
   function fechar(): void {
     if (!barra.hidden) {
-      barra.classList.remove('settings__bar--pisca');
-      void barra.offsetWidth;
-      barra.classList.add('settings__bar--pisca');
+      piscarBarra();
       return;
     }
     dialog.close();
@@ -490,6 +548,8 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   };
   document.addEventListener('keydown', onKey);
   dialog.addEventListener('close', () => {
+    cargosSecao.parar();
+    fecharEscolhaDeCargos();
     document.removeEventListener('keydown', onKey);
     dialog.remove();
     aberta = null;

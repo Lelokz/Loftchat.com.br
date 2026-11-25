@@ -210,6 +210,59 @@ export interface Member {
    * o Firestore — o Firestore sozinho não tem gancho de desconexão.
    */
   status: PresenceStatus;
+  /**
+   * 0.8.5 CARGOS — só quando a pessoa vem de um GRUPO (vem do membership):
+   * os ids dos cargos dela, quando entrou e por qual convite.
+   */
+  cargos?: string[];
+  entrouEm?: string;
+  convite?: string;
+  /** Calculada pelo store: cor, ícone e bloco da lista vindos do cargo mais alto. */
+  insignia?: Insignia;
+}
+
+/** Cor de um cargo: `a` sozinha = sólida; com `b` = degradê de `a` para `b`. */
+export interface CorDoCargo {
+  a: string;
+  b?: string;
+}
+
+/**
+ * coleção: cargos (0.8.5) — id autogerado; o "@todos" de cada grupo tem id
+ * `${groupId}_todos`. Cargo é LIVRE: nome, cor, ícone e permissões quaisquer.
+ * `posicao` menor = mais alto (manda em quem está embaixo).
+ */
+export interface Cargo {
+  id: string;
+  groupId: GroupId;
+  nome: string;
+  cor: CorDoCargo | null;
+  /** Emoji do ícone, ou imagem pequena (data URL). */
+  icone?: string;
+  imagem?: string;
+  posicao: number;
+  /** Mostrar separado na lista de membros. */
+  separado: boolean;
+  /** Qualquer um pode mencionar @cargo. */
+  mencionavel: boolean;
+  permissoes: string[];
+  /** O "@todos": o básico de quem não tem cargo nenhum. */
+  todos?: boolean;
+  criadoEm: string;
+}
+
+/** O que aparece junto do nome: cor e ícone do cargo mais alto, e em que bloco da lista. */
+export interface Insignia {
+  cor: CorDoCargo | null;
+  icone?: string;
+  imagem?: string;
+  /** Nome do bloco na lista de membros (cargo separado mais alto), ou null = "Membros". */
+  bloco: string | null;
+  /** Ordem do bloco (Dono = -1). */
+  blocoPosicao: number;
+  /** Cargos da pessoa, já ordenados do mais alto. */
+  cargos: Cargo[];
+  dono: boolean;
 }
 
 /**
@@ -238,6 +291,8 @@ export interface Membership {
    * informa.
    */
   inviteCode?: string;
+  /** 0.8.5: ids dos cargos da pessoa neste grupo. */
+  cargos?: string[];
 }
 
 /**

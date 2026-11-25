@@ -228,3 +228,31 @@ hr {
   height: 1px;
   overflow: hidden;
 }
+
+/* CARGOS (0.8.5): nome na cor do cargo (sólida ou degradê) + ícone do cargo. */
+.nome-cargo {
+  color: var(--cor-cargo) !important;
+}
+
+.nome-cargo--degrade {
+  background-image: linear-gradient(90deg, var(--cor-cargo), var(--cor-cargo-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+.icone-cargo {
+  display: inline-block;
+  flex: none;
+  margin-left: 4px;
+  font-size: 0.92em;
+  line-height: 1;
+  vertical-align: -1px;
+}
+
+.icone-cargo--img {
+  width: 1.05em;
+  height: 1.05em;
+  object-fit: contain;
+  vertical-align: -2px;
+}

@@ -1,8 +1,8 @@
 import './group-panel.css';
 
-import { avatarEl, el, iconEl } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconEl, iconeDoCargo } from '../../lib/dom';
 import { micIcon, speakerIcon } from '../../lib/icons';
-import type { ChannelId, MemberId } from '../../types/models';
+import type { ChannelId, Insignia, MemberId } from '../../types/models';
 import { memberListContent } from '../member-list/member-list';
 import type { MemberListProps } from '../member-list/member-list';
 import { renderPinnedList } from '../pinned/pinned-list';
@@ -17,6 +17,8 @@ export interface PessoaNaSala {
   photo?: string | undefined;
   muted: boolean;
   transmitindo: boolean;
+  /** 0.8.5: cor e ícone do cargo. */
+  insignia?: Insignia | undefined;
 }
 
 export interface SalaAgora {
@@ -117,7 +119,8 @@ function agora(salas: SalaAgora[], onEntrar: (channelId: ChannelId) => void): HT
         sala.pessoas.map((p) =>
           el('li', { class: 'group-panel__person', 'data-profile-uid': p.uid, tabindex: 0 }, [
             avatarEl(p.initials, 'sm', '', p.photo, p.uid),
-            el('span', { class: 'group-panel__person-name' }, [p.displayName]),
+            corDoCargo(el('span', { class: 'group-panel__person-name' }, [p.displayName]), p),
+            iconeDoCargo(p),
             p.muted && el('span', { class: 'group-panel__muted', title: 'Microfone desligado' }, [iconEl(micIcon(13))]),
           ]),
         ),

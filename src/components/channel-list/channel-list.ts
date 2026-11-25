@@ -1,13 +1,13 @@
 import './channel-list.css';
 
-import { avatarEl, el, iconEl } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconEl, iconeDoCargo } from '../../lib/dom';
 import { chevronDownIcon, micIcon, speakerIcon } from '../../lib/icons';
 import { renderCallBar } from '../call-bar/call-bar';
 import type { CallBarProps } from '../call-bar/call-bar';
 import { renderLoading } from '../empty-state/empty-state';
 import { bolinha } from '../bolinha/bolinha';
 import { channelSections } from '../../lib/channel-layout';
-import type { Channel, ChannelId, Group } from '../../types/models';
+import type { Channel, ChannelId, Group, Insignia } from '../../types/models';
 
 export interface ChannelListProps {
   /** Grupo ativo; `null` enquanto nenhum está selecionado. */
@@ -43,6 +43,8 @@ export interface VoicePresenceView {
   muted: boolean;
   /** Está transmitindo a tela agora. */
   sharingScreen: boolean;
+  /** 0.8.5: cor e ícone do cargo. */
+  insignia?: Insignia | undefined;
 }
 
 /**
@@ -108,7 +110,8 @@ function voiceRoster(people: VoicePresenceView[]): HTMLElement {
     people.map((person) =>
       el('li', { class: 'channel__peer', title: person.displayName, 'data-profile-uid': person.uid }, [
         avatarEl(person.initials, 'xs', '', person.photo, person.uid),
-        el('span', { class: 'channel__peer-name' }, [person.displayName]),
+        corDoCargo(el('span', { class: 'channel__peer-name' }, [person.displayName]), person),
+        iconeDoCargo(person),
         person.muted &&
           el('span', { class: 'channel__peer-muted', title: 'Microfone desligado' }, [
             iconEl(micIcon(11)),

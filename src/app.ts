@@ -58,6 +58,8 @@ import { memberListContent } from './components/member-list/member-list';
 import { renderPinnedList } from './components/pinned/pinned-list';
 import type { AbaDoPainel, SalaAgora } from './components/group-panel/group-panel';
 import { abaMidia } from './components/galeria/galeria';
+import { chipsDeCargos } from './components/cargos/chips';
+import { darCargo, quemConvidou } from './lib/cargos';
 import { closeGroupMenu, openGroupMenu } from './components/group-menu/group-menu';
 import type { GroupMenuItem } from './components/group-menu/group-menu';
 import {
@@ -1161,6 +1163,7 @@ export function mountApp(
       photo: member?.photo,
       muted: participant.muted,
       sharingScreen: participant.sharingScreen,
+      insignia: member?.insignia,
     };
   }
 
@@ -1209,6 +1212,7 @@ export function mountApp(
           initials: view.initials,
           status: 'online',
           ...(view.photo === undefined ? {} : { photo: view.photo }),
+          ...(view.insignia === undefined ? {} : { insignia: view.insignia }),
         },
         // O meu bloco segue o estado local do botão, não o documento: o botão
         // tem que responder na hora, sem esperar o round-trip da escrita.
@@ -2731,7 +2735,61 @@ export function mountApp(
         }
       },
       onEditProfile: () => handleOpenSettings(),
+      ...(() => {
+        const extra = perfilNoServidor(state, uid);
+        return extra === null ? {} : { noServidor: extra };
+      })(),
     });
+  }
+
+  /**
+   * 0.8.5: no perfil de alguém DENTRO de um grupo — os cargos (o dono dá e
+   * tira pelas etiquetas) e desde quando a pessoa está no grupo.
+   */
+  function perfilNoServidor(state: AppState, uid: string): HTMLElement | null {
+    if (state.view !== 'group') return null;
+    const group = activeGroup(state);
+    const membro = state.members.find((m) => m.id === uid);
+    if (group === undefined || membro === undefined) return null;
+    const dono = isOwner(group, user.uid);
+    const normais = state.cargos.filter((c) => c.todos !== true);
+    const caixa = el('div', { class: 'perfil-servidor' });
+    if (normais.length > 0 || dono) {
+      caixa.append(
+        el('span', { class: 'cg-rotulo' }, ['Cargos']),
+        chipsDeCargos({
+          membro,
+          cargos: normais,
+          podeEditar: dono,
+          aoDar: (cargoId, dar) =>
+            darCargo(group.id, uid, cargoId, dar).catch((e) => {
+              showToast(textoDoErro(e, 'Não deu para mudar o cargo.'));
+              throw e;
+            }),
+        }),
+      );
+    }
+    const quando = membro.id === group.ownerId ? 'Criou o grupo' : membro.entrouEm;
+    if (quando !== undefined) {
+      const data = new Date(quando);
+      const texto =
+        membro.id === group.ownerId
+          ? 'Dono do grupo'
+          : Number.isNaN(data.getTime())
+            ? ''
+            : data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const desde = el('span', { class: 'perfil-servidor__desde' }, [texto]);
+      caixa.append(el('span', { class: 'cg-rotulo' }, ['Membro desde']), desde);
+      // Quem convidou: o convite guarda quem criou.
+      if (membro.convite !== undefined && membro.id !== group.ownerId) {
+        void quemConvidou(membro.convite).then((criador) => {
+          if (criador === null) return;
+          const nome = state.members.find((m) => m.id === criador)?.displayName;
+          if (nome !== undefined) desde.textContent = `${texto} · entrou pelo convite de ${nome}`;
+        });
+      }
+    }
+    return caixa.childElementCount === 0 ? null : caixa;
   }
 
   const onProfileClick = (event: MouseEvent): void => {

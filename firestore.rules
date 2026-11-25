@@ -565,7 +565,46 @@ service cloud.firestore {
       // Ninguém promove ninguém por update — o papel é definido na criação e não
       // muda. É também o que impede alguém se auto-declarar dono depois.
       // PENDÊNCIA: transferir posse vai precisar mexer aqui.
-      allow update: if false;
+      //
+      // 0.8.5 CARGOS (etapa 1): o dono dá e tira cargos — e SÓ o campo
+      // `cargos` muda, uma lista curta de ids. A etapa 2 troca "dono" pela
+      // permissão "Dar e tirar cargos" (com hierarquia).
+      allow update: if isOwner(resource.data.groupId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cargos'])
+        && request.resource.data.cargos is list
+        && request.resource.data.cargos.size() <= 50;
+    }
+
+    /* ------------------------------ cargos ------------------------------ */
+    // 0.8.5: cargos livres do grupo. Ler é de todo membro (a cor e o ícone
+    // aparecem para todo mundo). MEXER, nesta etapa, é só do dono. O @todos
+    // tem id fixo `${groupId}_todos`.
+
+    match /cargos/{cargoId} {
+      allow read: if isMember(resource.data.groupId);
+
+      allow create: if isOwner(request.resource.data.groupId)
+        && cargoOk(request.resource.data)
+        && ((request.resource.data.get('todos', false) == true)
+              == (cargoId == request.resource.data.groupId + '_todos'));
+
+      allow update: if isOwner(resource.data.groupId)
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.get('todos', false) == resource.data.get('todos', false)
+        && cargoOk(request.resource.data);
+
+      // O @todos também sai (a cascata de apagar o grupo leva tudo); o app
+      // nunca oferece apagar ele.
+      allow delete: if isOwner(resource.data.groupId);
+
+      function cargoOk(d) {
+        return d.groupId is string
+          && d.nome is string && d.nome.size() >= 1 && d.nome.size() <= 40
+          && d.posicao is number
+          && d.permissoes is list && d.permissoes.size() <= 120
+          && (!('icone' in d) || (d.icone is string && d.icone.size() <= 16))
+          && (!('imagem' in d) || (d.imagem is string && d.imagem.size() <= 30000));
+      }
     }
 
     /* ----------------------------- channels ----------------------------- */

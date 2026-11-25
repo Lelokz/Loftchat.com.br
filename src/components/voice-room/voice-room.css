@@ -384,15 +384,23 @@
   overflow: hidden;
 }
 
-.room__person-name {
+.room__person-nome {
   position: absolute;
   left: var(--space-3);
   right: 26px;
   bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: var(--font-size-xs);
+}
+
+/* 0.8.5: o nome encolhe com reticências; o ícone do cargo fica do lado. */
+.room__person-name {
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: var(--font-size-xs);
   color: var(--text-secondary);
 }
 
@@ -511,7 +519,7 @@
   font-size: var(--font-size-xl);
 }
 
-.room__people--grade .room__person-name {
+.room__people--grade .room__person-nome {
   font-size: var(--font-size-sm);
 }
 

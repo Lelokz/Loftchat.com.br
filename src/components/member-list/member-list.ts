@@ -1,6 +1,6 @@
 import './member-list.css';
 
-import { avatarEl, el } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconeDoCargo } from '../../lib/dom';
 import { renderLoading } from '../empty-state/empty-state';
 import { statusLine } from '../person-card/person-card';
 import type { Member, MemberId } from '../../types/models';
@@ -48,14 +48,33 @@ export function memberListContent({
   membersLoaded,
   ownerId,
 }: MemberListProps): Array<HTMLElement | false> {
-  return !membersLoaded ? [renderLoading()] : [section(members, ownerId)];
+  return !membersLoaded ? [renderLoading()] : (section(members, ownerId) || []);
 }
 
-function section(people: Member[], ownerId: MemberId | null): HTMLElement | false {
+/**
+ * 0.8.5 CARGOS: a lista vem em BLOCOS — Dono, depois cada cargo marcado
+ * "mostrar separado" (do mais alto para o mais baixo), e por último
+ * "Membros" com quem sobrou. Cada um no bloco do seu cargo separado mais alto.
+ */
+function section(people: Member[], ownerId: MemberId | null): HTMLElement[] | false {
   if (people.length === 0) return false;
+  const blocos = new Map<string, { posicao: number; pessoas: Member[] }>();
+  for (const m of people) {
+    const dono = m.id === ownerId;
+    const nome = m.insignia?.bloco ?? (dono ? 'Dono' : 'Membros');
+    const posicao = m.insignia?.blocoPosicao ?? (dono ? -1 : 99999);
+    const bloco = blocos.get(nome) ?? { posicao, pessoas: [] };
+    bloco.pessoas.push(m);
+    blocos.set(nome, bloco);
+  }
+  return [...blocos.entries()]
+    .sort((a, b) => a[1].posicao - b[1].posicao)
+    .map(([nome, bloco]) => bloco_(nome, bloco.pessoas));
+}
 
+function bloco_(titulo: string, people: Member[]): HTMLElement {
   return el('section', { class: 'members__section' }, [
-    el('h2', { class: 'section-title' }, [`membros — ${people.length}`]),
+    el('h2', { class: 'section-title' }, [`${titulo.toLowerCase()} — ${people.length}`]),
     el(
       'ul',
       {},
@@ -73,11 +92,13 @@ function section(people: Member[], ownerId: MemberId | null): HTMLElement | fals
           [
             avatarEl(member.initials, 'sm', '', member.photo, member.id),
             el('span', { class: 'member__text' }, [
-              el('span', { class: 'member__name', title: member.displayName }, [member.displayName]),
+              el('span', { class: 'member__linha' }, [
+                corDoCargo(el('span', { class: 'member__name', title: member.displayName }, [member.displayName]), member),
+                iconeDoCargo(member),
+              ]),
               // O status da pessoa (etapa 2d), se ela pôs um e ainda vale.
               statusLine(member.customStatus, 'member__status') ?? false,
             ]),
-            member.id === ownerId && el('span', { class: 'member__role' }, ['dono']),
           ],
         ),
       ),

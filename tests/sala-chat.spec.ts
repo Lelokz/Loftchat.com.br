@@ -79,7 +79,8 @@ test('chat da sala: abas, mandar, receber, responder, fixar, não vaza para o #g
   // Digitar e trocar de aba não apaga o rascunho.
   await caixa.fill('rascunho');
   await painel.getByRole('tab', { name: 'Membros' }).click();
-  await expect(painel.locator('.members__section')).toContainText('membros — 2');
+  // 0.8.5: a lista vem em blocos — o dono no dele, a Ana em Membros.
+  await expect(painel.locator('.members__section .section-title')).toHaveText(['dono — 1', 'membros — 1']);
   await painel.getByRole('tab', { name: 'Chat da sala' }).click();
   await expect(caixa).toHaveValue('rascunho');
   await caixa.fill('');
