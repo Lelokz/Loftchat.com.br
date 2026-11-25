@@ -4,7 +4,8 @@ import "./chamada.css";
 import { avatarEl, el, iconEl } from "../../../lib/dom";
 import { nameColorId } from "../../../lib/person-theme";
 import { iconeDoCargo, corDoCargo } from "../../../lib/dom";
-import { cameraIcon, clipIcon, fileIcon, phoneIcon } from "../../../lib/icons";
+import { cameraIcon, clipIcon, encaminharIcon, fileIcon, phoneIcon } from "../../../lib/icons";
+import "../../encaminhar/encaminhar.css";
 import { duracaoDaLigacao } from "../../../lib/chamadas";
 import {
   formatBytes,
@@ -363,6 +364,9 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
               ]),
             ]),
           el("div", { class: "message__bubble" }, [
+          // 0.11.0: veio de "Encaminhar".
+          message.encaminhada === true &&
+            el("span", { class: "message__encaminhada" }, [iconEl(encaminharIcon(13)), "Encaminhada"]),
           // A citação vem ANTES do texto: é o contexto do que se vai ler.
           message.replyTo !== undefined &&
             citation(message.replyTo, messages, props.atStart, props.onJumpTo),

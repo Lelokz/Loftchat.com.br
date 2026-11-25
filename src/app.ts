@@ -2,6 +2,8 @@ import { el, iconEl } from './lib/dom';
 import { menuIcon } from './lib/icons';
 import { definirPermissaoDeTranscrever } from './components/voz/transcricao';
 import { definirPermissaoDeReagir } from './components/reacoes/reacoes';
+import { abrirEncaminhar } from './components/encaminhar/encaminhar';
+import type { Destino } from './components/encaminhar/encaminhar';
 import { renderChannelList } from './components/channel-list/channel-list';
 import type { VoicePresenceView } from './components/channel-list/channel-list';
 import { renderCallBar } from './components/call-bar/call-bar';
@@ -98,6 +100,7 @@ import {
   pinDmMessage,
   removeMember,
   loadChannels,
+  rotuloDaMidia,
   buildReplyTo,
   editDmMessage,
   editMessage,
@@ -105,7 +108,7 @@ import {
   sendMessage,
   unpinMessages,
 } from './lib/firestore';
-import { initials } from './lib/format';
+import { formatBytes, initials } from './lib/format';
 import { aoMudarVerComo, canLeaveGroup, isOwner, meuCastigo, OWNER_CANNOT_LEAVE, pode, vendoComoAgora, verComo } from './lib/permissions';
 import { limitarComposer } from './components/chat/composer/composer';
 import { ligarModoLento, mudarModoLento } from './lib/firestore';
@@ -122,7 +125,7 @@ import { openScreenPicker } from './components/screen-picker/screen-picker';
 import type { AppState, Store } from './state/store';
 import { MAX_PINNED_MESSAGES } from './types/models';
 import { animarChegada, trocarComTransicao } from './lib/transition';
-import type { PinnedMessage, ReplyTo } from './types/models';
+import type { MessageBase, PinnedMessage, ReplyTo } from './types/models';
 import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
@@ -766,6 +769,69 @@ export function mountApp(
    * Grupo ou PV — `pvAberto` decide onde procurar a mensagem e o
    * nome do autor, as duas telas nunca convivem.
    */
+  /*
+   * ENCAMINHAR (0.11.0): a mesma mensagem (texto e/ou o arquivo, que já está
+   * no carteiro — não sobe de novo) vai para até 5 conversas, marcada como
+   * "Encaminhada". Visualização única e registro de ligação não vão.
+   */
+  const handleForwardMessage = async (messageId: string, tipo: 'pv' | 'grupo', sala: boolean): Promise<void> => {
+    const state = store.getState();
+    const lista: MessageBase[] = sala ? state.roomMessages : tipo === 'pv' ? state.dmMessages : state.messages;
+    const alvo = lista.find((m) => m.id === messageId);
+    if (alvo === undefined) return;
+    if (alvo.unica !== undefined || alvo.chamada !== undefined) {
+      showToast('Essa mensagem não dá para encaminhar.');
+      return;
+    }
+    const nomeDe = (uid: string): string =>
+      uid === user.uid ? me.displayName : (state.friendProfiles.get(uid)?.displayName ?? state.members.find((m) => m.id === uid)?.displayName ?? 'Alguém');
+    const recentes: Destino[] = [...state.dmThreads]
+      .sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''))
+      .map((t) => t.members.find((m) => m !== user.uid) ?? '')
+      .filter((uid) => uid !== '' && state.friendProfiles.has(uid))
+      .slice(0, 8)
+      .map((uid) => {
+        const p = state.friendProfiles.get(uid)!;
+        return { chave: `pv:${uid}`, nome: p.displayName, sub: 'Privado', pessoa: { uid, initials: p.initials, photo: p.photo } };
+      });
+    // Os canais de texto de todos os meus grupos (lidos agora: só o grupo aberto fica na memória).
+    const porGrupo = await Promise.all(
+      state.groups.map(async (g) => {
+        const canais = g.id === state.activeGroupId ? state.channels : await loadChannels(g.id).catch(() => []);
+        return canais.filter((c) => c.kind === 'text').map((c): Destino => ({ chave: `canal:${g.id}/${c.id}`, nome: `#${c.name}`, sub: g.name }));
+      }),
+    );
+    const anexo = alvo.attachment !== undefined && alvo.kind !== 'text' ? { kind: alvo.kind, attachment: alvo.attachment } : undefined;
+    const resumo =
+      alvo.body !== '' ? alvo.body : anexo !== undefined ? `${alvo.attachment!.fileName}${alvo.kind === 'file' ? ` · ${formatBytes(alvo.attachment!.sizeBytes)}` : ''}` : '';
+    abrirEncaminhar({
+      autor: nomeDe(alvo.authorId),
+      resumo: anexo !== undefined && alvo.kind !== 'file' ? rotuloDaMidia(alvo.kind) + (alvo.body !== '' ? ` · ${alvo.body}` : '') : resumo,
+      recentes,
+      canais: porGrupo.flat(),
+      aoEncaminhar: async (destinos, comentario) => {
+        const falhas: string[] = [];
+        for (const d of destinos) {
+          try {
+            if (d.chave.startsWith('pv:')) {
+              const amigo = d.chave.slice(3);
+              await sendDmMessage(user.uid, amigo, alvo.body, undefined, anexo, undefined, { encaminhada: true });
+              if (comentario !== '') await sendDmMessage(user.uid, amigo, comentario);
+            } else {
+              const [g, c] = d.chave.slice(6).split('/') as [string, string];
+              await sendMessage(g, c, user.uid, alvo.body, undefined, anexo, { encaminhada: true });
+              if (comentario !== '') await sendMessage(g, c, user.uid, comentario);
+            }
+          } catch {
+            falhas.push(d.nome);
+          }
+        }
+        if (falhas.length === 0) showToast(destinos.length === 1 ? `Encaminhada para ${destinos[0]!.nome}.` : `Encaminhada para ${destinos.length} conversas.`);
+        return falhas;
+      },
+    });
+  };
+
   const handleReplyToMessage = (messageId: string, sala = false): void => {
     const state = store.getState();
 
@@ -3279,6 +3345,7 @@ export function mountApp(
     removeMember: handleRemoveMember,
     deleteMessage: handleDeleteMessage,
     replyToMessage: handleReplyToMessage,
+    forwardMessage: (id, tipo, sala) => void handleForwardMessage(id, tipo, sala),
     editMessage: handleEditMessage,
     openDm: (uid) => store.openDm(uid),
     togglePinMessage: handleTogglePinMessage,

@@ -246,6 +246,8 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
     });
   }
 
+  // 0.11.0: encaminhada.
+  if (data['encaminhada'] === true) Object.assign(message, { encaminhada: true });
   // 0.10.0: visualização única.
   const unica = data['unica'] as { vezes?: unknown } | undefined;
   if (typeof unica === 'object' && unica !== null && typeof unica.vezes === 'number' && unica.vezes >= 1 && unica.vezes <= 5) {
@@ -811,8 +813,8 @@ export async function sendMessage(
   rawBody: string,
   replyTo?: ReplyTo,
   midia?: Midia,
-  /** 0.8.5: a mensagem vem de um comando (e/ou é spoiler). */
-  extra?: { comando?: string; spoiler?: boolean },
+  /** 0.8.5: a mensagem vem de um comando (e/ou é spoiler). 0.11.0: encaminhada. */
+  extra?: { comando?: string; spoiler?: boolean; encaminhada?: boolean },
 ): Promise<void> {
   const body = rawBody.trim();
   if (body === '' && midia === undefined) return;
@@ -831,6 +833,7 @@ export async function sendMessage(
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(extra?.comando === undefined ? {} : { comando: { nome: extra.comando } }),
     ...(extra?.spoiler === true ? { spoiler: true } : {}),
+    ...(extra?.encaminhada === true ? { encaminhada: true } : {}),
   };
   let nova: { id: string };
   if (marcarLento(channelId)) {
@@ -1383,6 +1386,8 @@ export async function sendDmMessage(
   midia?: Midia,
   /** 0.9.5: registro de ligação (o texto vai junto, para quem estiver em versão velha). */
   chamada?: { duracaoMs?: number; perdida: boolean; comCamera: boolean },
+  /** 0.11.0: encaminhada de outra conversa. */
+  extra?: { encaminhada?: boolean },
 ): Promise<void> {
   const body = rawBody.trim();
   if (body === '' && midia === undefined) return;
@@ -1402,6 +1407,7 @@ export async function sendDmMessage(
     ...(midia?.unica === undefined ? {} : { unica: midia.unica }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(chamada === undefined ? {} : { chamada }),
+    ...(extra?.encaminhada === true ? { encaminhada: true } : {}),
   });
   batch.set(
     doc(db, 'dmThreads', threadId),

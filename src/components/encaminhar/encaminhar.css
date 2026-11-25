@@ -1,0 +1,158 @@
+/* ENCAMINHAR (0.11.0) — maquete aprovada. */
+
+.encaminhar {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+}
+
+.encaminhar__previa {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  background-color: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.encaminhar__previa b {
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+
+.encaminhar__previa span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.encaminhar__busca,
+.encaminhar__comentario {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.encaminhar__lista {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  max-height: min(320px, 42vh);
+  overflow-y: auto;
+}
+
+.encaminhar__rotulo {
+  margin: 8px 4px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.encaminhar__destino {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.encaminhar__destino:hover,
+.encaminhar__destino.is-escolhido {
+  background-color: var(--surface-hover);
+}
+
+.encaminhar__avatar {
+  flex: none;
+}
+
+.encaminhar__avatar--canal {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background-color: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-weight: 800;
+}
+
+.encaminhar__nome {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.encaminhar__nome small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.encaminhar__caixa {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-strong);
+  border-radius: 7px;
+}
+
+.encaminhar__destino.is-escolhido .encaminhar__caixa {
+  border-color: var(--accent);
+  background-color: var(--accent);
+}
+
+.encaminhar__destino.is-escolhido .encaminhar__caixa::after {
+  content: '';
+  width: 10px;
+  height: 6px;
+  margin-top: -3px;
+  border-bottom: 2.5px solid #fff;
+  border-left: 2.5px solid #fff;
+  transform: rotate(-45deg);
+}
+
+.encaminhar__contagem {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.encaminhar__vazio {
+  margin: 12px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* No balão: "↪ Encaminhada", discreto, em cima do conteúdo. */
+.message__encaminhada {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.message--mine .message__encaminhada {
+  color: rgb(255 255 255 / 75%);
+}
+
+.modal__confirm .icon {
+  margin-right: 6px;
+  vertical-align: -3px;
+}

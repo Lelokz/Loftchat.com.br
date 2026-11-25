@@ -393,6 +393,8 @@ export interface MessageBase {
   transcricao?: { texto: string; idioma: string };
   /** 0.11.0: reações — por pessoa (uid → os emojis dela, até 6). Cada um só mexe na sua. */
   reacoes?: Record<string, string[]>;
+  /** 0.11.0: veio de "Encaminhar" (mostra "Encaminhada" em cima). */
+  encaminhada?: boolean;
 }
 
 /**
