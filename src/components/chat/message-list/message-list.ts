@@ -18,6 +18,7 @@ import { abrirVisualizador } from "../../visualizador/visualizador";
 import { renderVoz } from "../../voz/voz";
 import { montarTranscricao } from "../../voz/transcricao";
 import { renderBalaoUnica } from "../../unica/balao";
+import { renderReacoes } from "../../reacoes/reacoes";
 import type {
   Attachment,
   Member,
@@ -313,6 +314,9 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
         "data-context": props.dataContext ?? "message",
         "data-message-id": message.id,
         "data-author-id": message.authorId,
+        // 0.11.0: a barrinha de reações lê daqui (canal = permissão; minhas = o que eu já pus).
+        "data-canal": (message as { channelId?: string }).channelId,
+        "data-minhas": JSON.stringify(message.reacoes?.[currentMemberId] ?? []),
       },
       [
         // Avatar: na primeira do bloco ele traz as iniciais; nas continuações
@@ -378,6 +382,12 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
               "editado",
             ]),
           ]),
+          // 0.11.0: as reações, embaixo do balão.
+          renderReacoes(message, {
+            eu: currentMemberId,
+            tipo: props.dataContext === "dm-message" ? "pv" : "grupo",
+            pessoas: authors,
+          }),
         ]),
       ],
     );

@@ -53,7 +53,14 @@ export function isMenuOpen(): boolean {
   return closeCurrent !== null;
 }
 
-export function openMenu(anchor: MenuAnchor, items: MenuItem[]): void {
+/** 0.11.0: extras do menu da mensagem — a fileira de reações e a folha do celular. */
+export interface MenuExtras {
+  emojis?: { lista: string[]; minhas: string[]; aoEscolher: (emoji: string) => void; aoMais: (perto: DOMRect) => void; iconeMais: string };
+  /** Aberto por toque longo: vira uma folha embaixo da tela. */
+  folha?: boolean;
+}
+
+export function openMenu(anchor: MenuAnchor, items: MenuItem[], extras: MenuExtras = {}): void {
   closeMenu();
   if (items.length === 0) return;
 
@@ -105,8 +112,43 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[]): void {
     nodes.push(button);
   }
 
+  // 0.11.0: a fileira de reações, em cima de tudo.
+  if (extras.emojis !== undefined) {
+    const r = extras.emojis;
+    const fileira = el(
+      'div',
+      { class: 'context-menu__emojis', role: 'group', 'aria-label': 'Reagir' },
+      [
+        ...r.lista.map((emoji) => {
+          const b = el('button', { type: 'button', class: r.minhas.includes(emoji) ? 'is-minha' : '', 'aria-label': `Reagir com ${emoji}` }, [
+            el('span', { class: 'emoji' }, [emoji]),
+          ]);
+          b.addEventListener('click', () => {
+            close();
+            r.aoEscolher(emoji);
+          });
+          return b;
+        }),
+        (() => {
+          const b = el('button', { type: 'button', 'aria-label': 'Reagir com outro emoji' }, [iconEl(r.iconeMais)]);
+          b.addEventListener('click', () => {
+            const onde = b.getBoundingClientRect();
+            close();
+            r.aoMais(onde);
+          });
+          return b;
+        })(),
+      ],
+    );
+    nodes.unshift(fileira);
+  }
+
   const rico = items.some((i) => i.icon !== undefined || i.hint !== undefined);
-  const menu = el('div', { class: `context-menu${rico ? ' context-menu--rico' : ''}`, role: 'menu', tabindex: '-1' }, nodes);
+  const menu = el(
+    'div',
+    { class: `context-menu${rico ? ' context-menu--rico' : ''}${extras.folha === true ? ' context-menu--folha' : ''}`, role: 'menu', tabindex: '-1' },
+    nodes,
+  );
 
   function close(): void {
     menu.remove();
@@ -165,6 +207,30 @@ export function openMenu(anchor: MenuAnchor, items: MenuItem[]): void {
   document.body.append(menu);
   position(menu, anchor);
   menu.style.visibility = '';
+
+  /*
+   * 0.11.0: a FOLHA abre debaixo do dedo que ainda está segurando. Soltar o
+   * dedo podia "tocar" no emoji que apareceu ali (reagia sem querer). Até o
+   * dedo sair da tela (e um instante depois), toque na folha não vale.
+   */
+  if (extras.folha === true) {
+    let pronta = false;
+    const engolir = (e: Event): void => {
+      if (pronta) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    for (const tipo of ['click', 'pointerup', 'mouseup', 'touchend'] as const) menu.addEventListener(tipo, engolir, true);
+    const soltou = (): void => {
+      document.removeEventListener('pointerup', soltou, true);
+      document.removeEventListener('touchend', soltou, true);
+      window.setTimeout(() => (pronta = true), 250);
+    };
+    document.addEventListener('pointerup', soltou, true);
+    document.addEventListener('touchend', soltou, true);
+    // Se o dedo já tinha saído antes da folha abrir, ela libera sozinha.
+    window.setTimeout(() => (pronta = true), 900);
+  }
 
   document.addEventListener('mousedown', onOutside, true);
   document.addEventListener('keydown', onKey, true);

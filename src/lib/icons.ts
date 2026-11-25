@@ -215,3 +215,17 @@ export const lockIcon = (size?: number): string =>
 
 /** Transcrição (0.10.5): linhas de texto — o botão do balão de voz. */
 export const transcreverIcon = (size?: number): string => svg('<path d="M4 7h11M4 12h16M4 17h9" stroke-width="2"/>', size);
+
+/** Reagir (0.11.0): carinha com um "+" — abre todos os emojis. */
+export const addReactionIcon = (size?: number): string =>
+  svg('<circle cx="11" cy="13" r="8"/><path d="M7.8 15.2a4.2 4.2 0 0 0 6.4 0M8.5 11h.01M13.5 11h.01"/><path d="M19 2v5M16.5 4.5h5"/>', size);
+
+/** Responder (0.11.0): a seta voltando. */
+export const replyIcon = (size?: number): string => svg('<path d="m9 6-6 6 6 6"/><path d="M3 12h11a6 6 0 0 1 6 6v1"/>', size);
+
+/** Encaminhar (0.11.0): a seta indo. */
+export const encaminharIcon = (size?: number): string => svg('<path d="m15 6 6 6-6 6"/><path d="M21 12H10a6 6 0 0 0-6 6v1"/>', size);
+
+/** Mais opções (0.11.0): três pontos. */
+export const moreIcon = (size?: number): string =>
+  svg('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>', size);

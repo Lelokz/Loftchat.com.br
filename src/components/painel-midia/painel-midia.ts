@@ -83,7 +83,7 @@ export function renderPainel(props: PainelProps): Painel {
 
 /* --------------------------------- emojis --------------------------------- */
 
-function montarEmojis(aoEmoji: (e: string) => void): HTMLElement {
+export function montarEmojis(aoEmoji: (e: string) => void): HTMLElement {
   const trilho = el('nav', { class: 'painel__trilho', 'aria-label': 'Categorias' });
   const busca = el('input', {
     class: 'painel__busca',

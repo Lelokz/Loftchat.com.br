@@ -119,7 +119,7 @@ export const SECOES_DE_PERMISSOES: SecaoDePermissoes[] = [
       { id: 'transcricao', nome: 'Usar transcrição', desc: 'Transforma mensagens de voz em texto.' },
       { id: 'mini-jogos-iniciar', nome: 'Iniciar mini-jogos', desc: 'Começa um mini-jogo na sala.', futura: 'mini-jogos' },
       { id: 'mini-jogos-jogar', nome: 'Participar de mini-jogos', desc: 'Entra nos mini-jogos dos outros.', futura: 'mini-jogos' },
-      { id: 'reagir', nome: 'Reagir', desc: 'Reage às mensagens com emoji.', futura: 'reações' },
+      { id: 'reagir', nome: 'Reagir', desc: 'Reage às mensagens com emoji.' },
       { id: 'mandar-arquivos', nome: 'Mandar arquivos', desc: 'Manda PDF, ZIP e outros arquivos.', futura: 'arquivos' },
     ],
   },

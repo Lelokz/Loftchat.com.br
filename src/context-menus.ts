@@ -22,7 +22,9 @@
  */
 
 import { openMenu } from './components/context-menu/context-menu';
-import type { MenuItem } from './components/context-menu/context-menu';
+import type { MenuExtras, MenuItem } from './components/context-menu/context-menu';
+import { RAPIDAS_CELULAR, abrirSeletorDeReacao, dadosDaMensagem, instalarBarraDeReacoes, podeReagir, reagir } from './components/reacoes/reacoes';
+import { addReactionIcon } from './lib/icons';
 import { showToast } from './components/toast/toast';
 import { canLeaveGroup, isOwner, meuTopo, OWNER_CANNOT_LEAVE, pode } from './lib/permissions';
 import type { ContextoDePermissao } from './lib/permissions';
@@ -71,6 +73,8 @@ export interface ContextMenuActions {
   replyToMessage(messageId: string, sala?: boolean): void;
   /** Entra em edição no próprio balão. Só o autor chega aqui. Grupo ou PV, mesma regra acima. */
   editMessage(messageId: string): void;
+  /** 0.11.0: abre a janela de encaminhar esta mensagem (ausente = ainda não existe). */
+  forwardMessage?(messageId: string, tipo: 'pv' | 'grupo', sala: boolean): void;
   /** Abre o PV com este amigo — item "Enviar mensagem" do menu de contexto dele. */
   openDm(friendUid: MemberId): void;
   /**
@@ -575,7 +579,7 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
       openedByTouch = true;
       // Retorno tátil de que o menu abriu. O iOS não tem esta API.
       navigator.vibrate?.(15);
-      openForTarget(target, { x: event.clientX, y: event.clientY });
+      openForTarget(target, { x: event.clientX, y: event.clientY }, true);
     }, LONG_PRESS_MS);
   }
 
@@ -587,6 +591,17 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
     // Sem isto, rolar a lista de mensagens abriria menu o tempo todo.
     if (moved) cancelPress();
   }
+
+  // 0.11.0: a barrinha de reações do PC (passar o mouse na mensagem).
+  const desligarBarra = instalarBarraDeReacoes({
+    eu: () => actions.uid,
+    responder: (li) => actions.replyToMessage(li.dataset['messageId'] ?? '', li.dataset['context'] === 'room-message'),
+    encaminhar: (li) => {
+      const d = dadosDaMensagem(li);
+      actions.forwardMessage?.(d.id, d.tipo, li.dataset['context'] === 'room-message');
+    },
+    menu: (li, onde) => openForTarget(li, onde),
+  });
 
   document.addEventListener('contextmenu', onContextMenu);
   document.addEventListener('pointerdown', onPointerDown);
@@ -603,14 +618,16 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
     document.removeEventListener('pointercancel', cancelPress);
     document.removeEventListener('scroll', cancelPress, true);
     cancelPress();
+    desligarBarra();
   };
 
   /** Monta e abre o menu do alvo — o mesmo caminho do botão direito. */
-  function openForTarget(target: HTMLElement, anchor: { x: number; y: number }): void {
+  function openForTarget(target: HTMLElement, anchor: { x: number; y: number }, porToque = false): void {
     const state = actions.getState();
     const kind = target.dataset['context'];
+    let extras: MenuExtras = {};
 
-    let items: MenuItem[];
+    let items: MenuItem[] = [];
     switch (kind) {
       case 'message':
         items = messageItems(target, actions, state);
@@ -620,6 +637,35 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
         break;
       case 'dm-message':
         items = dmMessageItems(target, actions, state);
+        break;
+    }
+    // 0.11.0: mensagem — a fileira de reações em cima; por toque, vira folha.
+    if (kind === 'message' || kind === 'room-message' || kind === 'dm-message') {
+      const d = dadosDaMensagem(target);
+      if (actions.forwardMessage !== undefined && target.querySelector('.unica-balao') === null) {
+        const encaminhar = actions.forwardMessage.bind(actions);
+        const i = items.findIndex((x) => x.label === 'Responder');
+        items.splice(i + 1, 0, { label: 'Encaminhar', onSelect: () => encaminhar(d.id, d.tipo, kind === 'room-message') });
+      }
+      extras = {
+        folha: porToque,
+        ...(podeReagir(d.tipo, d.canal)
+          ? {
+              emojis: {
+                lista: RAPIDAS_CELULAR,
+                minhas: d.minhas,
+                iconeMais: addReactionIcon(20),
+                aoEscolher: (e: string) => reagir(d.tipo, d.id, actions.uid, d.minhas, e),
+                aoMais: (perto: DOMRect) => abrirSeletorDeReacao(perto, (e) => reagir(d.tipo, d.id, actions.uid, d.minhas, e)),
+              },
+            }
+          : {}),
+      };
+    }
+    switch (kind) {
+      case 'message':
+      case 'room-message':
+      case 'dm-message':
         break;
       case 'friend':
         items = friendItems(target, actions);
@@ -641,6 +687,6 @@ export function installContextMenus(actions: ContextMenuActions): () => void {
         break;
     }
 
-    openMenu(anchor, items.length > 0 ? items : fallbackItems());
+    openMenu(anchor, items.length > 0 ? items : fallbackItems(), extras);
   }
 }

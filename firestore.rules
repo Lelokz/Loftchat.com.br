@@ -522,6 +522,19 @@ service cloud.firestore {
            && fechado);
     }
 
+    /*
+     * REAÇÕES (0.11.0): `reacoes` é um mapa uid → lista de emojis. Quem reage
+     * só mexe na PRÓPRIA chave (nada mais da mensagem muda), até 6 emojis.
+     */
+    function soMinhaReacao() {
+      let antes = resource.data.get('reacoes', {});
+      let depois = request.resource.data.get('reacoes', {});
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reacoes'])
+        && depois is map
+        && depois.diff(antes).affectedKeys().hasOnly([uid()])
+        && (!(uid() in depois) || (depois[uid()] is list && depois[uid()].size() <= 6));
+    }
+
     match /dmMessages/{messageId} {
       allow read: if signedIn() && resource.data.threadId.split('_').hasAny([uid()]);
 
@@ -536,6 +549,13 @@ service cloud.firestore {
       allow update: if signedIn()
         && resource.data.authorId == uid()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'editedAt']);
+
+      // 0.11.0: reagir — os dois do PV (sem bloqueio), só a própria reação.
+      allow update: if signedIn()
+        && resource.data.threadId.split('_').hasAny([uid()])
+        && !blockedBy(otherInPair(resource.data.threadId))
+        && !iBlocked(otherInPair(resource.data.threadId))
+        && soMinhaReacao();
 
       // Só o autor apaga: PV não tem dono, não tem moderação.
       allow delete: if signedIn() && resource.data.authorId == uid();
@@ -955,6 +975,11 @@ service cloud.firestore {
         && resource.data.authorId == uid()
         && request.resource.data.diff(resource.data)
              .affectedKeys().hasOnly(['body', 'editedAt']);
+
+      // 0.11.0: reagir — quem vê o canal e tem "Reagir", só a própria reação.
+      allow update: if podeVer(resource.data.groupId, resource.data.channelId)
+        && podeNoCanal(resource.data.groupId, resource.data.channelId, 'reagir')
+        && soMinhaReacao();
 
       // Apagar é do autor OU do dono do grupo. O dono precisa disso por dois
       // motivos: moderação (decisão explícita, e o menu vai expor isso) e a

@@ -39,7 +39,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { Timestamp, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, arrayRemove, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import type { DocumentData, Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
@@ -258,6 +258,18 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
     Object.assign(message, {
       transcricao: { texto: transcricao.texto.slice(0, 20_000), idioma: typeof transcricao.idioma === 'string' ? transcricao.idioma : '' },
     });
+  }
+
+  // 0.11.0: reações (uid → emojis). O que vier estranho é ignorado.
+  const reacoes = data['reacoes'];
+  if (typeof reacoes === 'object' && reacoes !== null) {
+    const limpas: Record<string, string[]> = {};
+    for (const [uid, lista] of Object.entries(reacoes as Record<string, unknown>)) {
+      if (!Array.isArray(lista)) continue;
+      const emojis = lista.filter((e): e is string => typeof e === 'string' && e.length > 0 && e.length <= 16).slice(0, 6);
+      if (emojis.length > 0) limpas[uid] = emojis;
+    }
+    if (Object.keys(limpas).length > 0) Object.assign(message, { reacoes: limpas });
   }
 
   const reply = data['replyTo'];
@@ -1612,4 +1624,21 @@ function toVoiceParticipant(data: DocumentData): VoiceParticipant {
     // seguro: melhor sumir alguém de verdade do que mostrar quem não está lá.
     lastSeen: typeof data['lastSeen'] === 'string' ? data['lastSeen'] : '',
   };
+}
+
+/* ------------------------------ reações (0.11.0) ------------------------------ */
+
+/** Até quantos emojis diferentes uma pessoa põe numa mensagem. */
+export const MAX_REACOES_POR_PESSOA = 6;
+
+/**
+ * Põe ou tira a MINHA reação. Cada pessoa só mexe em `reacoes.<seu uid>`
+ * (a regra do banco cobra): duas pessoas reagindo juntas não se atropelam.
+ */
+export async function alternarReacao(tipo: 'pv' | 'grupo', mensagem: string, eu: string, emoji: string, ligar: boolean): Promise<void> {
+  await withTimeout(
+    updateDoc(doc(db, tipo === 'pv' ? 'dmMessages' : 'messages', mensagem), {
+      [`reacoes.${eu}`]: ligar ? arrayUnion(emoji) : arrayRemove(emoji),
+    }),
+  );
 }
