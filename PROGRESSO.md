@@ -2,6 +2,28 @@
 
 Estado em 15/11/2026.
 
+## Transcrição das mensagens de voz (25/11/2026) — versão 0.10.5
+
+Plano e maquete aprovados (Arquivo/Loft-desktop/maquete-transcricao).
+
+1. **Carteiro** (`carteiro/src/transcricao.ts`, `POST /transcrever`): Whisper
+   large-v3-turbo do Workers AI (binding `AI` no wrangler.toml). Grátis até
+   10.000 neurons/dia (~214 min de áudio); passou, a Cloudflare dá erro (não
+   cobra) e o app avisa "volta às 21h". Antes de construir, testado com o
+   Whisper de verdade (pasta Arquivo/Loft-desktop/teste-whisper, worker só
+   local): webm/opus, ogg/opus e m4a/aac funcionam (~2,5 s para 25 s de
+   áudio); com `vad_filter` silêncio e ruído voltam vazios (sem frase
+   inventada) — e ainda corta as frases fantasmas conhecidas. Confere quem
+   pede (`podeVer`, o mesmo da visualização única), grava `transcricao`
+   {texto, idioma, em} NA MENSAGEM (a regra do app só deixa mexer em
+   body/editedAt, então só o carteiro escreve), já transcrita não gasta de
+   novo, 30 por hora por pessoa. Nos testes, `WHISPER_FALSO` (nada vai para
+   a Cloudflare; arquivo "limite" simula o limite do dia).
+2. **App** (`components/voz/transcricao.ts`): botão de linhas dentro do
+   balão de voz, "Transcrevendo…", texto embaixo das ondas para todos,
+   esconder/mostrar só para mim, "Sem fala neste áudio", avisos de limite.
+3. **Testes**: `transcricao.spec.ts` (carteiro + app no PC e no celular).
+
 ## Visualização única (25/11/2026) — versão 0.10.0
 
 Plano e maquete aprovados (Arquivo/Loft-desktop/maquete-unica). Seis etapas:

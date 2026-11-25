@@ -1,5 +1,14 @@
 [
   {
+    "versao": "0.10.5",
+    "data": "2026-11-25",
+    "itens": [
+      "Transcrição das mensagens de voz: toque no botão de linhas ao lado do tempo do áudio e o texto aparece embaixo das ondas em poucos segundos (Whisper, com boa qualidade em português e em outras línguas).",
+      "O texto fica salvo na mensagem e aparece para todos da conversa. Tocar no botão de novo esconde ou mostra o texto só para você.",
+      "Áudio sem fala mostra \"Sem fala neste áudio\" em vez de inventar frase. Se o limite grátis do dia acabar, o Loftchat avisa; ele volta às 21h."
+    ]
+  },
+  {
     "versao": "0.10.0",
     "data": "2026-11-25",
     "itens": [
