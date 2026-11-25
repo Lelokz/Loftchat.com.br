@@ -2,6 +2,24 @@
 
 Estado em 15/11/2026.
 
+## Galeria do grupo (24/11/2026) — versão 0.8.0
+
+O Leo: a galeria é DO GRUPO. Botão no cabeçalho do chat "não faz sentido";
+linha na coluna dos canais "horrível". Aprovado: aba **Mídia** no painel da
+direita (Agora | Membros | Mídia | Fixadas) + "Ver tudo".
+
+- `subscribeGaleria` (firestore.ts): groupId ==, kind in [image, gif, video],
+  sentAt >= 60 dias, orderBy sentAt desc, limit 300 — índice novo
+  groupId + kind + sentAt(desc), publicado.
+- `lib/galeria.ts`: UMA escuta por grupo, dividida entre a aba e o "Ver tudo"
+  (o painel é remontado toda hora); `porPeriodo` = "Esta semana" + mês.
+- `components/galeria`: aba (12 miniaturas, filtros) e o `<dialog>` grande
+  (janela no PC ≥721px, tela cheia no celular, filtro por canal). Vídeo abre
+  no visualizador (`abrirVisualizador(url, desc, true)`).
+- Aba nova em `PANEL_TABS`; quem salvou as abas antes ganha a Mídia ligada
+  (marca `panelTabsV: 2` ao guardar). 4 abas cabem em 240px (largura pelo nome).
+- Sem "Arquivos": o app não manda arquivo (só foto/GIF/vídeo/áudio).
+
 ## Visual no nível do site (24/11/2026) — versão 0.7.5
 
 O Leo: o app era bem inferior às imagens do site. Maquete aprovada por foto

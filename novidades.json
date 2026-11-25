@@ -1,5 +1,16 @@
 [
   {
+    "versao": "0.8.0",
+    "data": "2026-11-24",
+    "itens": [
+      "Galeria do grupo: a aba nova \"Mídia\", no painel da direita, junta as fotos, GIFs e vídeos de todos os canais, separados por semana e por mês.",
+      "Filtros Tudo, Fotos, Vídeos e GIFs, e o que a turma mandar aparece na hora.",
+      "\"Ver tudo\" abre a galeria grande: no PC numa janela no meio da tela, com quem mandou e o filtro por canal; no celular em tela cheia, 3 por linha.",
+      "Clique numa foto para ver em tela cheia, ou num vídeo para assistir.",
+      "Dá para esconder a aba Mídia em Configurações → Aparência, como as outras abas."
+    ]
+  },
+  {
     "versao": "0.7.5",
     "data": "2026-11-24",
     "itens": [
