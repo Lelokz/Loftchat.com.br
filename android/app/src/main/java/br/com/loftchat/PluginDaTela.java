@@ -2,6 +2,7 @@ package br.com.loftchat;
 
 import android.app.Activity;
 import android.content.pm.ActivityInfo;
+import android.view.WindowManager;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -59,6 +60,22 @@ public class PluginDaTela extends Plugin {
                 barras.show(WindowInsetsCompat.Type.navigationBars());
                 atividade.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
             }
+            call.resolve();
+        });
+    }
+
+    /**
+     * VISUALIZAÇÃO ÚNICA (0.10.0): enquanto a foto/vídeo está aberta, o
+     * Android não deixa tirar print nem gravar a tela (sai preto) e esconde
+     * o app na lista de recentes. Fechar devolve o normal.
+     */
+    @PluginMethod
+    public void proteger(PluginCall call) {
+        boolean ligar = Boolean.TRUE.equals(call.getBoolean("ligar", false));
+        Activity atividade = getActivity();
+        atividade.runOnUiThread(() -> {
+            if (ligar) atividade.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            else atividade.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
             call.resolve();
         });
     }

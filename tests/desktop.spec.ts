@@ -136,6 +136,14 @@ test('a janela abre o Loft', async () => {
   // Arquivo que não existe fora da pasta: nada vaza.
   const fora = await janela.evaluate(async () => (await fetch('app://loftchat/..%2F..%2Fpackage.json')).text());
   expect(fora).not.toContain('"loft-desktop"');
+
+  // 0.10.0: a proteção contra print (visualização única) liga e desliga sem quebrar a janela.
+  await janela.evaluate(() => {
+    const d = (window as unknown as { loftDesktop: { protegerTela: (l: boolean) => void } }).loftDesktop;
+    d.protegerTela(true);
+    d.protegerTela(false);
+  });
+  await expect(janela.locator('body')).not.toBeEmpty();
 });
 
 test('janela e navegador conversam: a mesma conta troca mensagens nos dois sentidos', async ({

@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('loftDesktop', {
     ipcRenderer.on('loft:janela-estado', (_evento, estado) => ouvinte({ maximizada: Boolean(estado?.maximizada) }));
   },
   bandejaPonto: (tem) => ipcRenderer.send('loft:bandeja-ponto', Boolean(tem)),
+  // 0.10.0: visualização única — some do print (Windows e Mac).
+  protegerTela: (ligar) => ipcRenderer.send('loft:proteger-tela', Boolean(ligar)),
   janelaPuxar: (borda, x, y) => ipcRenderer.send('loft:janela-puxar', String(borda), Number(x), Number(y)),
   janelaPuxando: (x, y) => ipcRenderer.send('loft:janela-puxando', Number(x), Number(y)),
   janelaSoltar: () => ipcRenderer.send('loft:janela-soltar'),

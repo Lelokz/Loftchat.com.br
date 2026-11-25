@@ -444,6 +444,12 @@ function ligarJanela() {
       else janela.maximize();
     } else if (acao === 'fechar') janela.close();
   });
+  // 0.10.0: visualização única aberta — a janela sai preta em print, gravação
+  // e transmissão (Windows e Mac; no Linux o Electron não tem como).
+  ipcMain.on('loft:proteger-tela', (evento, ligar) => {
+    if (!daJanela(evento) || !janela) return;
+    janela.setContentProtection(Boolean(ligar));
+  });
   ipcMain.on('loft:bandeja-ponto', (evento, tem) => {
     if (!daJanela(evento) || Boolean(tem) === temNaoLida) return;
     temNaoLida = Boolean(tem);
