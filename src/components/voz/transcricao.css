@@ -12,6 +12,10 @@
   color: var(--text-secondary);
 }
 
+.transcricao__botao[hidden] {
+  display: none;
+}
+
 .transcricao__botao:hover {
   background-color: rgb(255 255 255 / 14%);
   color: var(--text-primary);

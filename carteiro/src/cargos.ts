@@ -650,3 +650,22 @@ export async function quemVeOCanal(env: Env, grupo: string, canalId: string, g: 
   }
   return saida;
 }
+
+/**
+ * 0.10.5: UMA pessoa pode fazer `p` neste canal? O mesmo que `podeNoCanal`
+ * das regras do banco: dono sempre; castigo tira; senão as permissões do
+ * canal (ou do servidor, se o canal não tem regra própria).
+ */
+export async function podeNoCanal(env: Env, grupo: string, canalId: string, uid: string, p: string, g: Dados | null, canal: Dados | null): Promise<boolean> {
+  if (String(g?.['ownerId'] ?? '') === uid) return true;
+  const m = await lerDoc(env, `memberships/${grupo}_${uid}`);
+  if (m === null) return false;
+  if (typeof m['castigoAte'] === 'string' && Date.parse(m['castigoAte']) > Date.now()) return false;
+  const proprias = lerRegras(canal?.['permissoes']);
+  const cat = typeof canal?.['categoryId'] === 'string' ? (canal['categoryId'] as string) : '';
+  const daCategoria = cat === '' ? {} : lerRegras(((g?.['permsCategorias'] ?? {}) as Dados)[cat]);
+  const temRegras = Object.keys(proprias).length > 0 || Object.keys(daCategoria).length > 0;
+  const porCanal = (m['canais'] ?? {}) as Dados;
+  const perms = Array.isArray(porCanal[canalId]) ? lista(porCanal[canalId]) : temRegras ? [] : lista(m['perms'] ?? PERMISSOES_DO_TODOS);
+  return perms.some((x) => x === 'administrador' || x === p);
+}

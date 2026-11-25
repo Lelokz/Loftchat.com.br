@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 
 import { createAccountViaRest, limparTudo, newAccount, resolveTokens, signUpThroughUi } from './helpers';
 import type { TestAccount } from './helpers';
+import { PERMISSOES_DO_TODOS } from '../src/lib/permissoes';
 import { CARTEIRO, FS, comoDono, lerComoDono, ligarCarteiroLocal } from './carteiro-local';
 
 /**
@@ -197,4 +198,77 @@ test('transcrição no app: botão, Transcrevendo…, texto para os dois, escond
   await expect(voz2.locator('.transcricao__erro')).toHaveText('O limite de transcrição de hoje acabou. Volta às 21h.', { timeout: 30_000 });
   await ctxE.close();
   await ctxF.close();
+});
+
+test('cargos: sem "Usar transcrição" não transcreve e sem "Mandar visualização única" não manda (no grupo)', async () => {
+  test.setTimeout(120_000);
+  const dono = newAccount('Dono perms');
+  const membro = newAccount('Membro perms');
+  contas.push(dono, membro);
+  for (const c of [dono, membro]) await createAccountViaRest(c);
+  const grupo = `gPerm${Date.now()}`;
+  const canal = `cPerm${Date.now()}`;
+  await comoDono(`groups/${grupo}`, { name: 'Grupo das permissões', ownerId: dono.uid! });
+  await comoDono(`channels/${canal}`, { groupId: grupo, name: 'geral', kind: 'text' });
+  await comoDono(`memberships/${grupo}_${dono.uid}`, { groupId: grupo, memberId: dono.uid!, role: 'owner' });
+  await comoDono(`memberships/${grupo}_${membro.uid}`, { groupId: grupo, memberId: membro.uid!, role: 'member' });
+  // As permissões calculadas do membro: as de todos, MENOS as duas.
+  const perms = PERMISSOES_DO_TODOS.filter((p) => p !== 'transcricao' && p !== 'visualizacao-unica');
+  const r = await fetch(`${FS}/memberships/${grupo}_${membro.uid}?updateMask.fieldPaths=perms`, {
+    method: 'PATCH',
+    headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+    body: JSON.stringify({ fields: { perms: { arrayValue: { values: perms.map((p) => ({ stringValue: p })) } } } }),
+  });
+  expect(r.ok).toBe(true);
+
+  // Áudio do dono no canal: o membro não transcreve (403); o dono, sim.
+  const a = await subirAudio(dono.idToken!, 2000);
+  await comoDono('messages/permVoz1', {
+    groupId: grupo,
+    channelId: canal,
+    authorId: dono.uid!,
+    kind: 'audio',
+    body: '',
+    sentAt: new Date().toISOString(),
+    attachment: { url: a.url, chave: a.chave, fileName: 'voz', mimeType: 'audio/webm', sizeBytes: 2000, durationMs: 3000 },
+  });
+  expect((await pedir(membro.idToken!, 'grupo', 'permVoz1')).status).toBe(403);
+  expect((await pedir(dono.idToken!, 'grupo', 'permVoz1')).status).toBe(200);
+
+  // Visualização única no canal: o membro é recusado pelas regras; uma foto normal passa.
+  const u = await fetch(`${CARTEIRO}/arquivo?tipo=unica`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${membro.idToken}`, 'content-type': 'image/webp' },
+    body: new Uint8Array(500),
+  });
+  const arq = (await u.json()) as { chave: string; url: string };
+  const mensagem = (id: string, unica: boolean) =>
+    fetch(`${FS}/messages/${id}`, {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${membro.idToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          groupId: { stringValue: grupo },
+          channelId: { stringValue: canal },
+          authorId: { stringValue: membro.uid! },
+          kind: { stringValue: 'image' },
+          body: { stringValue: '' },
+          sentAt: { stringValue: new Date().toISOString() },
+          attachment: {
+            mapValue: {
+              fields: {
+                url: { stringValue: arq.url },
+                chave: { stringValue: unica ? arq.chave : arq.chave.replace(/^unica\//, 'imagem/') },
+                fileName: { stringValue: 'f' },
+                mimeType: { stringValue: 'image/webp' },
+                sizeBytes: { integerValue: '500' },
+              },
+            },
+          },
+          ...(unica ? { unica: { mapValue: { fields: { vezes: { integerValue: '1' } } } } } : {}),
+        },
+      }),
+    });
+  expect((await mensagem('permUnica1', true)).status).toBe(403);
+  expect((await mensagem('permFoto1', false)).status).toBe(200);
 });

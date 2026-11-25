@@ -25,6 +25,13 @@ function avisar(): void {
   for (const f of ouvintes) f();
 }
 
+/** 0.10.5: o cargo deixa transcrever neste canal? (o app liga; no PV, sempre.) */
+let podeTranscrever: (canal: string) => boolean = () => true;
+export function definirPermissaoDeTranscrever(f: (canal: string) => boolean): void {
+  podeTranscrever = f;
+  avisar();
+}
+
 /**
  * Põe o botão dentro do balão de voz (`.voz`) e devolve o bloco do texto
  * (que vai embaixo dele). `tipo`: em que coleção a mensagem mora.
@@ -43,10 +50,17 @@ export function montarTranscricao(voz: HTMLElement, m: MessageBase, tipo: 'pv' |
       return;
     }
     const t = m.transcricao;
+    // Sem a permissão "Usar transcrição": o botão some (o texto que já existe continua).
+    const canal = (m as { channelId?: string }).channelId;
+    botao.hidden = t === undefined && tipo === 'grupo' && canal !== undefined && !podeTranscrever(canal);
     const rotulo = t === undefined ? 'Transcrever' : escondidas.has(m.id) ? 'Mostrar texto' : 'Esconder texto';
     botao.title = rotulo;
     botao.lastElementChild!.textContent = rotulo;
     botao.classList.toggle('is-ligado', (t !== undefined && !escondidas.has(m.id)) || transcrevendo.has(m.id));
+    // Só redesenha o bloco quando o estado muda (senão o "Transcrevendo…" reinicia a animação).
+    const estado = t !== undefined ? (escondidas.has(m.id) ? 'escondida' : `texto:${t.texto}`) : transcrevendo.has(m.id) ? 'carregando' : erros.has(m.id) ? `erro:${erros.get(m.id)}` : 'nada';
+    if (bloco.dataset['estado'] === estado) return;
+    bloco.dataset['estado'] = estado;
     if (t !== undefined) {
       if (escondidas.has(m.id)) bloco.replaceChildren();
       else if (t.texto === '') bloco.replaceChildren(el('p', { class: 'transcricao__vazia' }, ['Sem fala neste áudio.']));

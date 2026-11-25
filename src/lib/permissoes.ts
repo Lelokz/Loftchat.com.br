@@ -115,8 +115,8 @@ export const SECOES_DE_PERMISSOES: SecaoDePermissoes[] = [
       { id: 'mandar-enquetes', nome: 'Mandar enquetes', desc: 'Cria enquetes no chat.', futura: 'enquetes' },
       { id: 'votar-enquetes', nome: 'Votar em enquetes', desc: 'Vota nas enquetes do grupo.', futura: 'enquetes' },
       { id: 'encerrar-enquetes', nome: 'Encerrar enquetes dos outros', desc: 'Termina a enquete de outra pessoa.', futura: 'enquetes' },
-      { id: 'visualizacao-unica', nome: 'Mandar visualização única', desc: 'Manda algo que some depois de visto.', futura: 'visualização única' },
-      { id: 'transcricao', nome: 'Usar transcrição', desc: 'Transforma mensagens de voz em texto.', futura: 'transcrição' },
+      { id: 'visualizacao-unica', nome: 'Mandar visualização única', desc: 'Manda algo que some depois de visto.' },
+      { id: 'transcricao', nome: 'Usar transcrição', desc: 'Transforma mensagens de voz em texto.' },
       { id: 'mini-jogos-iniciar', nome: 'Iniciar mini-jogos', desc: 'Começa um mini-jogo na sala.', futura: 'mini-jogos' },
       { id: 'mini-jogos-jogar', nome: 'Participar de mini-jogos', desc: 'Entra nos mini-jogos dos outros.', futura: 'mini-jogos' },
       { id: 'reagir', nome: 'Reagir', desc: 'Reage às mensagens com emoji.', futura: 'reações' },
@@ -185,7 +185,7 @@ export const PERMISSOES_DO_CANAL = new Set([
   'criar-convites', 'editar-canais', 'permissoes-canais', 'apagar-canais',
 ]);
 
-const DE_TEXTO = ['ler-antigas', 'mandar-mensagens', 'responder', 'mandar-fotos', 'mandar-gifs', 'mandar-videos', 'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'previa-links', 'mencionar-pessoas', 'mencionar-cargos', 'mencionar-todos', 'usar-comandos', 'fixar', 'desafixar', 'apagar-dos-outros', 'apagar-varias', 'ignorar-lento', 'mandar-enquetes', 'votar-enquetes', 'visualizacao-unica', 'reagir', 'mandar-arquivos'];
+const DE_TEXTO = ['ler-antigas', 'mandar-mensagens', 'responder', 'mandar-fotos', 'mandar-gifs', 'mandar-videos', 'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'previa-links', 'mencionar-pessoas', 'mencionar-cargos', 'mencionar-todos', 'usar-comandos', 'fixar', 'desafixar', 'apagar-dos-outros', 'apagar-varias', 'ignorar-lento', 'mandar-enquetes', 'votar-enquetes', 'visualizacao-unica', 'transcricao', 'reagir', 'mandar-arquivos'];
 const DE_VOZ = ['entrar', 'falar', 'transmitir', 'transmitir-som', 'camera', 'sala-cheia', 'silenciar-outros', 'ensurdecer-outros', 'parar-transmissao', 'mover', 'tirar-da-chamada', 'mini-jogos-iniciar', 'mini-jogos-jogar'];
 const DE_ESCREVER = ['mandar-fotos', 'mandar-gifs', 'mandar-videos', 'mandar-audio', 'mandar-figurinhas', 'mandar-links', 'mencionar-todos', 'mandar-enquetes', 'visualizacao-unica', 'mandar-arquivos'];
 

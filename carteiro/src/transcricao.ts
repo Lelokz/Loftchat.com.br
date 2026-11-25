@@ -16,6 +16,7 @@ import type { Balde } from './arquivos';
 import { firestore, json, ler, nomeCompleto, quemChamou, raiz } from './index';
 import type { Env } from './index';
 import { podeVer } from './unica';
+import { podeNoCanal } from './cargos';
 
 type Dados = Record<string, unknown>;
 
@@ -96,6 +97,13 @@ export async function transcrever(req: Request, env: Env, balde: Balde): Promise
   const msg = await ler(env, caminho);
   if (msg === null || !(await podeVer(env, tipo, msg, uid))) return json({ erro: 'não existe' }, 404);
   if (msg['kind'] !== 'audio' || msg['unica'] !== undefined) return json({ erro: 'não é mensagem de voz' }, 400);
+  // Grupo: o cargo tem de deixar ("Usar transcrição"). No PV não tem cargo.
+  if (tipo === 'grupo') {
+    const grupo = String(msg['groupId'] ?? '');
+    const canal = String(msg['channelId'] ?? '');
+    const [g, c] = await Promise.all([ler(env, `groups/${grupo}`), ler(env, `channels/${canal}`)]);
+    if (!(await podeNoCanal(env, grupo, canal, uid, 'transcricao', g, c))) return json({ erro: 'sem permissão' }, 403);
+  }
 
   // Já transcrita: devolve, sem gastar de novo.
   const pronta = msg['transcricao'] as Dados | undefined;

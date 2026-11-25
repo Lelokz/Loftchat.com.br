@@ -58,6 +58,8 @@ export interface LimitesDoComposer {
   videos: boolean;
   audio: boolean;
   figurinhas: boolean;
+  /** 0.10.5: "Mandar visualização única" (ausente = pode, como no PV). */
+  unica?: boolean;
 }
 
 const limitadores = new WeakMap<HTMLElement, (l: LimitesDoComposer) => void>();
@@ -381,7 +383,7 @@ export function renderComposer({
   if (botaoAnexo !== null) {
     // 0.10.0: o + abre o menu (o Discord faz igual): o de sempre ou visualização única.
     botaoAnexo.addEventListener('click', () => {
-      const podeUnica = limites.motivo === null && (limites.fotos || limites.videos);
+      const podeUnica = limites.motivo === null && limites.unica !== false && (limites.fotos || limites.videos);
       openMenu({ rect: botaoAnexo.getBoundingClientRect() }, [
         { label: 'Foto, GIF ou vídeo', hint: 'Fica no chat como sempre', icon: imageIcon(19), onSelect: () => escolher.click() },
         ...(podeUnica
@@ -394,7 +396,7 @@ export function renderComposer({
       escolherUnica.value = '';
       if (arquivo === undefined || aoArquivos === undefined) return;
       const video = arquivo.type.startsWith('video/');
-      if (!/^(image\/(png|jpeg|webp)|video\/)/.test(arquivo.type) || !(video ? limites.videos : limites.fotos) || limites.motivo !== null) {
+      if (!/^(image\/(png|jpeg|webp)|video\/)/.test(arquivo.type) || !(video ? limites.videos : limites.fotos) || limites.motivo !== null || limites.unica === false) {
         setError('Você não pode mandar esse tipo de arquivo aqui.');
         return;
       }

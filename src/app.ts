@@ -1,5 +1,6 @@
 import { el, iconEl } from './lib/dom';
 import { menuIcon } from './lib/icons';
+import { definirPermissaoDeTranscrever } from './components/voz/transcricao';
 import { renderChannelList } from './components/channel-list/channel-list';
 import type { VoicePresenceView } from './components/channel-list/channel-list';
 import { renderCallBar } from './components/call-bar/call-bar';
@@ -3022,6 +3023,8 @@ export function mountApp(
    */
   function aplicarLimitesDoCargo(state: AppState): void {
     if (state.view !== 'group') return;
+    // 0.10.5: "Usar transcrição" — o botão do balão de voz segue o cargo.
+    definirPermissaoDeTranscrever((canal) => posso(store.getState(), 'transcricao', canal));
     const castigo = meuCastigo(ctxPerm(state), user.uid);
     const ate = castigo === null ? '' : new Date(castigo).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const limites = (canal: string, escrever: string): LimitesDoComposer => ({
@@ -3036,6 +3039,7 @@ export function mountApp(
       videos: posso(state, 'mandar-videos', canal),
       audio: posso(state, 'mandar-audio', canal),
       figurinhas: posso(state, 'mandar-figurinhas', canal),
+      unica: posso(state, 'visualizacao-unica', canal),
     });
     if (state.activeChannelId !== null) {
       const canal = state.activeChannelId;

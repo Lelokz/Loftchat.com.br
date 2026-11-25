@@ -907,6 +907,9 @@ service cloud.firestore {
         && podeEscrever(request.resource.data.groupId, request.resource.data.channelId)
         && tipoPermitido(request.resource.data)
         && unicaOk(request.resource.data)
+        // 0.10.5: visualização única pede "Mandar visualização única" no canal.
+        && (!('unica' in request.resource.data)
+            || podeNoCanal(request.resource.data.groupId, request.resource.data.channelId, 'visualizacao-unica'))
         && lentoOk(request.resource.data.groupId, request.resource.data.channelId);
 
       /*
