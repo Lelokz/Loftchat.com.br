@@ -1,8 +1,13 @@
 import './voice-room.css';
+import '../camera/camera.css';
 
 import { corDoCargo, el, iconEl, iconeDoCargo } from '../../lib/dom';
 import { panelToggleButton } from '../chat/chat';
 import {
+  cameraIcon,
+  cameraOffIcon,
+  eyeOffIcon,
+  flipCameraIcon,
   gearIcon,
   hangupIcon,
   menuIcon,
@@ -36,6 +41,23 @@ export interface VoiceParticipantView {
   isSelf: boolean;
   /** A conexão direta com esta pessoa não fechou. */
   failed: boolean;
+  /** 0.9.5: a câmera dela — desligada, ligada ou pausada (app do celular atrás). */
+  camera: 'off' | 'on' | 'pausada';
+}
+
+/** 0.9.5: a MINHA câmera e o que dá para fazer com ela. */
+export interface CameraView {
+  ligada: boolean;
+  /** Motivo de não poder ligar (sem permissão do cargo, sala cheia de câmeras…), ou null. */
+  travada: string | null;
+  /** Mostra o botão de virar (celular). */
+  podeVirar: boolean;
+  /** Meu vídeo espelhado para mim. */
+  espelhar: boolean;
+  /** Uid da câmera em foco (grande no palco), ou null. */
+  foco: string | null;
+  /** Esconder da grade quem está sem câmera. */
+  esconderSemCamera: boolean;
 }
 
 export interface ScreenShareView {
@@ -70,6 +92,11 @@ export interface VoiceRoomParts {
   stageSlot: HTMLElement | null;
   /** Onde entra a miniatura da MINHA transmissão, para eu conferir. */
   previewSlot: HTMLElement | null;
+  /**
+   * 0.9.5: onde ENCAIXAR o <video> da câmera de cada pessoa (uid → lugar).
+   * Mesmo motivo do `stageSlot`: o elemento é do motor e não pode ser recriado.
+   */
+  camSlots: Map<string, HTMLElement>;
 }
 
 /** Etapa 8a: com transmissão, palco grande + fila de pessoas, ou tudo em grade. */
@@ -107,6 +134,12 @@ export interface VoiceRoomProps {
   onToggleScreenShare: () => void;
   onToggleMaximize: () => void;
   onLeave: () => void;
+  /** 0.9.5 */
+  camera: CameraView;
+  onToggleCamera: () => void;
+  onVirarCamera: () => void;
+  onFoco: (uid: string | null) => void;
+  onToggleEsconderSemCamera: () => void;
 }
 
 export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
@@ -120,11 +153,18 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
    * acima de 720px, como os do chat.
    */
   const transmitindo = screen.sharerName !== null;
-  const emGrade = !transmitindo || props.layout === 'grade';
+  const camSlots = new Map<string, HTMLElement>();
+  // 0.9.5: uma câmera em FOCO vai para o palco (clicar num bloco com câmera).
+  const focado =
+    props.camera.foco === null
+      ? undefined
+      : participants.find((p) => p.member.id === props.camera.foco && p.camera !== 'off');
+  const emGrade = focado === undefined && (!transmitindo || props.layout === 'grade');
 
-  // Palco ↔ grade: só faz sentido com alguém transmitindo.
+  // Palco ↔ grade: só faz sentido com alguém transmitindo (e sem câmera em foco).
   const trocarJeito =
     transmitindo &&
+    focado === undefined &&
     (() => {
       const rotulo = emGrade ? 'Ver a tela em destaque' : 'Ver todos em grade';
       const b = el('button', { class: 'icon-button room__layout-button', type: 'button', title: rotulo }, [
@@ -150,6 +190,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
       ]),
     ]),
     el('span', { class: 'room__header-spacer' }),
+    botaoEsconder(props),
     trocarJeito,
     (() => {
       const b = el('button', { class: 'icon-button room__settings-button', type: 'button', title: 'Voz e áudio' }, [
@@ -208,11 +249,20 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
   // Sem transmissão NÃO há palco: nada de caixa vazia "a tela aparece aqui" —
   // as pessoas ocupam a sala (etapa 8a).
 
-  const pessoas = participants.map((participant) =>
+  const visiveis = participants.filter(
+    (p) => p !== focado && (!props.camera.esconderSemCamera || p.camera !== 'off'),
+  );
+  const pessoas = visiveis.map((participant) =>
+      comCamera(
+      props,
+      camSlots,
+      participant,
       el(
         'li',
         {
-          class: `room__person${participant.isSelf ? ' is-self' : ''}${participant.failed ? ' is-failed' : ''}`,
+          class: `room__person${participant.isSelf ? ' is-self' : ''}${participant.failed ? ' is-failed' : ''}${
+            participant.camera !== 'off' ? ' tem-camera' : ''
+          }`,
           // O uid no bloco é o que deixa o anel de "falando" ser aceso sem
           // re-renderizar a sala — quem detecta fala mexe na classe direto.
           'data-uid': participant.member.id,
@@ -240,6 +290,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
             ]),
         ],
       ),
+      ),
   );
 
   /*
@@ -249,7 +300,14 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
    *  - com transmissão, "grade": a tela vira um bloco da grade, do lado das pessoas.
    */
   const miolo: HTMLElement[] = [];
-  if (stageInner !== null && !emGrade) {
+  if (focado !== undefined) {
+    // Câmera em foco no palco; a tela (se houver) vira um bloco da fila.
+    const fila = stageInner === null ? pessoas : [el('li', { class: 'room__tile-tela' }, [stageInner]), ...pessoas];
+    miolo.push(
+      el('div', { class: 'room__stage' }, [palcoDaCamera(props, camSlots, focado)]),
+      el('ul', { class: 'room__people room__people--fila', 'aria-label': 'Participantes' }, fila),
+    );
+  } else if (stageInner !== null && !emGrade) {
     miolo.push(
       el('div', { class: 'room__stage' }, [stageInner]),
       el('ul', { class: 'room__people room__people--fila', 'aria-label': 'Participantes' }, pessoas),
@@ -354,6 +412,7 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
 
   const controls = el('div', { class: 'room__controls' }, [
     microfone,
+    ...botoesDaCamera(props),
     screenButton(props),
     controlButton(hangupIcon(19), 'Sair da chamada', false, props.onLeave, true),
   ]);
@@ -371,7 +430,105 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
     [header, ...notices, ...miolo, controls],
   );
 
-  return { element, stageSlot, previewSlot };
+  return { element, stageSlot, previewSlot, camSlots };
+}
+
+/* --- câmera (0.9.5) ---------------------------------------------------------- */
+
+/** Põe o lugar do vídeo no bloco de quem está com a câmera ligada, e o clique do foco. */
+function comCamera(
+  props: VoiceRoomProps,
+  camSlots: Map<string, HTMLElement>,
+  participant: VoiceParticipantView,
+  bloco: HTMLElement,
+): HTMLElement {
+  if (participant.camera === 'off') return bloco;
+  const uid = participant.member.id;
+  const slot = el('span', {
+    class: `room__cam-slot${participant.isSelf && props.camera.espelhar ? ' is-espelhada' : ''}`,
+    'aria-hidden': 'true',
+  });
+  camSlots.set(uid, slot);
+  bloco.prepend(slot);
+  if (participant.camera === 'pausada') bloco.append(avisoPausada());
+  bloco.title = 'Clique para ver grande · duplo clique: tela cheia';
+  bloco.addEventListener('click', () => props.onFoco(uid));
+  bloco.addEventListener('dblclick', () => telaCheia(bloco));
+  return bloco;
+}
+
+function avisoPausada(): HTMLElement {
+  return el('div', { class: 'room__cam-pausada' }, [iconEl(cameraOffIcon(22)), el('span', {}, ['Câmera pausada'])]);
+}
+
+/** O palco com uma câmera grande. Clicar volta para a grade. */
+function palcoDaCamera(
+  props: VoiceRoomProps,
+  camSlots: Map<string, HTMLElement>,
+  p: VoiceParticipantView,
+): HTMLElement {
+  const slot = el('span', { class: `room__cam-slot${p.isSelf && props.camera.espelhar ? ' is-espelhada' : ''}`, 'aria-hidden': 'true' });
+  camSlots.set(p.member.id, slot);
+  const cheia = el('button', { class: 'room__maximize', type: 'button', title: 'Tela cheia' }, [
+    iconEl(expandIcon(16)),
+    el('span', { class: 'sr-only' }, ['Tela cheia']),
+  ]);
+  const palco = el(
+    'div',
+    { class: 'room__foco', title: 'Clique para voltar para todos', 'data-uid': p.member.id },
+    [
+      slot,
+      el('span', { class: 'room__foco-nome' }, [p.isSelf ? `${p.member.displayName} (você)` : p.member.displayName]),
+      p.camera === 'pausada' && avisoPausada(),
+      cheia,
+    ],
+  );
+  cheia.addEventListener('click', (e) => {
+    e.stopPropagation();
+    telaCheia(palco);
+  });
+  palco.addEventListener('click', () => props.onFoco(null));
+  palco.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    telaCheia(palco);
+  });
+  return palco;
+}
+
+function telaCheia(alvo: HTMLElement): void {
+  if (document.fullscreenElement !== null) void document.exitFullscreen().catch(() => {});
+  else void alvo.requestFullscreen?.().catch(() => {});
+}
+
+/** "Esconder quem está sem câmera": só aparece com câmera E alguém sem. */
+function botaoEsconder(props: VoiceRoomProps): HTMLElement | null {
+  const com = props.participants.filter((p) => p.camera !== 'off').length;
+  if (com === 0 || (com === props.participants.length && !props.camera.esconderSemCamera)) return null;
+  const rotulo = 'Esconder quem está sem câmera';
+  const b = el(
+    'button',
+    { class: 'room__esconder', type: 'button', title: rotulo, 'aria-pressed': String(props.camera.esconderSemCamera) },
+    [iconEl(eyeOffIcon(16)), el('span', { class: 'room__esconder-texto' }, [rotulo])],
+  );
+  b.addEventListener('click', props.onToggleEsconderSemCamera);
+  return b;
+}
+
+/** Ligar/desligar a câmera e (no celular, ligada) virar. */
+function botoesDaCamera(props: VoiceRoomProps): HTMLElement[] {
+  const { camera } = props;
+  if (camera.travada !== null && !camera.ligada) {
+    return [controlButton(cameraOffIcon(19), camera.travada, true, null, false, props.onAviso)];
+  }
+  const botao = controlButton(
+    camera.ligada ? cameraIcon(19) : cameraOffIcon(19),
+    camera.ligada ? 'Desligar câmera' : 'Ligar câmera',
+    !camera.ligada,
+    props.onToggleCamera,
+  );
+  if (camera.ligada) botao.classList.add('room__btn--on');
+  if (!camera.ligada || !camera.podeVirar) return [botao];
+  return [botao, controlButton(flipCameraIcon(19), 'Virar a câmera', false, props.onVirarCamera)];
 }
 
 /*

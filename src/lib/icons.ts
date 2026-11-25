@@ -53,6 +53,18 @@ export const micIcon = (size?: number): string =>
 export const cameraIcon = (size?: number): string =>
   svg('<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m21.5 8-6 4 6 4V8Z"/>', size);
 
+/** Câmera desligada / pausada (0.9.5). */
+export const cameraOffIcon = (size?: number): string =>
+  svg('<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m21.5 8-6 4 6 4V8Z"/><path d="M2 3l19 18"/>', size);
+
+/** Virar entre a câmera da frente e a de trás (celular). */
+export const flipCameraIcon = (size?: number): string =>
+  svg('<path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/>', size);
+
+/** Olho cortado: esconder (quem está sem câmera). */
+export const eyeOffIcon = (size?: number): string =>
+  svg('<path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.6 3.3M6.6 7.6C4.3 9.2 3 12 3 12s4 6 9 6a8.7 8.7 0 0 0 4.3-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>', size);
+
 /** Monitor "vazio" — placeholder da tela compartilhada. */
 export const monitorIcon = (size?: number): string =>
   svg('<rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8.5 21h7M12 17v4"/>', size);

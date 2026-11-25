@@ -1,7 +1,7 @@
 import './call-bar.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { hangupIcon, micIcon, screenShareIcon } from '../../lib/icons';
+import { cameraIcon, cameraOffIcon, hangupIcon, micIcon, screenShareIcon } from '../../lib/icons';
 
 /**
  * Faixa de chamada em andamento.
@@ -29,6 +29,9 @@ export interface CallBarProps {
   /** Transmitir a tela sem voltar para a sala (cartão do desktop). */
   onToggleScreen?: () => void;
   sharingScreen?: boolean;
+  /** 0.9.5: ligar/desligar a câmera sem voltar para a sala. */
+  onToggleCamera?: () => void;
+  cameraOn?: boolean;
 }
 
 export function renderCallBar(props: CallBarProps, variant: 'desktop' | 'mobile'): HTMLElement {
@@ -90,5 +93,20 @@ export function renderCallBar(props: CallBarProps, variant: 'desktop' | 'mobile'
     );
   if (screen !== false) screen.addEventListener('click', props.onToggleScreen!);
 
-  return el('div', { class: `callbar callbar--${variant}` }, [back, mute, screen, leave]);
+  const camLabel = props.cameraOn === true ? 'Desligar câmera' : 'Ligar câmera';
+  const camera =
+    props.onToggleCamera !== undefined &&
+    el(
+      'button',
+      {
+        class: `icon-button callbar__btn${props.cameraOn === true ? ' is-on' : ''}`,
+        type: 'button',
+        title: camLabel,
+        'aria-pressed': String(props.cameraOn === true),
+      },
+      [iconEl(props.cameraOn === true ? cameraIcon(16) : cameraOffIcon(16)), el('span', { class: 'sr-only' }, [camLabel])],
+    );
+  if (camera !== false) camera.addEventListener('click', props.onToggleCamera!);
+
+  return el('div', { class: `callbar callbar--${variant}` }, [back, mute, camera, screen, leave]);
 }

@@ -53,6 +53,9 @@ import {
 import { renderGroupPanel } from './components/group-panel/group-panel';
 import { renderRoomPanel } from './components/room-panel/room-panel';
 import { acompanharChamadaNoAndroid, emAppAndroid, telaCheiaNoAndroid } from './lib/android';
+import { loadCameraSettings, onCameraSettings, saveCameraSettings } from './lib/camera-settings';
+import { abrirPreviaDaCamera } from './components/camera/previa';
+import { MAX_CAMERAS } from './lib/voice-engine';
 import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-panel';
 import { memberListContent } from './components/member-list/member-list';
 import { renderPinnedList } from './components/pinned/pinned-list';
@@ -1259,6 +1262,8 @@ export function mountApp(
       onDisconnect: () => store.disconnectVoice(),
       onToggleScreen: () => handleToggleScreenShare(),
       sharingScreen: state.screenSharing,
+      onToggleCamera: () => alternarCamera(),
+      cameraOn: state.cameraOn,
     };
   }
 
@@ -1421,11 +1426,89 @@ export function mountApp(
 
   function alternarJeitoDaSala(): void {
     jeitoDaSala = jeitoDaSala === 'palco' ? 'grade' : 'palco';
+    redesenharSala();
+  }
+
+  function redesenharSala(): void {
     const room = buildVoiceRoom(store.getState());
     if (room !== null && centerMode === 'voice' && centerEl !== null) {
       centerEl.replaceWith(room);
       centerEl = room;
     }
+  }
+
+  /*
+   * CÂMERA (0.9.5). Foco (a câmera grande no palco) e "esconder quem está sem
+   * câmera" são escolhas desta sessão, como o palco/grade.
+   */
+  let focoDaCamera: string | null = null;
+  let esconderSemCamera = false;
+  let ajustesDaCamera = loadCameraSettings();
+  onCameraSettings((v) => {
+    ajustesDaCamera = v;
+    redesenharSala();
+  });
+  const celularComCamera = (): boolean => emAppAndroid() || /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+  /** O meu <video> da câmera: um só, reaproveitado (recriar piscaria a imagem). */
+  let meuVideoDaCamera: HTMLVideoElement | null = null;
+  function meuVideo(stream: MediaStream): HTMLVideoElement {
+    if (meuVideoDaCamera === null) {
+      meuVideoDaCamera = document.createElement('video');
+      meuVideoDaCamera.autoplay = true;
+      meuVideoDaCamera.playsInline = true;
+      // Mudo sempre: é só a imagem (o som vai pelo microfone).
+      meuVideoDaCamera.muted = true;
+    }
+    if (meuVideoDaCamera.srcObject !== stream) meuVideoDaCamera.srcObject = stream;
+    return meuVideoDaCamera;
+  }
+
+  /** Por que eu não posso ligar a câmera agora (ou null). */
+  function cameraTravada(state: AppState): string | null {
+    const voice = state.voice;
+    if (voice === null) return 'Entre numa chamada para ligar a câmera.';
+    if (navigator.mediaDevices?.getUserMedia === undefined) return 'Este aparelho não deixa usar a câmera.';
+    if (!state.voiceReady) return 'Conectando à sala…';
+    if (!posso(state, 'camera', voice.channelId)) return 'Seu cargo não deixa ligar a câmera nesta sala.';
+    const ligadas = state.voiceParticipants.filter((p) => p.channelId === voice.channelId && p.camera && p.uid !== user.uid).length;
+    if (!state.cameraOn && ligadas >= MAX_CAMERAS) {
+      return `Já tem ${MAX_CAMERAS} câmeras ligadas nesta sala. Espere alguém desligar a dele.`;
+    }
+    return null;
+  }
+
+  function alternarCamera(): void {
+    const state = store.getState();
+    if (state.cameraOn) {
+      void store.stopCamera();
+      return;
+    }
+    const motivo = cameraTravada(state);
+    if (motivo !== null) {
+      showToast(motivo);
+      return;
+    }
+    abrirPreviaDaCamera((cameraId, frente) => store.startCamera(cameraId, frente));
+  }
+
+  function virarCamera(): void {
+    const frente = !ajustesDaCamera.frente;
+    // Virando, vale a da frente/de trás — não um aparelho escolhido antes.
+    saveCameraSettings({ ...ajustesDaCamera, frente, cameraId: '' });
+    void store.startCamera('', frente).then((motivo) => {
+      if (motivo !== null) showToast(motivo);
+    });
+  }
+
+  function focarCamera(uid: string | null): void {
+    focoDaCamera = uid;
+    redesenharSala();
+  }
+
+  function alternarEsconderSemCamera(): void {
+    esconderSemCamera = !esconderSemCamera;
+    redesenharSala();
   }
 
   /** A sala, com quem está mesmo nela. */
@@ -1453,6 +1536,18 @@ export function mountApp(
         muted: isSelf ? state.voiceMuted : participant.muted,
         isSelf,
         failed: state.voiceFailedPeers.includes(participant.uid),
+        // A MINHA câmera segue o estado local (o botão responde na hora).
+        camera: isSelf
+          ? state.cameraOn
+            ? state.cameraPaused
+              ? 'pausada'
+              : 'on'
+            : 'off'
+          : participant.camera
+            ? participant.cameraPausada
+              ? 'pausada'
+              : 'on'
+            : 'off',
       };
     });
 
@@ -1509,6 +1604,18 @@ export function mountApp(
       onToggleScreenShare: handleToggleScreenShare,
       onToggleMaximize: () => setMaximized(!state.screenMaximized),
       onLeave: () => store.disconnectVoice(),
+      camera: {
+        ligada: state.cameraOn,
+        travada: cameraTravada(state),
+        podeVirar: celularComCamera(),
+        espelhar: ajustesDaCamera.espelhar,
+        foco: focoDaCamera,
+        esconderSemCamera,
+      },
+      onToggleCamera: alternarCamera,
+      onVirarCamera: virarCamera,
+      onFoco: focarCamera,
+      onToggleEsconderSemCamera: alternarEsconderSemCamera,
     });
 
     /*
@@ -1527,6 +1634,19 @@ export function mountApp(
     if (parts.previewSlot !== null) {
       const stream = store.localScreenStream();
       if (stream !== null) parts.previewSlot.append(localPreview(stream));
+    }
+    // 0.9.5: as câmeras — a minha (local) e a de cada pessoa (do motor).
+    for (const [uid, slot] of parts.camSlots) {
+      const video =
+        uid === user.uid
+          ? (() => {
+              const meu = store.localCameraStream();
+              return meu === null ? null : meuVideo(meu);
+            })()
+          : store.cameraElementOf(uid);
+      if (video === null) continue;
+      slot.append(video);
+      void video.play().catch(() => {});
     }
 
     // A sala foi reconstruída: reaplica quem está falando. O anel vive numa
