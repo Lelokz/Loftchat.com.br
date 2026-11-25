@@ -283,7 +283,7 @@ export function openSettings(options: SettingsOptions): void {
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
-    itemDoMenu('voz', 'Voz e áudio', micIcon(18)),
+    itemDoMenu('voz', 'Voz e vídeo', micIcon(18)),
     itemDoMenu('notificacoes', 'Notificações', bellIcon(18)),
     el('span', { class: 'settings__nav-label' }, ['Loftchat']),
     // Só no programa do PC (no celular não tem janela nem bandeja).

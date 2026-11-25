@@ -48,9 +48,9 @@ test('voz e áudio: engrenagem da sala, aparelhos, barra do teste, filtros e tro
   expect((await pedidos())[0]!.audio).toMatchObject({ noiseSuppression: true, echoCancellation: true, autoGainControl: true });
 
   // A engrenagem da sala abre direto em Voz e áudio.
-  await page.locator('.room__header').getByRole('button', { name: 'Voz e áudio' }).click();
+  await page.locator('.room__header').getByRole('button', { name: 'Voz e vídeo' }).click();
   const tela = page.getByRole('dialog', { name: 'Configurações' });
-  await expect(tela.getByRole('heading', { name: 'Voz e áudio' })).toBeVisible();
+  await expect(tela.getByRole('heading', { name: 'Voz e vídeo' })).toBeVisible();
 
   // Microfone: o padrão e os aparelhos (falsos) do navegador.
   const microfone = tela.getByRole('combobox', { name: 'Microfone' });
@@ -88,9 +88,23 @@ test('voz e áudio: engrenagem da sala, aparelhos, barra do teste, filtros e tro
   // Vale neste aparelho: recarregar mantém o microfone e o filtro.
   await page.reload();
   await page.getByRole('button', { name: 'Configurações', exact: true }).click({ timeout: 30_000 });
-  await tela.getByRole('button', { name: 'Voz e áudio' }).click();
+  await tela.getByRole('button', { name: 'Voz e vídeo' }).click();
   await expect(tela.getByRole('combobox', { name: 'Microfone' })).toHaveValue(segundo!);
   await expect(tela.getByRole('switch', { name: 'Redução de ruído' })).toHaveAttribute('aria-checked', 'false');
   await expect(tela.getByRole('switch', { name: 'Cancelamento de eco' })).toHaveAttribute('aria-checked', 'true');
+
+  // 0.9.5: a parte de vídeo — escolher a câmera, testar (a prévia mostra
+  // imagem) e espelhar, que fica guardado.
+  await expect(tela.getByRole('combobox', { name: 'Câmera' })).toBeVisible();
+  await tela.getByRole('button', { name: 'Testar câmera' }).click();
+  await expect
+    .poll(() => tela.locator('.cam-previa__video').evaluate((v) => (v as HTMLVideoElement).videoWidth > 0), { timeout: 15_000 })
+    .toBe(true);
+  await expect(tela.locator('.cam-previa')).toHaveClass(/is-espelhada/);
+  await tela.getByRole('switch', { name: 'Espelhar o meu vídeo' }).click();
+  await expect(tela.locator('.cam-previa')).not.toHaveClass(/is-espelhada/);
+  await tela.getByRole('button', { name: 'Parar teste' }).last().click();
+  await expect(tela.locator('.cam-previa')).toBeHidden();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loft.camera') ?? '{}').espelhar)).toBe(false);
   await page.context().close();
 });

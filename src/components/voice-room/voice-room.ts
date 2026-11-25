@@ -193,9 +193,9 @@ export function renderVoiceRoom(props: VoiceRoomProps): VoiceRoomParts {
     botaoEsconder(props),
     trocarJeito,
     (() => {
-      const b = el('button', { class: 'icon-button room__settings-button', type: 'button', title: 'Voz e áudio' }, [
+      const b = el('button', { class: 'icon-button room__settings-button', type: 'button', title: 'Voz e vídeo' }, [
         iconEl(gearIcon(18)),
-        el('span', { class: 'sr-only' }, ['Voz e áudio']),
+        el('span', { class: 'sr-only' }, ['Voz e vídeo']),
       ]);
       b.addEventListener('click', props.onOpenVoiceSettings);
       return b;

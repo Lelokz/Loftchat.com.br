@@ -18,6 +18,15 @@
   background: #0b0816;
 }
 
+.cam-previa[hidden] {
+  display: none;
+}
+
+.settings__field .cam-previa {
+  max-width: 420px;
+  margin-top: var(--space-2);
+}
+
 .cam-previa__video {
   width: 100%;
   height: 100%;

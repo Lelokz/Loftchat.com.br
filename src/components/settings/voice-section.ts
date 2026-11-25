@@ -6,6 +6,8 @@ import {
   saveVoiceSettings,
 } from '../../lib/voice-settings';
 import type { VoiceSettings } from '../../lib/voice-settings';
+import { listarCameras, loadCameraSettings, saveCameraSettings } from '../../lib/camera-settings';
+import '../camera/camera.css';
 
 /**
  * CONFIGURAÇÕES → VOZ E ÁUDIO (proposta A, etapa 8c).
@@ -183,8 +185,10 @@ export function renderVoiceSection(): VoiceSection {
     return el('div', { class: 'voz__filtro' }, [botao, el('p', { class: 'settings__help' }, [ajuda])]);
   }
 
+  const video = secaoDeVideo();
+
   const elementos = [
-    el('h2', { class: 'settings__title' }, ['Voz e áudio']),
+    el('h2', { class: 'settings__title' }, ['Voz e vídeo']),
     el('p', { class: 'settings__help' }, [
       'Vale neste aparelho. Com a chamada aberta, muda na hora, sem sair da sala.',
     ]),
@@ -228,6 +232,7 @@ export function renderVoiceSection(): VoiceSection {
         (v) => (atual = { ...atual, autoGainControl: v }),
       ),
     ]),
+    ...video.elementos,
   ];
 
   return {
@@ -235,7 +240,123 @@ export function renderVoiceSection(): VoiceSection {
     parar: () => {
       parado = true;
       desligarTeste();
+      video.parar();
       navigator.mediaDevices?.removeEventListener('devicechange', aoTrocarAparelhos);
+    },
+  };
+}
+
+/**
+ * VÍDEO (0.9.5): qual câmera, testar com a prévia ao vivo e espelhar o MEU
+ * vídeo. Com a câmera ligada numa chamada, trocar aqui troca lá na hora.
+ */
+function secaoDeVideo(): { elementos: HTMLElement[]; parar: () => void } {
+  let ajustes = loadCameraSettings();
+  let teste: MediaStream | null = null;
+  let parado = false;
+
+  const camera = el('select', { class: 'settings__input voz__select', 'aria-label': 'Câmera' }) as HTMLSelectElement;
+  const video = el('video', { class: 'cam-previa__video', autoplay: '', playsinline: '', muted: '' }) as HTMLVideoElement;
+  video.muted = true;
+  const quadro = el('div', { class: `cam-previa${ajustes.espelhar ? ' is-espelhada' : ''}` }, [video]);
+  quadro.hidden = true;
+  const botao = el('button', { class: 'settings__font voz__testar', type: 'button', 'aria-pressed': 'false' }, ['Testar câmera']);
+  const erro = el('p', { class: 'settings__error', role: 'alert' });
+  erro.hidden = true;
+
+  async function listar(): Promise<void> {
+    const cameras = await listarCameras();
+    if (parado) return;
+    const opcoes = [el('option', { value: '' }, ['Padrão do aparelho']), ...cameras.map((c) => el('option', { value: c.id }, [c.nome]))];
+    if (ajustes.cameraId !== '' && !cameras.some((c) => c.id === ajustes.cameraId)) {
+      opcoes.push(el('option', { value: ajustes.cameraId }, ['Câmera desconectada']));
+    }
+    camera.replaceChildren(...opcoes);
+    camera.value = ajustes.cameraId;
+  }
+
+  function desligar(): void {
+    teste?.getTracks().forEach((t) => t.stop());
+    teste = null;
+    video.srcObject = null;
+    quadro.hidden = true;
+    botao.textContent = 'Testar câmera';
+    botao.setAttribute('aria-pressed', 'false');
+  }
+
+  async function ligar(): Promise<void> {
+    desligar();
+    erro.hidden = true;
+    try {
+      teste = await navigator.mediaDevices.getUserMedia({
+        video: ajustes.cameraId === '' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : { deviceId: { ideal: ajustes.cameraId } },
+      });
+    } catch {
+      erro.textContent = 'Não deu para abrir a câmera. Libere a câmera nas permissões, ou feche o programa que estiver usando ela.';
+      erro.hidden = false;
+      return;
+    }
+    if (parado) {
+      desligar();
+      return;
+    }
+    video.srcObject = teste;
+    void video.play().catch(() => {});
+    quadro.hidden = false;
+    botao.textContent = 'Parar teste';
+    botao.setAttribute('aria-pressed', 'true');
+    void listar();
+  }
+
+  botao.addEventListener('click', () => {
+    if (teste === null) void ligar();
+    else desligar();
+  });
+  camera.addEventListener('change', () => {
+    ajustes = { ...ajustes, cameraId: camera.value };
+    saveCameraSettings(ajustes);
+    if (teste !== null) void ligar();
+  });
+
+  const espelhar = el(
+    'button',
+    { class: 'settings__font aparencia-aba', type: 'button', role: 'switch', 'aria-checked': String(ajustes.espelhar) },
+    [el('span', { class: 'aparencia-aba__caixa', 'aria-hidden': 'true' }, [ajustes.espelhar ? '✓' : '']), 'Espelhar o meu vídeo'],
+  );
+  espelhar.addEventListener('click', () => {
+    ajustes = { ...ajustes, espelhar: !ajustes.espelhar };
+    saveCameraSettings(ajustes);
+    espelhar.setAttribute('aria-checked', String(ajustes.espelhar));
+    espelhar.querySelector('.aparencia-aba__caixa')!.textContent = ajustes.espelhar ? '✓' : '';
+    quadro.classList.toggle('is-espelhada', ajustes.espelhar);
+  });
+
+  void listar();
+
+  return {
+    elementos: [
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Câmera']),
+        camera,
+        el('p', { class: 'settings__help' }, ['Os nomes das câmeras aparecem depois do primeiro teste.']),
+      ]),
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Testar a câmera']),
+        botao,
+        quadro,
+        erro,
+      ]),
+      el('div', { class: 'settings__field' }, [
+        el('span', { class: 'settings__label' }, ['Meu vídeo']),
+        el('div', { class: 'voz__filtro' }, [
+          espelhar,
+          el('p', { class: 'settings__help' }, ['Você se vê como num espelho. Os outros sempre te veem do jeito certo.']),
+        ]),
+      ]),
+    ],
+    parar: () => {
+      parado = true;
+      desligar();
     },
   };
 }

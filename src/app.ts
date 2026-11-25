@@ -1445,7 +1445,14 @@ export function mountApp(
   let esconderSemCamera = false;
   let ajustesDaCamera = loadCameraSettings();
   onCameraSettings((v) => {
+    const trocou = v.cameraId !== ajustesDaCamera.cameraId && v.cameraId !== '';
     ajustesDaCamera = v;
+    // Trocou de câmera nas Configurações com ela ligada: troca na chamada também.
+    if (trocou && store.getState().cameraOn) {
+      void store.startCamera(v.cameraId).then((motivo) => {
+        if (motivo !== null) showToast(motivo);
+      });
+    }
     redesenharSala();
   });
   const celularComCamera = (): boolean => emAppAndroid() || /Android|iPhone|iPad/i.test(navigator.userAgent);
