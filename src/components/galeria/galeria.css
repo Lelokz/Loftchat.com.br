@@ -1,0 +1,382 @@
+/* GALERIA DO GRUPO (0.8.0) — aba Mídia do painel e a galeria grande ("Ver tudo"). */
+
+/* --- miniaturas (as duas usam) ------------------------------------------- */
+
+.galeria__periodo {
+  margin: 18px 0 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.galeria__grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.galeria__grade--grande {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.galeria__item {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 10px;
+  background-color: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.galeria__item:hover .galeria__img,
+.galeria__item:focus-visible .galeria__img {
+  transform: scale(1.04);
+}
+
+.galeria__item:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.galeria__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 160ms ease-out;
+  pointer-events: none;
+}
+
+.galeria__play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding-left: 2px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  backdrop-filter: blur(6px);
+  color: #fff;
+}
+
+.galeria__selo {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.galeria__item--grande {
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 35%);
+}
+
+.galeria__item--grande::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 55%, rgb(0 0 0 / 65%));
+  pointer-events: none;
+}
+
+.galeria__item--grande .galeria__play {
+  width: 48px;
+  height: 48px;
+}
+
+.galeria__item--grande .galeria__selo {
+  top: 9px;
+  right: 9px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.galeria__quem {
+  position: absolute;
+  left: 10px;
+  bottom: 9px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.galeria__vazio {
+  margin: 18px 4px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* --- aba Mídia ------------------------------------------------------------- */
+
+.galeria-aba {
+  padding: 2px 2px 16px;
+}
+
+.galeria-aba__filtros {
+  display: flex;
+  gap: 5px;
+  margin: 6px 0 2px;
+}
+
+.galeria-aba__filtros button {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.galeria-aba__filtros button.is-on {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+.galeria-aba__tudo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 12px;
+  background: var(--vidro-claro);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.galeria-aba__tudo:hover {
+  background: var(--surface-hover);
+}
+
+/* --- a galeria grande ------------------------------------------------------ */
+
+.galeria {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background-color: var(--surface-chat);
+  color: var(--text-primary);
+}
+
+.galeria::backdrop {
+  background-color: var(--surface-chat);
+}
+
+.galeria__caixa {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.galeria__rolagem {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 14px 30px;
+}
+
+.galeria__fechar {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 50%;
+  color: var(--text-secondary);
+}
+
+.galeria__topo {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.galeria__titulo h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.galeria__resumo {
+  margin: 4px 0 0;
+  padding-right: 44px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.galeria__resumo b {
+  color: var(--text-secondary);
+}
+
+.galeria__filtros {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 12px;
+  background: var(--vidro-claro);
+}
+
+.galeria__filtros button {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.galeria__filtros button.is-on {
+  background: var(--vidro-claro);
+  box-shadow: inset 0 0 0 1px var(--vidro-traco);
+  color: var(--text-primary);
+}
+
+.galeria__canal {
+  padding: 9px 14px;
+  border: 1px solid var(--vidro-traco);
+  border-radius: 12px;
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* Celular: 3 por linha colados, como a galeria do próprio celular. */
+@media (max-width: 720px) {
+  .galeria__grade--grande {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .galeria__item--grande {
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  .galeria__item--grande::after,
+  .galeria__item--grande .galeria__quem {
+    display: none;
+  }
+
+  .galeria__item--grande .galeria__play {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* PC: janela no meio, igual às Configurações. */
+@media (min-width: 721px) {
+  .galeria {
+    margin: auto;
+    width: min(1180px, calc(100vw - 96px));
+    height: min(820px, calc(100vh - 80px));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 30px 80px rgb(0 0 0 / 55%), 0 0 0 1px rgb(255 255 255 / 4%);
+    animation: galeria-entra 160ms ease-out;
+  }
+
+  .galeria::backdrop {
+    background-color: rgb(6 4 14 / 62%);
+    backdrop-filter: blur(6px);
+  }
+
+  .galeria__rolagem {
+    padding: 26px 32px 40px;
+  }
+
+  .galeria__fechar {
+    top: 16px;
+    right: 16px;
+  }
+
+  .galeria__topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px;
+    padding-right: 50px;
+  }
+
+  .galeria__titulo h2 {
+    font-size: 26px;
+  }
+
+  .galeria__resumo {
+    padding-right: 0;
+  }
+
+  .galeria__filtros-caixa {
+    margin-left: auto;
+  }
+
+  .galeria__filtros button {
+    flex: none;
+    padding: 7px 14px;
+  }
+
+  .galeria__periodo {
+    margin-top: 26px;
+    margin-bottom: 12px;
+  }
+}
+
+@keyframes galeria-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .galeria {
+    animation: none;
+  }
+
+  .galeria__img {
+    transition: none;
+  }
+}

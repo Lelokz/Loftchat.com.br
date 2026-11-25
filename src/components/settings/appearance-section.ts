@@ -336,7 +336,7 @@ function blocoDasMensagens(atual: Appearance, onChange: () => void): HTMLElement
 
 /* --- painel da direita (etapa 5d) ---------------------------------------- */
 
-const NOMES_DAS_ABAS: Record<PanelTab, string> = { agora: 'Agora', membros: 'Membros', fixadas: 'Fixadas' };
+const NOMES_DAS_ABAS: Record<PanelTab, string> = { agora: 'Agora', membros: 'Membros', midia: 'Mídia', fixadas: 'Fixadas' };
 
 function blocoDoPainel(atual: Appearance, onChange: () => void): HTMLElement {
   const bloco = el('div', { class: 'aparencia-mensagens' });

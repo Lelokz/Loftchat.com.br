@@ -628,6 +628,34 @@ export function subscribeMessages(
   );
 }
 
+/** Teto da galeria: as fotos, GIFs e vídeos mais novos do grupo. */
+export const LIMITE_DA_GALERIA = 300;
+
+/**
+ * GALERIA DO GRUPO (0.8.0): imagens, GIFs e vídeos de TODOS os canais, das
+ * mais novas para as mais velhas, só dos últimos 60 dias (os arquivos somem
+ * do carteiro depois disso). Precisa do índice groupId + kind + sentAt.
+ */
+export function subscribeGaleria(
+  groupId: string,
+  desde: string,
+  onChange: (messages: Message[]) => void,
+  onError: ErrorHandler,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      collection(db, 'messages'),
+      where('groupId', '==', groupId),
+      where('kind', 'in', ['image', 'gif', 'video']),
+      where('sentAt', '>=', desde),
+      orderBy('sentAt', 'desc'),
+      limit(LIMITE_DA_GALERIA),
+    ),
+    (snapshot) => onChange(snapshot.docs.map((entry) => toMessage(entry.id, entry.data())).filter((m) => m.attachment !== undefined && m.kind !== 'text')),
+    onError,
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Mutações                                                                    */
 /* -------------------------------------------------------------------------- */

@@ -290,7 +290,7 @@ test('painel da direita: esconder pelo botão, quais abas e qual abre primeiro; 
   const painel = pc.locator('.app > .members');
   const abas = () => pc.locator('.group-panel__tab').allTextContents();
   await expect(painel).toBeVisible();
-  expect(await abas()).toEqual(['Agora', 'Membros', 'Fixadas']);
+  expect(await abas()).toEqual(['Agora', 'Membros', 'Mídia', 'Fixadas']);
   await expect(pc.locator('.group-panel__tab.is-active')).toHaveText('Membros');
 
   // Botão do cabeçalho: esconde na hora, o chat ocupa o espaço, e fica guardado.
@@ -315,6 +315,8 @@ test('painel da direita: esconder pelo botão, quais abas e qual abre primeiro; 
   await grupoDeAbas.getByRole('checkbox', { name: 'Agora' }).click();
   await tela.getByRole('radiogroup', { name: 'Aba que abre primeiro' }).getByRole('radio', { name: 'Fixadas' }).click();
   await grupoDeAbas.getByRole('checkbox', { name: 'Membros' }).click();
+  // A Mídia (0.8.0) também desliga — e continua desligada depois de recarregar.
+  await grupoDeAbas.getByRole('checkbox', { name: 'Mídia' }).click();
   // A última que sobrou fica travada (marcada e desabilitada).
   await expect(grupoDeAbas.getByRole('checkbox', { name: 'Fixadas' })).toHaveAttribute('aria-checked', 'true');
   await expect(grupoDeAbas.getByRole('checkbox', { name: 'Fixadas' })).toHaveAttribute('aria-disabled', 'true');

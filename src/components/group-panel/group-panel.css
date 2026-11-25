@@ -7,19 +7,20 @@
 .group-panel__tabs {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 2px;
   height: var(--header-h);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
   border-bottom: 1px solid var(--vidro-traco);
 }
 
 .group-panel__tab {
   position: relative;
-  flex: 1;
-  padding: 6px var(--space-2);
+  /* 0.8.0: 4 abas (com a Mídia) — cada uma do tamanho do nome, para caber em 240px. */
+  flex: 1 1 auto;
+  padding: 6px 6px;
   border-radius: 9px;
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: 12.5px;
   font-weight: 700;
 }
 
@@ -37,7 +38,7 @@
 .group-panel__live-dot {
   position: absolute;
   top: 5px;
-  right: 8px;
+  right: 2px;
   width: 7px;
   height: 7px;
   border-radius: var(--radius-full);

@@ -57,6 +57,7 @@ import type { AbaDaSala, RoomPanelParts } from './components/room-panel/room-pan
 import { memberListContent } from './components/member-list/member-list';
 import { renderPinnedList } from './components/pinned/pinned-list';
 import type { AbaDoPainel, SalaAgora } from './components/group-panel/group-panel';
+import { abaMidia } from './components/galeria/galeria';
 import { closeGroupMenu, openGroupMenu } from './components/group-menu/group-menu';
 import type { GroupMenuItem } from './components/group-menu/group-menu';
 import {
@@ -1489,6 +1490,9 @@ export function mountApp(
       ...(group === null
         ? {}
         : {
+            // A galeria do grupo (0.8.0).
+            midia: () =>
+              abaMidia({ groupId: group.id, nomeDoGrupo: group.name, membros: state.members, canais: state.channels }),
             cartao: renderGroupCard({
               name: group.name,
               description: group.description,

@@ -1,6 +1,6 @@
 import { deleteField, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
-import { accountAppearance, DEFAULT_APPEARANCE, parseAppearance } from './appearance';
+import { accountAppearance, DEFAULT_APPEARANCE, paraGuardar, parseAppearance } from './appearance';
 import type { Appearance } from './appearance';
 import { db } from './firebase';
 
@@ -181,5 +181,5 @@ export function sortGroups<T extends { id: string }>(groups: T[], order: string[
 
 /** Grava a aparência pessoal inteira (etapa 5). */
 export async function saveAppearance(uid: string, a: Appearance): Promise<void> {
-  await setDoc(doc(db, 'userPrivate', uid), { appearance: { ...a } }, { merge: true });
+  await setDoc(doc(db, 'userPrivate', uid), { appearance: paraGuardar(a) }, { merge: true });
 }

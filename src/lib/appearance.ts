@@ -70,7 +70,7 @@ export const DENSITIES = ['confortavel', 'compacto'] as const;
 export type Density = (typeof DENSITIES)[number];
 
 /** As abas do painel da direita do grupo (o mesmo `AbaDoPainel` do group-panel). */
-export const PANEL_TABS = ['agora', 'membros', 'fixadas'] as const;
+export const PANEL_TABS = ['agora', 'membros', 'midia', 'fixadas'] as const;
 export type PanelTab = (typeof PANEL_TABS)[number];
 
 export interface Appearance {
@@ -128,7 +128,10 @@ export function parseAppearance(raw: unknown): Appearance {
 
 /** As abas na ordem de sempre, sem repetir; nenhuma válida = todas. A primeira tem de estar entre elas. */
 function painel(r: Record<string, unknown>): Pick<Appearance, 'panelHidden' | 'panelTabs' | 'panelFirst'> {
-  const lidas = Array.isArray(r['panelTabs']) ? r['panelTabs'] : null;
+  const lidas = Array.isArray(r['panelTabs']) ? [...(r['panelTabs'] as unknown[])] : null;
+  // 0.8.0: a aba Mídia nasceu depois. Quem salvou as abas antes dela (sem a
+  // marca `panelTabsV`) ganha a aba ligada; depois disso vale o que escolheu.
+  if (lidas !== null && r['panelTabsV'] !== 2 && !lidas.includes('midia')) lidas.push('midia');
   const panelTabs = lidas === null ? [...PANEL_TABS] : PANEL_TABS.filter((t) => lidas.includes(t));
   const abas = panelTabs.length === 0 ? [...PANEL_TABS] : panelTabs;
   const primeira = r['panelFirst'] as PanelTab;
@@ -258,11 +261,16 @@ export function applyAppearance(a: Appearance): void {
   marcar('painel', a.panelHidden ? 'escondido' : 'visivel', 'visivel');
 }
 
+/** O que vai para o banco e para o aparelho: a aparência + a marca de que as abas já conhecem a Mídia. */
+export function paraGuardar(a: Appearance): Appearance & { panelTabsV: number } {
+  return { ...a, panelTabsV: 2 };
+}
+
 /** Guarda no aparelho para o próximo carregamento já abrir certo. */
 export function rememberAppearance(a: Appearance): void {
   try {
     if (sameAppearance(a, DEFAULT_APPEARANCE)) localStorage.removeItem(CHAVE_LOCAL);
-    else localStorage.setItem(CHAVE_LOCAL, JSON.stringify(a));
+    else localStorage.setItem(CHAVE_LOCAL, JSON.stringify(paraGuardar(a)));
   } catch {
     /* sem armazenamento (aba anônima): só não lembra */
   }

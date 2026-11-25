@@ -107,7 +107,7 @@ test('chat da sala: abas, mandar, receber, responder, fixar, não vaza para o #g
   // Não vazou para o #geral: voltar ao canal de texto mostra o painel do grupo.
   await page.locator('.channel', { hasText: 'geral' }).first().click();
   await expect(page.locator('main.chat')).toBeVisible();
-  await expect.poll(abas).toEqual(['Agora', 'Membros', 'Fixadas']);
+  await expect.poll(abas).toEqual(['Agora', 'Membros', 'Mídia', 'Fixadas']);
   await expect(page.locator('main.chat .empty__title')).toHaveText('Nenhuma mensagem ainda', { timeout: 30_000 });
 
   // Desligar o chat da sala em Configurações → Aparência.
@@ -122,7 +122,7 @@ test('chat da sala: abas, mandar, receber, responder, fixar, não vaza para o #g
   // De volta à sala (pelo canal; ainda estou conectado): painel do grupo de sempre, sem chat.
   await page.locator('.channel', { hasText: 'Sala Principal' }).first().click();
   await expect(page.locator('.room__title')).toHaveText('Sala Principal');
-  await expect.poll(abas).toEqual(['Agora', 'Membros', 'Fixadas']);
+  await expect.poll(abas).toEqual(['Agora', 'Membros', 'Mídia', 'Fixadas']);
   await expect(painel.locator('.composer__input')).toHaveCount(0);
 
   // Religar: o chat volta com as mensagens.

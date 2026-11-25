@@ -8,7 +8,7 @@ import type { MemberListProps } from '../member-list/member-list';
 import { renderPinnedList } from '../pinned/pinned-list';
 import type { PinnedListProps } from '../pinned/pinned-list';
 
-export type AbaDoPainel = 'agora' | 'membros' | 'fixadas';
+export type AbaDoPainel = 'agora' | 'membros' | 'midia' | 'fixadas';
 
 export interface PessoaNaSala {
   uid: MemberId;
@@ -37,11 +37,13 @@ export interface GroupPanelProps {
   onEntrar: (channelId: ChannelId) => void;
   membros: MemberListProps;
   fixadas: PinnedListProps;
+  /** 0.8.0: a aba Mídia (galeria do grupo) — monta só quando é a aba aberta. */
+  midia?: () => HTMLElement;
   /** Cartão do grupo (etapa 3a), no topo da aba Agora. */
   cartao?: HTMLElement;
 }
 
-const NOMES: Record<AbaDoPainel, string> = { agora: 'Agora', membros: 'Membros', fixadas: 'Fixadas' };
+const NOMES: Record<AbaDoPainel, string> = { agora: 'Agora', membros: 'Membros', midia: 'Mídia', fixadas: 'Fixadas' };
 
 /**
  * Painel da direita do grupo (proposta A): abas Agora, Membros e Fixadas.
@@ -76,6 +78,8 @@ export function renderGroupPanel(props: GroupPanelProps): HTMLElement {
       ? memberListContent(props.membros)
       : props.aba === 'fixadas'
         ? [renderPinnedList(props.fixadas)]
+        : props.aba === 'midia'
+          ? props.midia === undefined ? [] : [props.midia()]
         : [...(props.cartao === undefined ? [] : [props.cartao]), ...agora(props.salas, props.onEntrar)];
 
   return el('aside', { class: 'members group-panel', 'aria-label': NOMES[props.aba] }, [
