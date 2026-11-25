@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-import { createAccountViaRest, limparTudo, newAccount, resolveTokens, signUpThroughUi } from './helpers';
+import { activeGroupId, createAccountViaRest, createGroupThroughUi, limparTudo, newAccount, resolveTokens, signUpThroughUi } from './helpers';
 import type { TestAccount } from './helpers';
 import { CARTEIRO, FS, campos, comoDono, ligarCarteiroLocal } from './carteiro-local';
 
@@ -28,6 +30,7 @@ test.afterAll(async () => {
 });
 
 const par = (a: string, b: string): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
+const VIDEO = readFileSync(join(import.meta.dirname, 'arquivos-de-teste', 'video.webm'));
 const BYTES = new Uint8Array(4000).map((_, i) => (i * 7) % 251);
 
 async function subir(token: string): Promise<{ chave: string; url: string; prazoDias: number }> {
@@ -317,4 +320,57 @@ test('visualização única: mandar pelo + (menu, janela, 1 a 5 vezes)', async (
   // Celular: o balão e a tela de ver.
   await ctxF.close();
   await ctx.close();
+});
+
+test('visualização única: vídeo no grupo, aberto no celular, cada um com a sua vez', async ({ browser }) => {
+  test.setTimeout(240_000);
+  const gil = newAccount('Gil única');
+  const hana = newAccount('Hana única');
+  contas.push(gil, hana);
+  const ctxG = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const pg = await ctxG.newPage();
+  await pg.goto('/');
+  await signUpThroughUi(pg, gil);
+  await createGroupThroughUi(pg, 'Grupo da única');
+  const grupo = await activeGroupId(pg);
+
+  const ctxH = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const ph = await ctxH.newPage();
+  await ph.goto('/');
+  await signUpThroughUi(ph, hana);
+  await resolveTokens(hana);
+  await comoDono(`memberships/${grupo}_${hana.uid}`, { groupId: grupo, memberId: hana.uid!, role: 'member' });
+
+  // Gil manda um VÍDEO para ver 1 vez.
+  const escolha = pg.waitForEvent('filechooser');
+  await pg.getByRole('button', { name: 'Anexar' }).click();
+  await pg.getByRole('menuitem', { name: /Visualização única/ }).click();
+  await (await escolha).setFiles({ name: 'clipe.webm', mimeType: 'video/webm', buffer: VIDEO });
+  const janela = pg.getByRole('dialog', { name: 'Visualização única' });
+  await expect(janela).toContainText('Para #');
+  await janela.getByRole('button', { name: 'Mandar' }).click();
+  const balaoG = pg.locator('.unica-balao');
+  await expect(balaoG).toContainText('ninguém abriu ainda', { timeout: 30_000 });
+  await expect(balaoG).toContainText('Vídeo');
+
+  // Hana, no celular: abre, o vídeo toca, "última vez".
+  await ph.reload();
+  await ph.locator(`.group-bar__button[data-group-id="${grupo}"]`).click();
+  const balaoH = ph.locator('.unica-balao');
+  await expect(balaoH).toContainText('toque para ver (1 vez)', { timeout: 30_000 });
+  await ph.screenshot({ path: 'test-results/unica/4-celular-conversa.png' });
+  await balaoH.click();
+  const tela = ph.getByRole('dialog', { name: 'Vídeo de visualização única' });
+  await expect(tela.locator('.unica-ver__conta')).toContainText('Esta é a última vez.', { timeout: 30_000 });
+  await expect.poll(() => tela.locator('video').evaluate((v) => (v as HTMLVideoElement).readyState), { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+  await expect(tela.locator('video')).not.toHaveAttribute('loop', /.*/);
+  await ph.screenshot({ path: 'test-results/unica/5-celular-vendo.png' });
+  await tela.getByRole('button', { name: 'Fechar' }).click();
+  await expect(balaoH).toContainText('Aberta');
+
+  // Gil vê quem abriu.
+  await expect(balaoG).toContainText(`vista por ${hana.displayName}`, { timeout: 30_000 });
+  await pg.screenshot({ path: 'test-results/unica/6-grupo.png' });
+  await ctxG.close();
+  await ctxH.close();
 });
