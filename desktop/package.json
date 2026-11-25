@@ -1,7 +1,7 @@
 {
   "name": "loft-desktop",
   "productName": "Loftchat",
-  "version": "0.9.5",
+  "version": "0.10.0",
   "private": true,
   "description": "Loftchat — chat, voz e tela com som, para Linux e Windows",
   "type": "module",
