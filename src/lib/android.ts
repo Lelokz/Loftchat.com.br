@@ -74,6 +74,8 @@ export function ligarAndroid(): void {
 interface Tela {
   estado(): Promise<{ escondida: boolean }>;
   telaCheia(opcoes: { ligar: boolean }): Promise<void>;
+  /** 0.10.0: print e gravação de tela saem pretos (FLAG_SECURE). */
+  proteger(opcoes: { ligar: boolean }): Promise<void>;
   addListener(evento: 'escondida', ouvinte: () => void): Promise<{ remove: () => Promise<void> }>;
 }
 
@@ -124,6 +126,12 @@ export function acompanharChamadaNoAndroid(
  * Tela cheia da transmissão no app Android: quem faz é o Android (esconde as
  * barras e deita a tela). A tela cheia da página não funciona dentro do app.
  */
+/** 0.10.0: visualização única aberta — o Android não deixa tirar print nem gravar a tela. */
+export function protegerNoAndroid(ligar: boolean): void {
+  if (!Capacitor.isNativePlatform()) return;
+  void tela.proteger({ ligar }).catch((erro: unknown) => console.warn('[proteger a tela]', erro));
+}
+
 export function telaCheiaNoAndroid(ligar: boolean): void {
   if (!Capacitor.isNativePlatform()) return;
   void tela.telaCheia({ ligar }).catch((erro: unknown) => console.warn('[tela cheia]', erro));

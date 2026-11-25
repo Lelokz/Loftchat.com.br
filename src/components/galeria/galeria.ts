@@ -40,7 +40,8 @@ let filtroDoPainel: Filtro = 'tudo';
 const PLAY = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" focusable="false"><path d="M8 5.5v13l11-6.5z"/></svg>';
 
 function filtrar(itens: Message[], filtro: Filtro, canal = ''): Message[] {
-  return itens.filter((m) => !sumiu(m.id) && (filtro === 'tudo' || m.kind === filtro) && (canal === '' || m.channelId === canal));
+  // 0.10.0: visualização única nunca entra na galeria.
+  return itens.filter((m) => !sumiu(m.id) && m.unica === undefined && (filtro === 'tudo' || m.kind === filtro) && (canal === '' || m.channelId === canal));
 }
 
 function contar(n: number): string {

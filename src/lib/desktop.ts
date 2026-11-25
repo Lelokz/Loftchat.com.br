@@ -56,6 +56,8 @@ export interface LoftDesktop {
   janelaSoltar?(): void;
   /** A pessoa clicou numa notificação: a rota da conversa. Devolve como parar de ouvir. */
   aoAbrirAviso?(ouvinte: (rota: string) => void): () => void;
+  /** 0.10.0: a janela some de print e gravação (Windows e Mac; o Linux não tem como). */
+  protegerTela?(ligar: boolean): void;
 }
 
 /** O nome que o venmic dá ao microfone virtual (desktop/main.mjs). */

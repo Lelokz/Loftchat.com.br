@@ -1518,7 +1518,8 @@ async function createPin(
     pinnedBy,
   };
   // `exactOptionalPropertyTypes`/Firestore: campo ausente, nunca `undefined`.
-  if (message.attachment !== undefined) data['attachment'] = message.attachment;
+  // 0.10.0: a fixada de uma visualização única não leva o arquivo (só o rótulo).
+  if (message.attachment !== undefined && message.unica === undefined) data['attachment'] = message.attachment;
 
   await withTimeout(addDoc(collection(db, 'pinnedMessages'), data));
 }

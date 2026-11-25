@@ -52,6 +52,7 @@ import {
 import type { Chamada } from '../lib/chamadas';
 import { emAppAndroid } from '../lib/android';
 import { capturarTelaDoAndroid, transmissaoDoAndroidDisponivel } from '../lib/android-tela';
+import { ligarUnicas } from '../lib/unicas';
 import type { PeerDiagnostic, ScreenAudioExtra, VoiceEngine } from '../lib/voice-engine';
 import type {
   Channel,
@@ -788,6 +789,8 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
     if (agora?.par === antes?.par && agora?.criadaEm === antes?.criadaEm) return;
     patch({ chamadaRecebida: agora });
   }
+  // 0.10.0: visualização única (quantas vezes abri / quem abriu as minhas).
+  const pararUnicas = ligarUnicas(user.uid);
   const pararChamadasRecebidas = ouvirChamadasParaMim(user.uid, (lista) => {
     chamadasCruas = lista;
     avaliarChamadaRecebida();
@@ -1830,6 +1833,7 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
 
     dispose() {
       pararChamadasRecebidas();
+      pararUnicas();
       window.clearInterval(relogioDasChamadas);
       stopFriendships();
       stopBlocks();

@@ -176,7 +176,7 @@ test('visualização única: carteiro conta as vezes, fecha o arquivo e as regra
 /* ------------------------------------------------------------------------ */
 
 async function abrirPv(page: Page, nome: string): Promise<void> {
-  await page.getByRole('button', { name: 'Privado', exact: true }).click();
+  await page.getByRole('button', { name: /^Privado/ }).first().click();
   await page.getByRole('button', { name: 'Amigos', exact: true }).click();
   await page.locator('.friends__tab[data-tab="amigos"]').click();
   await page.locator('.friends__row--clickable', { hasText: nome }).click();
@@ -217,7 +217,7 @@ async function mensagensDoPv(fio: string): Promise<{ id: string; f: Record<strin
 }
 
 test('visualização única: mandar pelo + (menu, janela, 1 a 5 vezes)', async ({ browser }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(240_000);
   const eva = newAccount('Eva única');
   const fabio = newAccount('Fabio única');
   contas.push(eva, fabio);
@@ -226,8 +226,11 @@ test('visualização única: mandar pelo + (menu, janela, 1 a 5 vezes)', async (
   await page.goto('/');
   await signUpThroughUi(page, eva);
   await resolveTokens(eva);
-  await createAccountViaRest(fabio);
-  await comoDono(`users/${fabio.uid}`, { uid: fabio.uid!, displayName: fabio.displayName, initials: 'FA' });
+  const ctxF = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const pf = await ctxF.newPage();
+  await pf.goto('/');
+  await signUpThroughUi(pf, fabio);
+  await resolveTokens(fabio);
   await ficarAmigos(eva, fabio);
   await page.reload();
   await abrirPv(page, fabio.displayName);
@@ -267,5 +270,51 @@ test('visualização única: mandar pelo + (menu, janela, 1 a 5 vezes)', async (
   const fioDoc = await fetch(`${FS}/dmThreads/${fio}`, { headers: { authorization: 'Bearer owner' } });
   const ultimo = ((await fioDoc.json()) as { fields: { lastMessage: { mapValue: { fields: { body: { stringValue: string } } } } } }).fields;
   expect(ultimo.lastMessage.mapValue.fields.body.stringValue).toBe('Foto de visualização única');
+
+  // ETAPA 3: o balão. Eva (quem mandou): "ainda não abriu", e não abre.
+  const balaoEva = page.locator('.unica-balao');
+  await expect(balaoEva).toContainText('ainda não abriu', { timeout: 30_000 });
+  await expect(balaoEva).not.toHaveAttribute('role', 'button');
+  await expect(page.locator('.message__text', { hasText: 'não conta pra ninguém' })).toHaveCount(0);
+
+  // Fabio: nada da foto nem da legenda no chat, só "toque para ver (3 vezes)".
+  await abrirPv(pf, eva.displayName);
+  const balaoF = pf.locator('.unica-balao');
+  await expect(balaoF).toContainText('toque para ver (3 vezes)', { timeout: 30_000 });
+  await expect(pf.locator('.message img.midia__img, .message video')).toHaveCount(0);
+  await expect(pf.getByText('não conta pra ninguém')).toHaveCount(0);
+  await pf.screenshot({ path: 'test-results/unica/2-conversa.png' });
+
+  // ETAPA 4: abrir. Tela cheia com a foto de verdade, "1ª de 3 vezes", a legenda, "Sobram 2".
+  await balaoF.click();
+  const tela = pf.getByRole('dialog', { name: 'Foto de visualização única' });
+  await expect(tela).toBeVisible();
+  await expect(tela.locator('.unica-ver__selo')).toHaveText('1ª de 3 vezes', { timeout: 30_000 });
+  await expect.poll(() => tela.locator('img.unica-ver__midia').evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(tela).toContainText('não conta pra ninguém');
+  await expect(tela).toContainText('Sobram 2.');
+  await expect(tela.getByRole('link')).toHaveCount(0);
+  await pf.screenshot({ path: 'test-results/unica/3-vendo.png' });
+  await pf.keyboard.press('Escape');
+  await expect(tela).toHaveCount(0);
+  await expect(balaoF).toContainText('toque para ver (2 vezes)');
+
+  // Eva vê que ele abriu.
+  await expect(balaoEva).toContainText(`${fabio.displayName} abriu`, { timeout: 30_000 });
+
+  // Mais duas vezes e acabou: "Aberta", não abre mais.
+  for (const ultima of [false, true]) {
+    await balaoF.click();
+    await expect(tela.locator('.unica-ver__conta')).toContainText(ultima ? 'Esta é a última vez.' : 'Sobra 1.', { timeout: 30_000 });
+    await tela.getByRole('button', { name: 'Fechar' }).click();
+    await expect(tela).toHaveCount(0);
+  }
+  await expect(balaoF).toContainText('Aberta');
+  await expect(balaoF).not.toHaveAttribute('role', 'button');
+  await balaoF.click();
+  await expect(tela).toHaveCount(0);
+
+  // Celular: o balão e a tela de ver.
+  await ctxF.close();
   await ctx.close();
 });

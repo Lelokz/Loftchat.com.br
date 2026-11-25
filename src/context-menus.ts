@@ -224,7 +224,8 @@ function messageItems(
    * falar pela boca de alguém. A regra do Firestore cobra o mesmo, com
    * `hasOnly(['body','editedAt'])` — a tela espelha o banco, não inventa.
    */
-  if (authorId === actions.uid) {
+  // 0.10.0: visualização única não se edita (a legenda faz parte do que some).
+  if (authorId === actions.uid && target.querySelector('.unica-balao') === null) {
     items.push({ label: 'Editar', onSelect: () => actions.editMessage(messageId) });
   }
 
@@ -282,7 +283,8 @@ function dmMessageItems(
 
   // Só o autor — nem editar, nem apagar. Não existe dono de PV.
   if (mine) {
-    items.push({ label: 'Editar', onSelect: () => actions.editMessage(messageId) });
+    // 0.10.0: visualização única não se edita.
+    if (target.querySelector('.unica-balao') === null) items.push({ label: 'Editar', onSelect: () => actions.editMessage(messageId) });
     items.push({
       label: 'Apagar mensagem',
       danger: true,

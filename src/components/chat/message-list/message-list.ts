@@ -16,6 +16,7 @@ import {
 import { dadosDoYouTube, idDoYouTube, linkDoYouTube, thumbDoYouTube } from "../../../lib/youtube";
 import { abrirVisualizador } from "../../visualizador/visualizador";
 import { renderVoz } from "../../voz/voz";
+import { renderBalaoUnica } from "../../unica/balao";
 import type {
   Attachment,
   Member,
@@ -362,7 +363,13 @@ export function renderMessageList(props: MessageListProps): HTMLElement {
             citation(message.replyTo, messages, props.atStart, props.onJumpTo),
           props.editingId === message.id
             ? editor(message, props)
-            : renderContent(message),
+            : message.unica !== undefined
+              ? renderBalaoUnica(message, {
+                  eu: currentMemberId,
+                  tipo: props.dataContext === "dm-message" ? "pv" : "grupo",
+                  pessoas: authors,
+                })
+              : renderContent(message),
           // Marca de editado, discreta e depois do texto.
           message.editedAt !== undefined &&
             props.editingId !== message.id &&
