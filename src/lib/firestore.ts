@@ -253,6 +253,11 @@ function toMessageBase(id: string, data: DocumentData): MessageBase {
 
   // 0.11.0: encaminhada.
   if (data['encaminhada'] === true) Object.assign(message, { encaminhada: true });
+  // 0.12.5: o presente (insígnia especial) — só o carteiro cria.
+  const presente = data['presente'] as { insignia?: unknown; aberto?: unknown; cancelado?: unknown } | undefined;
+  if (typeof presente === 'object' && presente !== null && (presente.insignia === 'confidente' || presente.insignia === 'testador')) {
+    Object.assign(message, { presente: { insignia: presente.insignia, aberto: presente.aberto === true, cancelado: presente.cancelado === true } });
+  }
   // 0.10.0: visualização única.
   const unica = data['unica'] as { vezes?: unknown } | undefined;
   if (typeof unica === 'object' && unica !== null && typeof unica.vezes === 'number' && unica.vezes >= 1 && unica.vezes <= 5) {

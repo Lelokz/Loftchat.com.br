@@ -22,6 +22,7 @@ import { abrirUnica } from './unica';
 import { transcrever } from './transcricao';
 import { buscarJogos } from './jogos';
 import { contarMensagem, rotaAmigosEmComum, rotaConquistas } from './insignias';
+import { rotaEspeciais } from './especiais';
 import type { EnvJogos } from './jogos';
 import type { Balde } from './arquivos';
 
@@ -39,6 +40,8 @@ export interface Env extends EnvJogos {
   WHISPER_FALSO?: string;
   /** 0.12.0: as insígnias especiais, dadas à mão — JSON { "criador": ["@arroba" ou uid], … } (wrangler.toml). */
   ESPECIAIS?: string;
+  /** 0.12.5: o @ do criador do Loftchat (padrão: lelokz) — só ele dá as especiais. */
+  CRIADOR?: string;
 }
 
 const TEXTO_MAX = 180;
@@ -568,6 +571,8 @@ export default {
       // 0.12.0: insígnias e amigos em comum (ver insignias.ts).
       if (req.method === 'POST' && url.pathname === '/conquistas') return await rotaConquistas(req, env);
       if (req.method === 'POST' && url.pathname === '/amigos-em-comum') return await rotaAmigosEmComum(req, env);
+      // 0.12.5: as especiais que só o criador dá (ver especiais.ts).
+      if (req.method === 'POST' && url.pathname === '/especiais') return await rotaEspeciais(req, env);
       // 0.12.0: catálogo de jogos (ver jogos.ts).
       if (req.method === 'GET' && url.pathname === '/jogos/busca') return await buscarJogos(req, env);
       // 0.8.5: cargos, permissões e moderação (ver cargos.ts).

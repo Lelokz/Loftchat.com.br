@@ -404,6 +404,8 @@ export interface MessageBase {
   reacoes?: Record<string, string[]>;
   /** 0.11.0: veio de "Encaminhar" (mostra "Encaminhada" em cima). */
   encaminhada?: boolean;
+  /** 0.12.5: insígnia especial dada de presente (só o carteiro cria). */
+  presente?: { insignia: 'confidente' | 'testador'; aberto: boolean; cancelado: boolean };
 }
 
 /**

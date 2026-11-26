@@ -1,3 +1,4 @@
+import { renderPainelDoCriador } from '../criador/painel';
 import './settings.css';
 
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -5,7 +6,7 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { controllerIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
+import { controllerIcon, sparkleIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
 import { renderJanelaSection, temSecaoJanela } from './janela-section';
 import { renderNotificacoesSection } from './notificacoes-section';
 import { renderJogosSection } from './jogos-section';
@@ -89,9 +90,11 @@ export interface SettingsOptions {
   section?: Secao;
   /** Etapa 5c: veio de "Fundo deste canal" — a Aparência já abre apontando para ele. */
   fundoCanal?: { id: string; label: string };
+  /** 0.12.5: sou o criador do Loftchat → aparece a seção Criador. */
+  criador?: boolean;
 }
 
-export type Secao = 'perfil' | 'jogos' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'sobre';
+export type Secao = 'criador' | 'perfil' | 'jogos' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -283,6 +286,8 @@ export function openSettings(options: SettingsOptions): void {
       el('span', {}, ['Loft', el('b', {}, ['chat'])]),
     ]),
     el('span', { class: 'settings__nav-label' }, ['Você']),
+    // 0.12.5: só na conta do criador (quem barra de verdade é o carteiro).
+    options.criador === true && itemDoMenu('criador', 'Criador', sparkleIcon(18)),
     itemDoMenu('perfil', 'Perfil', faceIcon(18)),
     itemDoMenu('jogos', 'Jogos', controllerIcon(18)),
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
@@ -950,7 +955,9 @@ export function openSettings(options: SettingsOptions): void {
     erroGeral = null;
     erroDoArroba = null;
     checagem++;
-    if (secao === 'perfil') {
+    if (secao === 'criador') {
+      conteudo.replaceChildren(...renderPainelDoCriador());
+    } else if (secao === 'perfil') {
       conteudo.replaceChildren(
         ...(carregado ? secaoPerfil() : [el('p', { class: 'settings__help' }, ['Carregando seu perfil…'])]),
       );

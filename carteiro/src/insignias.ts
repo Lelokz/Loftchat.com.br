@@ -18,6 +18,7 @@ import { novasInsignias } from '../../src/lib/insignias';
 import { firestore, json, ler, lerCampos, lerVarios, nomeCompleto, quemChamou, raiz } from './index';
 import type { Env } from './index';
 import { lancamentoDoJogo } from './jogos';
+import { criadorDe } from './especiais';
 
 type Dados = Record<string, unknown>;
 
@@ -513,14 +514,21 @@ async function conferir(env: Env, uid: string): Promise<string[]> {
     // Cada lista tem uids ou @ (ex.: "@lelokz"); o @ vale o de agora da pessoa.
     const especiais = JSON.parse(env.ESPECIAIS ?? '{}') as Record<string, string[]>;
     const arroba = typeof usuario?.['username'] === 'string' ? `@${String(usuario['username']).toLowerCase()}` : null;
+    // 0.12.5: o criador (env.CRIADOR) tem a dele sempre.
     for (const [id, quem] of Object.entries(especiais)) {
       if (Array.isArray(quem) && quem.some((q) => q === uid || (arroba !== null && q.toLowerCase() === arroba))) maximo[`esp_${id}`] = 1;
     }
   } catch {
     console.log('ESPECIAIS não é um JSON');
   }
+  const extras: Escrita[] = [{ caminho: `insigniasInterno/${uid}`, definir: { conferidoEm: agora } }];
+  if (typeof usuario?.['username'] === 'string' && usuario['username'].toLowerCase() === criadorDe(env)) {
+    maximo['esp_criador'] = 1;
+    // O nome roxo cromado do criador.
+    if (usuario['brilho'] !== 'roxo') extras.push({ caminho: `users/${uid}`, definir: { brilho: 'roxo' } });
+  }
 
-  return (await contarPara(env, uid, { maximo, definir }, doc, [{ caminho: `insigniasInterno/${uid}`, definir: { conferidoEm: agora } }])) ?? [];
+  return (await contarPara(env, uid, { maximo, definir }, doc, extras)) ?? [];
 }
 
 /* -------------------------------- as rotas -------------------------------- */

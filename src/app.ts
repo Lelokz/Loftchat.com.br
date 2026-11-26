@@ -1,3 +1,6 @@
+import { abrirPresente, souCriador } from './lib/especiais';
+import { notarBrilho } from './lib/brilho';
+import { mostrarAbertura } from './components/insignias/presente';
 import { el, iconEl } from './lib/dom';
 import { menuIcon } from './lib/icons';
 import { definirPermissaoDeTranscrever } from './components/voz/transcricao';
@@ -1240,6 +1243,8 @@ export function mountApp(
     openSettings({
       ...(fundoCanal === undefined ? {} : { fundoCanal }),
       user,
+      // 0.12.5: o Painel do Criador (só aparece para o criador; quem barra é o carteiro).
+      criador: souCriador(me.username),
       onSignOut,
       groups: sortGroups(state.groups, ordemDosGrupos),
       groupLabels: rotulosDosGrupos,
@@ -3612,6 +3617,36 @@ export function mountApp(
     abrirCartao(alvo);
   };
   root.addEventListener('click', onProfileClick);
+
+  /*
+   * 0.12.5: ABRIR O PRESENTE (insígnia especial no privado). O carteiro
+   * confere que o presente é meu e grava a insígnia e o brilho do nome.
+   */
+  const onAbrirPresente = (event: MouseEvent): void => {
+    const botao = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-abrir-presente]');
+    if (botao === null || botao === undefined || botao.disabled) return;
+    const id = botao.dataset['abrirPresente'] ?? '';
+    botao.disabled = true;
+    botao.textContent = 'Abrindo…';
+    const st = store.getState();
+    const de = st.activeDmUid === null ? 'Lelokz' : (st.friendProfiles.get(st.activeDmUid)?.displayName ?? 'Lelokz');
+    void abrirPresente(id)
+      .then((r) => {
+        if (r.brilho !== null) {
+          me.brilho = r.brilho;
+          notarBrilho(user.uid, r.brilho);
+        }
+        mostrarAbertura({ insignia: r.insignia, meuNome: me.displayName, brilho: r.brilho, de, onVer: () => abrirPerfilDe(user.uid, 'eu', me, 'insignias') });
+        previous = null;
+        render(store.getState());
+      })
+      .catch((e: unknown) => {
+        botao.disabled = false;
+        botao.textContent = 'Abrir presente';
+        showToast(e instanceof Error ? e.message : 'Não deu para abrir agora.');
+      });
+  };
+  root.addEventListener('click', onAbrirPresente);
   root.addEventListener('keydown', onProfileKey);
 
   // Android (etapa 10b): a notificação "Em chamada" enquanto há chamada aberta.
@@ -3734,6 +3769,7 @@ export function mountApp(
       closeGroupMenu();
       closePersonPopover();
       root.removeEventListener('click', onProfileClick);
+      root.removeEventListener('click', onAbrirPresente);
       root.removeEventListener('keydown', onProfileKey);
       uninstallMenus();
       document.removeEventListener('keydown', onShortcut);

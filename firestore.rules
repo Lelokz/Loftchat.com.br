@@ -608,6 +608,8 @@ service cloud.firestore {
         && request.resource.data.threadId.split('_').hasAny([uid()])
         && request.resource.data.authorId == uid()
         && unicaOk(request.resource.data)
+        // 0.12.5: presente (insígnia especial) só o carteiro cria.
+        && !('presente' in request.resource.data)
         && !blockedBy(otherInPair(request.resource.data.threadId))
         && !iBlocked(otherInPair(request.resource.data.threadId));
 

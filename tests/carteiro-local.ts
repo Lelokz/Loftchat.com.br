@@ -27,6 +27,8 @@ export async function ligarCarteiroLocal(): Promise<() => void> {
       '--var', 'SEGREDO_FOTO:segredo-de-teste',
       // 0.10.5: transcrição de mentira — os testes não gastam o Whisper de verdade.
       '--var', 'WHISPER_FALSO:1',
+      // 0.12.5: o criador nos testes (o @ que o teste dá para uma conta).
+      '--var', 'CRIADOR:criadorteste',
       '--persist-to', `${HD}/estado-dev`,
       '--log-level', process.env['LOFT_CARTEIRO_LOG'] ? 'log' : 'warn',
     ],

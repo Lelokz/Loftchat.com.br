@@ -1,3 +1,4 @@
+import { cartaoDoPresente } from "../../insignias/presente";
 import "./message-list.css";
 import "./chamada.css";
 
@@ -589,6 +590,8 @@ function cartaoDoYouTube(id: string): HTMLElement {
 /** Um balão por `kind`. O alinhamento e a cor vêm do balão base, então uma imagem
  *  minha também sai à direita com fundo de destaque. */
 function renderContent(message: MessageBase, tipo: "pv" | "grupo" = "grupo"): HTMLElement {
+  // 0.12.5: o presente (insígnia especial) no privado.
+  if (message.presente !== undefined) return cartaoDoPresente(message.presente, message.id);
   // 0.9.5: registro de ligação no PV.
   if (message.chamada !== undefined) {
     const c = message.chamada;

@@ -10,7 +10,9 @@ preview_urls = false
 PROJETO = "loft-3d6c0f"
 # 0.12.0: as insígnias especiais, dadas à mão (por @ ou uid). Ver src/insignias.ts.
 # Ids: criador, testador, bug, lancamento.
-ESPECIAIS = '{"criador":[],"testador":[],"bug":[],"lancamento":[]}'
+ESPECIAIS = '{"bug":[],"lancamento":[]}'
+# 0.12.5: o @ do criador do Loftchat — só ele dá as especiais (Confidente e Linha de Frente).
+CRIADOR = "lelokz"
 
 [observability]
 enabled = true
