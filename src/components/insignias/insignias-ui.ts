@@ -383,7 +383,8 @@ export function ligarAvisosDeInsignias(uid: string, onVer: () => void): () => vo
     const novas = [...dados.tem.entries()]
       .filter(([, quando]) => quando > ate)
       .map(([id]) => POR_ID.get(id))
-      .filter((i): i is Insignia => i !== undefined);
+      // 0.12.5: a Exclusiva chega como presente (a tela de abrir já é a festa).
+      .filter((i): i is Insignia => i !== undefined && i.raridade !== 'exclusiva');
     // Documento sem `avisadoAte` = primeira vez (as do histórico): marca sem avisar uma por uma.
     if (novas.length === 0) return;
     const ordem = ['lendaria', 'epica', 'rara', 'incomum', 'comum'];

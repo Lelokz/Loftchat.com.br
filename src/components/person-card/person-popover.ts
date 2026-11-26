@@ -145,6 +145,8 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
   desenhar({ displayName: fallback.displayName, initials: fallback.initials, photo: fallback.photo });
 
   const foraDaqui = (event: PointerEvent): void => {
+    // 0.12.5: o menu de dar insígnia (fora do cartão, por cima) é do cartão.
+    if ((event.target as Element | null)?.closest?.('.isv-menu') != null) return;
     if (!pop.contains(event.target as Node)) fechar();
   };
   const tecla = (event: KeyboardEvent): void => {

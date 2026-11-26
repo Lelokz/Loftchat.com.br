@@ -249,9 +249,14 @@ export function mountApp(
   void publicProfile(user.uid)
     .then((perfil) => {
       if (perfil === null || !root.isConnected) return;
-      // 0.12.5: o meu nome que brilha (insígnia especial) também.
+      // 0.12.5: o meu nome que brilha (insígnia especial) também — e o nome do perfil, que é o que todo mundo vê.
       if (perfil.brilho !== undefined) me.brilho = perfil.brilho;
-      if (perfil.photo === undefined && perfil.brilho === undefined) return;
+      const nomeMudou = perfil.displayName !== '' && perfil.displayName !== me.displayName;
+      if (nomeMudou) {
+        me.displayName = perfil.displayName;
+        me.initials = perfil.initials;
+      }
+      if (perfil.photo === undefined && perfil.brilho === undefined && !nomeMudou) return;
       if (perfil.photo !== undefined) me.photo = perfil.photo;
       previous = null;
       render(store.getState());

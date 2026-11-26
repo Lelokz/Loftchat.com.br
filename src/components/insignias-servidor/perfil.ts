@@ -105,12 +105,13 @@ function abrirMenu(ancora: HTMLElement, opc: Parameters<typeof filaDoServidor>[0
   };
   function fechar(): void {
     document.removeEventListener('pointerdown', fora, true);
-    document.removeEventListener('keydown', tecla, true);
+    window.removeEventListener('keydown', tecla, true);
     menu.remove();
   }
   requestAnimationFrame(() => {
     document.addEventListener('pointerdown', fora, true);
-    document.addEventListener('keydown', tecla, true);
+    // Na janela (antes do cartão): o Esc fecha só o menu.
+    window.addEventListener('keydown', tecla, true);
   });
   busca.focus();
 }
