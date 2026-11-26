@@ -239,3 +239,18 @@ export const alertIcon = (size?: number): string => svg('<path d="M12 3 2 20h20L
 /** Silenciado (0.11.0): o sino riscado. */
 export const bellOffIcon = (size?: number): string =>
   svg('<path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 13A16 16 0 0 1 18 8a6 6 0 0 0-9.3-5"/><path d="M6.3 6.3A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="m2 2 20 20"/>', size);
+
+/** Controle de videogame (0.12.0): "Jogando…", Configurações → Jogos. */
+export const controllerIcon = (size?: number): string =>
+  svg(
+    '<path d="M6 11h4M8 9v4"/><path d="M15 12h.01M18 10h.01"/>' +
+      '<path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15a3 3 0 0 0 5.4 2l1.3-1.6h6.6l1.3 1.6A3 3 0 0 0 22 15l-.7-6.4A4 4 0 0 0 17.3 5z"/>',
+    size,
+  );
+
+/** Cubo (0.12.0): a capa de um jogo sem imagem. */
+export const cubeIcon = (size?: number): string =>
+  svg('<path d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="m3 7 9 5 9-5"/><path d="M12 12v10"/>', size);
+
+/** Lupa (0.12.0): busca de jogos. */
+export const searchIcon = (size?: number): string => svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', size);

@@ -1,0 +1,352 @@
+/* Perfil completo (0.12.0): janela no PC, tela cheia no celular. */
+
+.pc-veu {
+  position: fixed;
+  z-index: 900;
+  inset: 0;
+  background: rgb(5 3 12 / 62%);
+  animation: pc-aparece 0.18s ease-out;
+}
+
+.pc {
+  position: fixed;
+  z-index: 910;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  width: min(1040px, calc(100vw - 48px));
+  height: min(900px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-chat);
+  box-shadow: 0 30px 90px rgb(0 0 0 / 60%);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transform: translate(-50%, -50%);
+  outline: none;
+  animation: pc-entra 0.22s cubic-bezier(0.2, 1, 0.4, 1);
+}
+
+@keyframes pc-aparece {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pc-entra {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.98);
+  }
+}
+
+.pc__banner {
+  height: 120px;
+  background: linear-gradient(120deg, var(--card-cor-fim, #3b2370), var(--card-cor, #3b2370)) center / cover no-repeat;
+}
+
+.pc__esquerda {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface-side);
+}
+
+.pc__quem {
+  position: relative;
+  margin-top: -50px;
+  padding: 0 22px 22px;
+}
+
+.pc__foto {
+  border: 6px solid var(--surface-side);
+}
+
+.pc__nome {
+  margin: 12px 0 0;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+
+.pc__arroba {
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.pc__quem .ins-fila {
+  margin-top: 12px;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 25%);
+}
+
+.pc__bio {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pc__desde {
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pc__desde b {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-transform: none;
+}
+
+.pc__acao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 38px;
+  margin-top: 16px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  font: 800 13.5px var(--font-sans);
+}
+
+.pc__fechar {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 35%);
+  color: var(--text-secondary);
+}
+
+.pc__fechar:hover {
+  color: var(--text-primary);
+}
+
+.pc__direita {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  padding: 18px 24px 0;
+}
+
+.pc__abas {
+  display: flex;
+  gap: 6px;
+  margin-right: 44px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pc__aba {
+  margin-bottom: -1px;
+  padding: 10px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pc__aba:hover {
+  color: var(--text-secondary);
+}
+
+.pc__aba.is-on {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.pc__corpo {
+  min-height: 0;
+  padding: 14px 2px 24px;
+  overflow-y: auto;
+}
+
+.pc__corpo > .jg-sec:first-child {
+  margin-top: 4px;
+}
+
+.pc__vazio {
+  margin: 18px 0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.pc__amigos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pc__amigo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.pc__amigo:hover {
+  background: var(--surface-hover);
+}
+
+.pc__amigo b {
+  display: block;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.pc__amigo span span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.pc__escolha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.pc__escolha.is-escolhendo {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.pc__escolher {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 9px;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.pc__escolher.is-on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ins-aba--escolhendo .ins-grade__item:not(.is-escolhivel) {
+  opacity: 0.35;
+}
+
+.ins-grade__item.is-escolhivel {
+  cursor: pointer;
+}
+
+.ins-grade__item.is-escolhida {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* --- celular: tela cheia ---------------------------------------------------- */
+
+.pc--celular {
+  inset: 0;
+  display: block;
+  width: auto;
+  height: auto;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  transform: none;
+  animation: pc-desliza 0.22s ease-out;
+}
+
+@keyframes pc-desliza {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+.pc--celular .pc__banner {
+  height: 150px;
+}
+
+.pc--celular .pc__fechar {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: auto;
+  left: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.pc--celular .pc__esquerda {
+  overflow: visible;
+  background: none;
+}
+
+.pc--celular .pc__quem {
+  margin-top: -44px;
+  padding: 0 16px;
+}
+
+.pc--celular .pc__foto {
+  border-color: var(--surface-chat);
+}
+
+.pc--celular .pc__nome {
+  margin-top: 8px;
+  font-size: 23px;
+}
+
+.pc--celular .pc__acao {
+  height: 40px;
+  margin-top: 12px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.pc--celular .pc__direita {
+  display: block;
+  padding: 0;
+}
+
+.pc--celular .pc__abas {
+  margin: 12px 0 0;
+  padding: 0 10px;
+}
+
+.pc--celular .pc__aba {
+  padding: 10px 8px;
+  font-size: 13.5px;
+}
+
+.pc--celular .pc__corpo {
+  padding: 12px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+}

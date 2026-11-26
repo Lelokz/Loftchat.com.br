@@ -12,6 +12,7 @@ import type { RegrasDoCanal } from '../lib/permissoes';
 
 import type { ChannelCategory } from '../lib/channel-layout';
 import type { CustomStatus } from '../lib/profile-extras';
+import type { JogosDoPerfil } from '../lib/jogos-perfil';
 
 export type GroupId = string;
 export type ChannelId = string;
@@ -86,6 +87,10 @@ export interface UserProfile {
   nameColor?: string;
   customStatus?: CustomStatus;
   links?: string[];
+  /** 0.12.0: jogo favorito, jogando ultimamente e quero jogar (lib/jogos-perfil.ts). */
+  jogos?: JogosDoPerfil;
+  /** 0.12.0: as até 5 insígnias que a pessoa escolheu mostrar no cartão. */
+  insigniasNoCartao?: string[];
   /**
    * Banner e fundo do cartão — NÃO moram em `users/` (moram em
    * `profileArt/{uid}`); o cliente junta aqui depois de ler, só para quem

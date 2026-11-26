@@ -21,6 +21,8 @@ export interface PersonCardData {
   /** Etapa 2d. O status vencido não aparece. */
   customStatus?: CustomStatus | undefined;
   links?: string[] | undefined;
+  /** 0.12.0: a fileira de insígnias, logo embaixo do nome. */
+  insignias?: HTMLElement | false | undefined;
 }
 
 /** "😴 dormindo" — a linha do status, ou null se não há (ou venceu). */
@@ -63,6 +65,7 @@ export function renderPersonCard(
           el('span', { class: 'person-card__handle' }, [`@${data.username}`]),
         data.subtitle !== undefined && el('span', { class: 'person-card__handle' }, [data.subtitle]),
       ]),
+      data.insignias ?? false,
       statusLine(data.customStatus, 'person-card__status') ?? false,
       bio !== '' && el('p', { class: 'person-card__bio' }, [bio]),
       (data.links?.length ?? 0) > 0 &&

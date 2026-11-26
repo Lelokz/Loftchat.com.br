@@ -3,6 +3,14 @@ import { publicProfile } from '../../lib/friends';
 import { loadProfileArt } from '../../lib/profile';
 import type { MemberId } from '../../types/models';
 import { renderPersonCard } from './person-card';
+import { jogandoDe } from '../../lib/jogando';
+import { blocoJogandoAgora, blocosDosJogos } from '../jogos/jogos-ui';
+import type { JogosDoPerfil } from '../../lib/jogos-perfil';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { filaDeInsignias, lerDadosDeInsignias } from '../insignias/insignias-ui';
+import type { DadosDeInsignias } from '../insignias/insignias-ui';
+import { insigniasDoCartao } from '../perfil-completo/perfil-completo';
 
 /** Em que pé eu estou com a pessoa — decide o botão do cartão. */
 export type Vinculo = 'eu' | 'amigo' | 'pedido' | 'bloqueado' | 'nada';
@@ -19,6 +27,8 @@ export interface PersonPopoverOptions {
   onEditProfile: () => void;
   /** 0.8.5: dentro de um grupo, os cargos e "membro desde" (vai antes dos botões). */
   noServidor?: HTMLElement;
+  /** 0.12.0: "Ver perfil completo". */
+  onVerPerfil?: () => void;
 }
 
 let aberto: { el: HTMLElement; fechar: () => void } | null = null;
@@ -89,9 +99,25 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
     return [add];
   }
 
-  function desenhar(dados: Parameters<typeof renderPersonCard>[0]): void {
+  function desenhar(dados: Parameters<typeof renderPersonCard>[0], jogos?: JogosDoPerfil): void {
+    // 0.12.0: jogando agora, favorito e "jogando ultimamente".
+    const jogo = jogandoDe(uid);
+    const ver =
+      options.onVerPerfil === undefined
+        ? []
+        : (() => {
+            const b = el('button', { class: 'jg-ver', type: 'button' }, ['Ver perfil completo']);
+            b.addEventListener('click', () => {
+              fechar();
+              options.onVerPerfil?.();
+            });
+            return [b];
+          })();
     pop.replaceChildren(
       renderPersonCard(dados, [
+        ...(jogo === null ? [] : [blocoJogandoAgora(jogo)]),
+        ...blocosDosJogos(jogos, false),
+        ...ver,
         ...(options.noServidor === undefined ? [] : [options.noServidor]),
         el('div', { class: 'person-popover__actions' }, acoes()),
       ]),
@@ -157,8 +183,12 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
   posicionar();
   pop.focus({ preventScroll: true });
 
-  void Promise.all([publicProfile(uid).catch(() => null), loadProfileArt(uid).catch(() => ({}))]).then(
-    ([perfil, art]) => {
+  void Promise.all([
+    publicProfile(uid).catch(() => null),
+    loadProfileArt(uid).catch(() => ({})),
+    getDoc(doc(db, 'insignias', uid)).then((s) => lerDadosDeInsignias(s.data()), (): DadosDeInsignias | null => null),
+  ]).then(
+    ([perfil, art, insignias]) => {
       if (!pop.isConnected || perfil === null) return;
       desenhar({
         displayName: perfil.displayName,
@@ -172,7 +202,8 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
         cardBg: 'cardBg' in art ? art.cardBg : undefined,
         customStatus: perfil.customStatus,
         links: perfil.links,
-      });
+        insignias: filaDeInsignias(insigniasDoCartao(perfil.insigniasNoCartao, insignias), 22, () => insignias),
+      }, perfil.jogos);
     },
   );
 }

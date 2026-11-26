@@ -1,0 +1,687 @@
+/* Jogos (0.12.0): capa, "Jogando…", blocos do cartão/perfil e a aba Agora. */
+
+.jg-capa {
+  display: block;
+  flex: none;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-sunken);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
+}
+
+.jg-capa--sem {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  overflow: hidden;
+  color: #d9f99d;
+  background: linear-gradient(160deg, #4d7c2a, #1f3d14);
+  text-align: center;
+}
+
+.jg-capa--sem b {
+  max-width: 100%;
+  padding: 0 4px;
+  overflow: hidden;
+  color: #fff;
+  font: 800 11px/1.2 var(--font-sans);
+  overflow-wrap: anywhere;
+}
+
+.jg-capa__cubo {
+  display: grid;
+}
+
+/* --- lista de membros ---------------------------------------------------- */
+
+.jg-jogando {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font: 600 12px var(--font-sans);
+  white-space: nowrap;
+}
+
+.jg-jogando b {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+
+.jg-jogando__icone {
+  display: grid;
+  flex: none;
+  color: #4ade80;
+}
+
+/* --- blocos do cartão e do perfil ---------------------------------------- */
+
+.jg-sec {
+  margin-top: 14px;
+}
+
+.jg-sec--grande {
+  margin-top: 20px;
+}
+
+.jg-sec__titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font: 800 11px var(--font-sans);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.jg-sec--grande .jg-sec__titulo {
+  font-size: 11.5px;
+}
+
+.jg-agora {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-radius: 12px;
+  background: rgb(0 0 0 / 25%);
+}
+
+.jg-sec--grande .jg-agora {
+  padding: 12px;
+}
+
+.jg-agora__txt {
+  min-width: 0;
+}
+
+.jg-agora b {
+  display: block;
+  color: var(--text-primary);
+  font: 800 14px var(--font-sans);
+}
+
+.jg-sec--grande .jg-agora b {
+  font-size: 16px;
+}
+
+.jg-agora small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: #4ade80;
+  font: 700 12px var(--font-sans);
+}
+
+.jg-agora small::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 3px rgb(74 222 128 / 20%);
+}
+
+.jg-agora em {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font: normal 600 12px var(--font-sans);
+}
+
+.jg-fav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.jg-fav b {
+  display: block;
+  color: var(--text-primary);
+  font: 800 14px var(--font-sans);
+}
+
+.jg-sec--grande .jg-fav b {
+  font-size: 18px;
+}
+
+.jg-fav q {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font: italic 600 12.5px/1.35 var(--font-sans);
+  overflow-wrap: anywhere;
+}
+
+.jg-sec--grande .jg-fav q {
+  font-size: 14px;
+}
+
+.jg-fila {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.jg-fila--grande {
+  gap: 12px;
+}
+
+.jg-fila__item {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 5px;
+}
+
+.jg-etq {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 800 10.5px var(--font-sans);
+  white-space: nowrap;
+}
+
+.jg-ver {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  color: var(--accent-text);
+  font: 800 12.5px var(--font-sans);
+  text-align: center;
+}
+
+.jg-ver:hover {
+  text-decoration: underline;
+}
+
+/* --- aba Agora ------------------------------------------------------------ */
+
+.jg-ag {
+  margin: var(--space-3) var(--space-1) var(--space-3);
+  padding: 4px 6px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.jg-ag__titulo {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font: 800 11px var(--font-sans);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.jg-ag__lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jg-ag__pessoa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.jg-ag__pessoa:hover {
+  background: var(--surface-hover);
+}
+
+.jg-ag__txt {
+  flex: 1;
+  min-width: 0;
+}
+
+.jg-ag__txt b {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font: 800 13.5px var(--font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jg-ag__txt span {
+  display: block;
+  overflow: hidden;
+  color: var(--text-muted);
+  font: 600 12px var(--font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jg-ag__txt .jg-ag__jogo {
+  color: var(--text-secondary);
+  font-weight: 800;
+}
+
+/* --- Configurações → Jogos ------------------------------------------------- */
+
+.jg-cfg__bloco {
+  position: relative;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-sunken);
+  font-family: var(--font-sans);
+}
+
+.jg-cfg__titulo {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  font: 800 13.5px var(--font-sans);
+}
+
+.jg-cfg__titulo span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.jg-cfg__chave {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.jg-cfg__chave > div {
+  flex: 1;
+}
+
+.jg-cfg__chave b {
+  display: block;
+  font: 800 14px var(--font-sans);
+}
+
+.jg-cfg__chave span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font: 600 12.5px/1.4 var(--font-sans);
+}
+
+.jg-cfg__toggle {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background-color 0.15s;
+}
+
+.jg-cfg__toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.jg-cfg__toggle[aria-checked='true'] {
+  background: var(--accent);
+}
+
+.jg-cfg__toggle[aria-checked='true']::after {
+  transform: translateX(18px);
+}
+
+.jg-cfg__toggle:disabled {
+  opacity: 0.45;
+}
+
+.jg-cfg__fav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.jg-cfg__nota {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.jg-cfg__nota b {
+  font: 800 14px var(--font-sans);
+}
+
+.jg-cfg__nota-campo {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-chat);
+  color: var(--text-primary);
+  font: 600 13.5px var(--font-sans);
+}
+
+.jg-cfg__linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid rgb(255 255 255 / 5%);
+}
+
+.jg-cfg__titulo + .jg-cfg__linha {
+  border-top: 0;
+}
+
+.jg-cfg__nm {
+  display: grid;
+  flex: 1;
+  gap: 7px;
+  min-width: 0;
+}
+
+.jg-cfg__nm b {
+  font: 800 13.5px var(--font-sans);
+}
+
+.jg-cfg__loja {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 6%);
+  color: var(--text-muted);
+  font: 800 10.5px var(--font-sans);
+  vertical-align: middle;
+}
+
+.jg-cfg__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.jg-cfg__tag {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font: 700 11px/1.2 var(--font-sans);
+  white-space: nowrap;
+}
+
+button.jg-cfg__tag:hover {
+  color: var(--text-primary);
+}
+
+.jg-cfg__tag.is-on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.jg-cfg__x {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.jg-cfg__x:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.jg-cfg__busca {
+  position: relative;
+  margin-top: 10px;
+}
+
+.jg-cfg__campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-chat);
+  color: var(--text-muted);
+}
+
+.jg-cfg__campo:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.jg-cfg__campo input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text-primary);
+  font: 700 14px var(--font-sans);
+}
+
+.jg-cfg__res {
+  position: absolute;
+  z-index: 5;
+  top: 46px;
+  right: 0;
+  left: 0;
+  max-height: 340px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised, #1d1630);
+  box-shadow: var(--shadow-float);
+}
+
+.jg-cfg__opcao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 9px;
+  color: var(--text-primary);
+  font: 800 13.5px var(--font-sans);
+  text-align: left;
+}
+
+.jg-cfg__opcao:hover,
+.jg-cfg__opcao:focus-visible {
+  background: var(--surface-hover);
+}
+
+.jg-cfg__opcao-nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jg-cfg__opcao small {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.jg-cfg__outro {
+  margin-top: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 9px 9px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.jg-cfg__procurando {
+  margin: 6px 8px;
+  color: var(--text-muted);
+  font: 700 13px var(--font-sans);
+}
+
+.jg-cfg__fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.jg-cfg__quero {
+  position: relative;
+}
+
+.jg-cfg__quero .jg-cfg__x {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-raised, #1d1630);
+  opacity: 0;
+}
+
+.jg-cfg__quero:hover .jg-cfg__x,
+.jg-cfg__quero .jg-cfg__x:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .jg-cfg__quero .jg-cfg__x {
+    opacity: 1;
+  }
+}
+
+.jg-cfg__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font: 800 12.5px var(--font-sans);
+}
+
+.jg-cfg__add:hover {
+  color: var(--text-primary);
+}
+
+.jg-cfg__pc {
+  margin-top: 12px;
+}
+
+.jg-cfg__lista-pc {
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.jg-cfg__programa {
+  display: grid;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 9px;
+  text-align: left;
+}
+
+.jg-cfg__programa:hover {
+  background: var(--surface-hover);
+}
+
+.jg-cfg__programa b,
+.jg-cfg__escolhido b {
+  color: var(--text-primary);
+  font: 800 13px var(--font-sans);
+}
+
+.jg-cfg__programa span,
+.jg-cfg__escolhido span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font: 600 11.5px var(--font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jg-cfg__nomear {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.jg-cfg__ok {
+  flex: none;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font: 800 13px var(--font-sans);
+}
+
+.jg-cfg__escolhidos {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.jg-cfg__escolhido {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.jg-cfg__esquecer {
+  color: var(--text-muted);
+  font: 800 12px var(--font-sans);
+}
+
+.jg-cfg__esquecer:hover {
+  color: var(--danger);
+}
+
+/* Os blocos ficam um embaixo do outro com o espaço das outras seções (o gap da coluna). */
+.jg-cfg__corpo {
+  display: contents;
+}
+
+.settings__content > .jg-cfg__bloco,
+.jg-cfg__corpo > .jg-cfg__bloco {
+  margin-bottom: 0;
+}

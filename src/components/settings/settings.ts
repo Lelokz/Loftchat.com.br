@@ -5,9 +5,13 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
+import { controllerIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
 import { renderJanelaSection, temSecaoJanela } from './janela-section';
 import { renderNotificacoesSection } from './notificacoes-section';
+import { renderJogosSection } from './jogos-section';
+import { blocoJogandoAgora, blocosDosJogos } from '../jogos/jogos-ui';
+import { jogandoDe } from '../../lib/jogando';
+import type { JogosDoPerfil } from '../../lib/jogos-perfil';
 import { renderVoiceSection } from './voice-section';
 import { renderSobreSection } from './sobre-section';
 import type { SobreSection } from './sobre-section';
@@ -87,7 +91,7 @@ export interface SettingsOptions {
   fundoCanal?: { id: string; label: string };
 }
 
-export type Secao = 'perfil' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'sobre';
+export type Secao = 'perfil' | 'jogos' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -280,6 +284,7 @@ export function openSettings(options: SettingsOptions): void {
     ]),
     el('span', { class: 'settings__nav-label' }, ['Você']),
     itemDoMenu('perfil', 'Perfil', faceIcon(18)),
+    itemDoMenu('jogos', 'Jogos', controllerIcon(18)),
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
@@ -358,6 +363,9 @@ export function openSettings(options: SettingsOptions): void {
     salvar.textContent = salvando ? 'Salvando…' : 'Salvar';
   }
 
+  /** 0.12.0: os jogos (Configurações → Jogos) também aparecem na prévia. */
+  let jogosDaPrevia: JogosDoPerfil | undefined;
+
   function desenharPrevia(): void {
     const nome = atual.displayName.trim() === '' ? 'Seu nome' : atual.displayName.trim();
     previa.replaceChildren(
@@ -374,7 +382,13 @@ export function openSettings(options: SettingsOptions): void {
         cardBg: atual.cardBg,
         customStatus: statusDoRascunho(atual) ?? undefined,
         links: linksDoRascunho(atual).filter((l) => linkProblem(l) === null),
-      }),
+      }, [
+        ...(() => {
+          const jogo = jogandoDe(user.uid);
+          return jogo === null ? [] : [blocoJogandoAgora(jogo)];
+        })(),
+        ...blocosDosJogos(jogosDaPrevia, false),
+      ]),
       el('span', { class: 'settings__preview-label' }, ['Nas mensagens']),
       previaMensagem(nome),
     );
@@ -931,7 +945,7 @@ export function openSettings(options: SettingsOptions): void {
       else botao.removeAttribute('aria-current');
     }
     dialog.classList.add('settings--secao-aberta');
-    dialog.classList.toggle('settings--com-previa', secao === 'perfil');
+    dialog.classList.toggle('settings--com-previa', secao === 'perfil' || secao === 'jogos');
     avisoArroba = null;
     erroGeral = null;
     erroDoArroba = null;
@@ -939,6 +953,14 @@ export function openSettings(options: SettingsOptions): void {
     if (secao === 'perfil') {
       conteudo.replaceChildren(
         ...(carregado ? secaoPerfil() : [el('p', { class: 'settings__help' }, ['Carregando seu perfil…'])]),
+      );
+      desenharPrevia();
+    } else if (secao === 'jogos') {
+      conteudo.replaceChildren(
+        ...renderJogosSection(user.uid, (jogos) => {
+          jogosDaPrevia = jogos;
+          if (secaoAtual === 'jogos') desenharPrevia();
+        }),
       );
       desenharPrevia();
     } else if (secao === 'grupos') {

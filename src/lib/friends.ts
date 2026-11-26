@@ -37,6 +37,8 @@ import type { Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { safeImage } from './images';
+import { parseJogos } from './jogos-perfil';
+import { contarConquista } from './conquistas';
 import { parseLinks, parseStatus } from './profile-extras';
 import { MAX_USERNAME_CHANGES } from '../types/models';
 import type { Block, Friendship, MemberId, UserProfile } from '../types/models';
@@ -287,6 +289,8 @@ export async function sendFriendRequest(
 /** Aceita um pedido recebido. Só quem recebeu chega aqui — a regra cobra. */
 export async function acceptFriendRequest(id: string): Promise<void> {
   await updateDoc(doc(db, 'friendships', id), { status: 'accepted' });
+  // 0.12.0: amigo novo conta para a insígnia "Enturmado".
+  contarConquista({ evento: 'conferir' });
 }
 
 /**
@@ -382,5 +386,11 @@ export async function publicProfile(uid: MemberId): Promise<UserProfile | null> 
   if (customStatus !== undefined) Object.assign(perfil, { customStatus });
   const links = parseLinks(data['links']);
   if (links.length > 0) Object.assign(perfil, { links });
+  const jogos = parseJogos(data['jogos']);
+  if (jogos !== undefined) Object.assign(perfil, { jogos });
+  if (Array.isArray(data['insigniasNoCartao'])) {
+    const ids = data['insigniasNoCartao'].filter((i): i is string => typeof i === 'string' && /^[a-z0-9]{1,24}$/.test(i)).slice(0, 5);
+    if (ids.length > 0) Object.assign(perfil, { insigniasNoCartao: ids });
+  }
   return perfil;
 }
