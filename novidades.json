@@ -1,5 +1,17 @@
 [
   {
+    "versao": "0.12.5",
+    "data": "2026-11-26",
+    "itens": [
+      "Insígnias do servidor: nas Configurações do grupo tem a aba Insígnias. Crie até 50 por grupo, com nome, descrição, um dos 62 ícones, a raridade e como ganhar: mensagens (num canal ou em todos), fotos/vídeos/áudios/figurinhas, reações recebidas, dias seguidos conversando, frase secreta, horas em sala de voz, horas de um jogo junto com alguém do grupo, tempo de membro, convites, ter um cargo, primeiros membros ou dada à mão. Dá para deixar secreta, limitar quantas pessoas ganham e escolher até quando vale.",
+      "Quem já cumpre ganha na hora (mensagens e mídia contam as antigas). O resto conta a partir de agora.",
+      "Dentro do grupo, o cartão de alguém mostra as insígnias daquele grupo, e o perfil completo ganha uma aba com o nome do grupo: as que a pessoa tem, as que faltam e quanto falta. Quem tem permissão dá ou tira à mão pelo \"+\" do cartão.",
+      "Três permissões novas nos cargos: Criar insígnias, Editar e apagar insígnias, Dar e tirar insígnias. Tudo vai para o Registro.",
+      "Insígnias especiais: Criador do Loftchat (Especial, roxo cromado), Confidente (Exclusiva, dourada) e Linha de Frente (Exclusiva, prateada). Quem tem uma delas tem o nome brilhando em todo lugar. As exclusivas chegam como presente no privado: é só tocar em \"Abrir presente\".",
+      "A raridade épica ficou lilás, mais clara."
+    ]
+  },
+  {
     "versao": "0.12.0",
     "data": "2026-11-26",
     "itens": [

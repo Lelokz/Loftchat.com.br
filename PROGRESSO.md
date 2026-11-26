@@ -2,6 +2,42 @@
 
 Estado em 15/11/2026.
 
+## Insígnias do servidor e as especiais (26/11/2026) — versão 0.12.5
+
+Maquete aprovada (Arquivo/Loft-desktop/maquete-insignias-servidor, PC e
+celular; o jeito de dar as especiais refeito: Painel do Criador + presente).
+
+1. **Raridades** (`lib/insignias.ts`): Exclusiva e Especial, cromadas
+   (`CROMOS`: vários pontos de cor + película de arco-íris + brilho que
+   passa). Épica lilás. Criador do Loftchat (Especial, roxo), Confidente e
+   Linha de Frente (Exclusivas, ouro e prata; o id da última continua
+   `testador`). As especiais não entram na conta da coleção ("de 98").
+2. **O nome que brilha** (`lib/brilho.ts`, `users/{uid}.brilho`, só o
+   carteiro grava): `corDoCargo` pinta o nome (mensagens, membros, sala,
+   privado, amigos, cartão, perfil, meu canto); a foto do Criador ganha o
+   aro (`avatar--criador`).
+3. **Painel do Criador** (Configurações → Criador, só para o @ de
+   `env.CRIADOR`, padrão lelokz) e **o presente** (`carteiro/src/especiais.ts`,
+   `POST /especiais` listar/buscar/dar/tirar/abrir): dar = mensagem
+   `presente` no privado (só o carteiro cria); abrir grava a insígnia e o
+   brilho e mostra a tela cheia (`components/insignias/presente.ts`).
+   Quem tem o quê em `especiais/estado` (fechado).
+4. **Insígnias do servidor** (`lib/insignias-grupo.ts`, o mesmo no app e
+   no carteiro; `carteiro/src/insignias-grupo.ts`): `insigniasDoGrupo`,
+   `insigniasDoGrupoInterno` (a frase secreta) e
+   `insigniasDoMembro/{grupo}_{uid}` (tem + contadores por grupo). As ações
+   vêm pelo `POST /cargos` (insignia-salvar/apagar/dar/tirar/ler) com as
+   permissões novas e a hierarquia. A contagem usa os mesmos ganchos das
+   insígnias do Loft (avisar, reagir, voz, jogo, conferir) e só gasta em
+   grupo que tem insígnia. Criar/editar conta o histórico de mensagens e
+   mídia (índices novos groupId+authorId[+channelId|kind]).
+5. **Telas** (`components/insignias-servidor`): aba Insígnias e a tela de
+   criar (prévia ao vivo, 62 ícones, raridade, como ganhar, opções; tela
+   cheia no celular), a fileira "Insígnias do grupo" no cartão com o "+"
+   de dar/tirar, a aba do grupo no perfil completo e o aviso com o nome do
+   grupo.
+6. Teste: `tests/insignias-servidor.spec.ts`.
+
 ## Jogos, perfil completo e insígnias (26/11/2026) — versão 0.12.0
 
 Maquetes aprovadas (Arquivo/Loft-desktop/maquete-jogos e maquete-insignias,
