@@ -12,6 +12,7 @@
  * cobra. Cada pessoa também tem um limite por hora.
  */
 
+import { contarTranscricao } from './insignias';
 import type { Balde } from './arquivos';
 import { firestore, json, ler, nomeCompleto, quemChamou, raiz } from './index';
 import type { Env } from './index';
@@ -154,5 +155,7 @@ export async function transcrever(req: Request, env: Env, balde: Balde): Promise
     }),
   });
   if (!r.ok && r.status !== 404) throw new Error(`Firestore ${r.status} gravando a transcrição`);
+  // 0.12.0: conta para a insígnia "Leitor de lábios".
+  await contarTranscricao(env, uid).catch((e: unknown) => console.log(`insígnias: ${String(e)}`));
   return json({ texto, idioma });
 }

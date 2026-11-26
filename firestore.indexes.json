@@ -76,6 +76,24 @@
         { "fieldPath": "threadId", "order": "ASCENDING" },
         { "fieldPath": "sentAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "_comment": "Insígnias (0.12.0): na primeira conferida o carteiro conta o histórico de cada pessoa por tipo — where authorId == uid, kind == tipo (contagem, ver carteiro/src/insignias.ts).",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comment": "Insígnias (0.12.0): na primeira conferida o carteiro conta o histórico de cada pessoa por tipo — where authorId == uid, kind == tipo (contagem, ver carteiro/src/insignias.ts).",
+      "collectionGroup": "dmMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

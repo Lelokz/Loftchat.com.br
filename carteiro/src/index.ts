@@ -20,9 +20,12 @@ import { entregarArquivo, limpar, receberArquivo } from './arquivos';
 import { quemVeOCanal, rotaCargos } from './cargos';
 import { abrirUnica } from './unica';
 import { transcrever } from './transcricao';
+import { buscarJogos } from './jogos';
+import { contarMensagem, rotaAmigosEmComum, rotaConquistas } from './insignias';
+import type { EnvJogos } from './jogos';
 import type { Balde } from './arquivos';
 
-export interface Env {
+export interface Env extends EnvJogos {
   PROJETO: string;
   CHAVE_GOOGLE: string;
   SEGREDO_FOTO: string;
@@ -34,6 +37,8 @@ export interface Env {
   AI?: { run(modelo: string, entrada: unknown): Promise<unknown> };
   /** Só no teste local: transcrição de mentira (nada vai para a Cloudflare). */
   WHISPER_FALSO?: string;
+  /** 0.12.0: as insígnias especiais, dadas à mão — JSON { "criador": ["@arroba" ou uid], … } (wrangler.toml). */
+  ESPECIAIS?: string;
 }
 
 const TEXTO_MAX = 180;
@@ -427,6 +432,8 @@ async function avisar(req: Request, env: Env, ctx: ExecutionContext): Promise<Re
 
   const origem = new URL(req.url).origin;
   ctx.waitUntil(entregar(env, origem, tipo, id, uid, msg).catch((e: unknown) => console.log(String(e))));
+  // 0.12.0: a mesma mensagem conta para as insígnias (ver insignias.ts).
+  ctx.waitUntil(contarMensagem(env, uid, tipo, msg).catch((e: unknown) => console.log(`insígnias: ${String(e)}`)));
   return json({ ok: true }, 202);
 }
 
@@ -558,6 +565,11 @@ export default {
     const url = new URL(req.url);
     try {
       if (req.method === 'POST' && url.pathname === '/avisar') return await avisar(req, env, ctx);
+      // 0.12.0: insígnias e amigos em comum (ver insignias.ts).
+      if (req.method === 'POST' && url.pathname === '/conquistas') return await rotaConquistas(req, env);
+      if (req.method === 'POST' && url.pathname === '/amigos-em-comum') return await rotaAmigosEmComum(req, env);
+      // 0.12.0: catálogo de jogos (ver jogos.ts).
+      if (req.method === 'GET' && url.pathname === '/jogos/busca') return await buscarJogos(req, env);
       // 0.8.5: cargos, permissões e moderação (ver cargos.ts).
       if (req.method === 'POST' && url.pathname === '/cargos') return await rotaCargos(req, env);
       const foto = /^\/foto\/([^/]+)$/.exec(url.pathname);

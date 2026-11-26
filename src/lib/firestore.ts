@@ -44,6 +44,7 @@ import type { DocumentData, Unsubscribe } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { avisarCarteiro } from './avisos';
+import { contarConquista } from './conquistas';
 import { arquivoDoLoft } from './midia';
 import { isPermissionDenied } from './firestore-errors';
 import { pairId } from './friends';
@@ -895,6 +896,7 @@ export async function editMessage(messageId: string, rawBody: string): Promise<v
   await withTimeout(
     updateDoc(doc(db, 'messages', messageId), { body, editedAt: nowIso() }),
   );
+  contarConquista({ evento: 'editar', tipo: 'grupo', id: messageId });
 }
 
 export interface CreatedGroup {
@@ -959,6 +961,8 @@ export async function createGroup(uid: MemberId, rawName: string): Promise<Creat
   });
 
   await withTimeout(batch.commit());
+  // 0.12.0: grupo novo vale a insígnia "Anfitrião".
+  contarConquista({ evento: 'conferir' });
   return { groupId: groupRef.id, generalChannelId: general.id };
 }
 
@@ -1455,6 +1459,7 @@ export async function editDmMessage(messageId: string, rawBody: string): Promise
   await withTimeout(
     updateDoc(doc(db, 'dmMessages', messageId), { body, editedAt: nowIso() }),
   );
+  contarConquista({ evento: 'editar', tipo: 'pv', id: messageId });
 }
 
 /**
@@ -1550,7 +1555,8 @@ async function createPin(
   // 0.10.0: a fixada de uma visualização única não leva o arquivo (só o rótulo).
   if (message.attachment !== undefined && message.unica === undefined) data['attachment'] = message.attachment;
 
-  await withTimeout(addDoc(collection(db, 'pinnedMessages'), data));
+  const fixada = await withTimeout(addDoc(collection(db, 'pinnedMessages'), data));
+  contarConquista({ evento: 'fixar', id: fixada.id });
 }
 
 /** Fixa uma mensagem de GRUPO. Só o DONO pode — cobrado na regra; aqui é só a escrita. */
@@ -1650,4 +1656,5 @@ export async function alternarReacao(tipo: 'pv' | 'grupo', mensagem: string, eu:
       [`reacoes.${eu}`]: ligar ? arrayUnion(emoji) : arrayRemove(emoji),
     }),
   );
+  if (ligar) contarConquista({ evento: 'reagir', tipo, id: mensagem, emoji });
 }

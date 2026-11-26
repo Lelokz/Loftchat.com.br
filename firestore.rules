@@ -265,13 +265,77 @@ service cloud.firestore {
                 || d.get('nameColor', 'padrao')
                      in ['padrao', 'roxo', 'rosa', 'vermelho', 'laranja', 'amarelo', 'verde', 'azul'])
           && (!changed('customStatus') || !('customStatus' in d) || statusOk(d.customStatus))
-          && (!changed('links') || !('links' in d) || linksOk(d.links));
+          && (!changed('links') || !('links' in d) || linksOk(d.links))
+          && (!changed('jogos') || !('jogos' in d) || jogosOk(d.jogos))
+          && (!changed('insigniasNoCartao') || !('insigniasNoCartao' in d) || insigniasNoCartaoOk(d.insigniasNoCartao));
       }
 
       /*
        * STATUS (etapa 2d): emoji curto, texto até 60, prazo em milissegundos
        * (0 = sem prazo). Só estas três chaves.
        */
+      /*
+       * JOGOS DO PERFIL (0.12.0): favorito com frase, até 5 "jogando
+       * ultimamente" (até 2 etiquetas da lista) e até 20 "quero jogar". Capa só
+       * da Steam ou da IGDB (capaOk, lá embaixo). Os mesmos tetos de
+       * src/lib/jogos-perfil.ts.
+       */
+      function jogoOk(j) {
+        return j is map
+          && j.keys().hasOnly(['nome', 'capa', 'id', 'loja', 'etiquetas', 'nota'])
+          && j.nome is string && j.nome.size() >= 1 && j.nome.size() <= 80
+          && (!('capa' in j) || capaOk(j.capa))
+          && (!('id' in j) || (j.id is string && j.id.size() <= 20))
+          && (!('loja' in j) || (j.loja is string && j.loja.size() <= 24))
+          && (!('nota' in j) || (j.nota is string && j.nota.size() <= 100))
+          && (!('etiquetas' in j)
+                || (j.etiquetas is list && j.etiquetas.size() <= 2
+                    && j.etiquetas.hasOnly(['Casual', 'Competitivo', 'Com amigos', 'Zerando', '100%'])));
+      }
+      function jogosOk(g) {
+        let u = g.get('ultimamente', []);
+        let q = g.get('quero', []);
+        return g is map
+          && g.keys().hasOnly(['favorito', 'ultimamente', 'quero'])
+          && (!('favorito' in g) || jogoOk(g.favorito))
+          && u is list && u.size() <= 5
+          && q is list && q.size() <= 20
+          && (u.size() < 1 || jogoOk(u[0]))
+          && (u.size() < 2 || jogoOk(u[1]))
+          && (u.size() < 3 || jogoOk(u[2]))
+          && (u.size() < 4 || jogoOk(u[3]))
+          && (u.size() < 5 || jogoOk(u[4]))
+          && (q.size() < 1 || jogoOk(q[0]))
+          && (q.size() < 2 || jogoOk(q[1]))
+          && (q.size() < 3 || jogoOk(q[2]))
+          && (q.size() < 4 || jogoOk(q[3]))
+          && (q.size() < 5 || jogoOk(q[4]))
+          && (q.size() < 6 || jogoOk(q[5]))
+          && (q.size() < 7 || jogoOk(q[6]))
+          && (q.size() < 8 || jogoOk(q[7]))
+          && (q.size() < 9 || jogoOk(q[8]))
+          && (q.size() < 10 || jogoOk(q[9]))
+          && (q.size() < 11 || jogoOk(q[10]))
+          && (q.size() < 12 || jogoOk(q[11]))
+          && (q.size() < 13 || jogoOk(q[12]))
+          && (q.size() < 14 || jogoOk(q[13]))
+          && (q.size() < 15 || jogoOk(q[14]))
+          && (q.size() < 16 || jogoOk(q[15]))
+          && (q.size() < 17 || jogoOk(q[16]))
+          && (q.size() < 18 || jogoOk(q[17]))
+          && (q.size() < 19 || jogoOk(q[18]))
+          && (q.size() < 20 || jogoOk(q[19]));
+      }
+
+      /*
+       * INSÍGNIAS NO CARTÃO (0.12.0): até 5, e só as que a pessoa TEM (o
+       * carteiro grava `insignias/{uid}.tem`).
+       */
+      function insigniasNoCartaoOk(l) {
+        return l is list && l.size() <= 5
+          && (l.size() == 0 || get(/databases/$(database)/documents/insignias/$(uid())).data.tem.keys().hasAll(l));
+      }
+
       function statusOk(s) {
         return s is map
           && s.keys().hasOnly(['emoji', 'text', 'until'])
@@ -916,6 +980,54 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['mapa'])
         && request.resource.data.mapa is map
         && request.resource.data.mapa.size() <= 500;
+    }
+
+    /*
+     * INSÍGNIAS (0.12.0): quem conta e dá é o CARTEIRO (carteiro/src/insignias.ts).
+     * Todo mundo com conta vê as de todo mundo (perfil). A pessoa só marca
+     * até quando já viu os avisos (`avisadoAte`), nada mais.
+     */
+    match /insignias/{userId} {
+      allow read: if signedIn();
+      allow update: if signedIn() && userId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avisadoAte'])
+        && request.resource.data.avisadoAte is string
+        && request.resource.data.avisadoAte.size() <= 40;
+    }
+    // O que é só do carteiro (sessão de chamada, jogo aberto) e as marcas de "já contado".
+    match /insigniasInterno/{userId} {
+      allow read, write: if false;
+    }
+    match /marcasDeConquista/{chave} {
+      allow read, write: if false;
+    }
+
+    /*
+     * JOGANDO AGORA (0.12.0): o programa do PC grava o jogo aberto. Público
+     * para quem tem conta (como o perfil). `visto` é sempre a hora do
+     * servidor: quem lê ignora o que parou de renovar.
+     */
+    match /jogando/{userId} {
+      allow read: if signedIn();
+      allow delete: if signedIn() && userId == uid();
+      allow create, update: if signedIn() && userId == uid()
+        && request.resource.data.keys().hasOnly(['nome', 'loja', 'steamId', 'capa', 'desde', 'visto'])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() >= 1 && request.resource.data.nome.size() <= 80
+        && (request.resource.data.loja == null
+              || (request.resource.data.loja is string && request.resource.data.loja.size() <= 20))
+        && (!('steamId' in request.resource.data)
+              || (request.resource.data.steamId is int && request.resource.data.steamId > 0))
+        && (!('capa' in request.resource.data) || capaOk(request.resource.data.capa))
+        && request.resource.data.desde is int
+        && request.resource.data.visto == request.time;
+    }
+
+    /* Capa de jogo: só da Steam ou da IGDB, endereço curto. */
+    function capaOk(c) {
+      return c is string && c.size() <= 200
+        && (c.matches('https://cdn[.]cloudflare[.]steamstatic[.]com/steam/apps/[0-9]+/[a-z0-9_]+[.]jpg')
+            || c.matches('https://images[.]igdb[.]com/igdb/image/upload/t_[a-z0-9_]+/[a-z0-9]+[.](jpg|png)'));
     }
 
     match /avisos/{userId} {

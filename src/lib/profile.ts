@@ -1,4 +1,5 @@
 import { updateProfile } from 'firebase/auth';
+import { contarConquista } from './conquistas';
 import type { User } from 'firebase/auth';
 import { deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
@@ -112,4 +113,6 @@ export async function saveProfile(
     );
   }
   if (user.displayName !== displayName) await updateProfile(user, { displayName });
+  // 0.12.0: perfil completo vale a insígnia "Estiloso".
+  contarConquista({ evento: 'conferir' });
 }

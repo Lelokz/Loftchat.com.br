@@ -1,0 +1,555 @@
+/* Insígnias (0.12.0): medalha, fileira, aba do perfil, dica, folha e aviso. */
+
+.ins-med {
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
+}
+
+.ins-med svg {
+  display: block;
+  overflow: visible;
+}
+
+.ins-med--epica {
+  filter: drop-shadow(0 0 8px rgb(192 132 252 / 55%)) drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
+}
+
+.ins-med--lendaria {
+  filter: drop-shadow(0 0 10px rgb(253 224 71 / 60%)) drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
+}
+
+.ins-med--apagada {
+  filter: none;
+}
+
+/* --- fileira do cartão ------------------------------------------------------ */
+
+.ins-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 22%);
+}
+
+.ins-fila__item {
+  display: inline-grid;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.ins-fila__item:focus-visible,
+.ins-grade__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- dica ------------------------------------------------------------------ */
+
+.ins-dica {
+  position: fixed;
+  z-index: 1200;
+  width: 230px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0d0a16;
+  box-shadow: var(--shadow-float);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  pointer-events: none;
+}
+
+.ins-dica b {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.ins-dica > span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ins-dica .ins-dica__prog {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.ins-barra {
+  display: block;
+  height: 6px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.ins-barra i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8b5cf6, #d8a6ff);
+}
+
+/* --- aba do perfil ------------------------------------------------------------ */
+
+.ins-topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.ins-topo__conta {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.ins-topo__conta small {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ins-barra--topo {
+  flex: 1;
+  height: 8px;
+  margin-top: 0;
+}
+
+.ins-filtros {
+  display: flex;
+  gap: 6px;
+}
+
+.ins-filtro {
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ins-filtro.is-on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.ins-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 8px 6px;
+}
+
+.ins-grade__cat {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.ins-grade__item {
+  display: grid;
+  justify-items: center;
+  border-radius: 8px;
+}
+
+.ins-grade__vazio {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.ins-aba--celular .ins-topo {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ins-aba--celular .ins-barra--topo {
+  flex-basis: 100%;
+  order: 3;
+}
+
+.ins-aba--celular .ins-grade {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px 4px;
+}
+
+/* --- folha (celular) ------------------------------------------------------------ */
+
+.ins-folha-veu {
+  position: fixed;
+  z-index: 1150;
+  inset: 0;
+  background: rgb(5 3 12 / 55%);
+}
+
+.ins-folha {
+  position: fixed;
+  z-index: 1160;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 10px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  background: #151022;
+  box-shadow: 0 -14px 40px rgb(0 0 0 / 55%);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  text-align: center;
+  animation: ins-sobe 0.22s ease-out;
+}
+
+.ins-folha__puxa {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 18%);
+}
+
+.ins-folha b {
+  display: block;
+  margin-top: 8px;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.ins-folha p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.ins-folha__rar {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.ins-folha__prog {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.ins-folha .ins-barra {
+  height: 8px;
+  margin-top: 6px;
+}
+
+@keyframes ins-sobe {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+
+/* --- aviso de insígnia nova ---------------------------------------------------- */
+
+.ins-avisos {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  width: 372px;
+  pointer-events: none;
+}
+
+.ins-avisos[data-canto='inf-dir'] {
+  right: 20px;
+  bottom: 20px;
+}
+
+.ins-avisos[data-canto='inf-esq'] {
+  bottom: 20px;
+  left: 20px;
+}
+
+.ins-avisos[data-canto='sup-dir'] {
+  top: 52px;
+  right: 20px;
+  flex-direction: column;
+}
+
+.ins-avisos[data-canto='sup-esq'] {
+  top: 52px;
+  left: 20px;
+  flex-direction: column;
+}
+
+.ins-aviso {
+  position: relative;
+  overflow: hidden;
+  border: 1.5px solid var(--borda);
+  border-radius: 18px;
+  background: #140f22;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 40%), 0 18px 50px rgb(0 0 0 / 60%), 0 0 40px -6px var(--c1);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  pointer-events: auto;
+  animation: ins-entra 0.45s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+.ins-aviso.is-saindo {
+  animation: ins-sai 0.26s ease-in forwards;
+}
+
+@keyframes ins-entra {
+  from {
+    transform: translateY(24px) scale(0.94);
+    opacity: 0;
+  }
+}
+
+@keyframes ins-sai {
+  to {
+    transform: translateY(12px) scale(0.97);
+    opacity: 0;
+  }
+}
+
+.ins-aviso__fundo {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(260px 200px at 18% 50%, color-mix(in srgb, var(--c1) 38%, transparent), transparent 70%),
+    linear-gradient(120deg, color-mix(in srgb, var(--c2) 30%, #140f22), #140f22 65%);
+}
+
+.ins-aviso__marca {
+  position: absolute;
+  right: -26px;
+  bottom: -30px;
+  width: 170px;
+  height: 170px;
+  color: #fff;
+  opacity: 0.09;
+}
+
+.ins-aviso__marca svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ins-aviso__raios {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 150px;
+  height: 150px;
+  margin-top: -75px;
+  margin-left: -22px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c1) 55%, transparent) 0 8deg, transparent 8deg 24deg);
+  opacity: 0.8;
+  mask: radial-gradient(circle, #000 20%, transparent 70%);
+  animation: ins-gira 14s linear infinite;
+}
+
+@keyframes ins-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ins-aviso__confete {
+  position: absolute;
+  width: 6px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0.9;
+  transform: rotate(var(--giro));
+  animation: ins-confete 0.9s ease-out both;
+}
+
+@keyframes ins-confete {
+  from {
+    transform: translateY(-14px) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.ins-aviso__corpo {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+}
+
+.ins-aviso__corpo > .ins-med {
+  animation: ins-medalha 0.6s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes ins-medalha {
+  from {
+    transform: scale(0.4) rotate(-12deg);
+    opacity: 0;
+  }
+}
+
+.ins-aviso__txt {
+  flex: 1;
+  min-width: 0;
+}
+
+.ins-aviso__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c1);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.ins-aviso__tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c1);
+  box-shadow: 0 0 8px var(--c1);
+}
+
+.ins-aviso__txt b {
+  display: block;
+  margin-top: 3px;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.ins-aviso__txt p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ins-aviso__txt .ins-aviso__mais {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.ins-aviso__acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ins-aviso__ver {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--c1);
+  color: var(--tc);
+  font-size: 12.5px;
+  font-weight: 900;
+}
+
+.ins-aviso__fechar {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.ins-aviso__fechar:hover {
+  background: rgb(255 255 255 / 8%);
+  color: var(--text-primary);
+}
+
+/* A barrinha embaixo vai esvaziando até o aviso sumir. */
+.ins-aviso__barra {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--c1);
+  opacity: 0.8;
+  transform-origin: left;
+  animation: ins-tempo var(--duracao, 8s) linear forwards;
+}
+
+.ins-aviso.is-parado .ins-aviso__barra {
+  animation-play-state: paused;
+}
+
+@keyframes ins-tempo {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Celular: a largura toda, logo acima da caixa de mensagem. */
+@media (max-width: 720px) {
+  .ins-avisos[data-canto] {
+    top: auto;
+    right: 10px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    width: auto;
+    flex-direction: column-reverse;
+  }
+
+  .ins-aviso__corpo {
+    padding: 14px;
+  }
+
+  .ins-aviso__txt b {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ins-aviso,
+  .ins-aviso__raios,
+  .ins-aviso__confete,
+  .ins-aviso__corpo > .ins-med,
+  .ins-folha {
+    animation: none;
+  }
+}

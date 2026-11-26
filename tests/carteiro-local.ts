@@ -28,12 +28,12 @@ export async function ligarCarteiroLocal(): Promise<() => void> {
       // 0.10.5: transcrição de mentira — os testes não gastam o Whisper de verdade.
       '--var', 'WHISPER_FALSO:1',
       '--persist-to', `${HD}/estado-dev`,
-      '--log-level', 'warn',
+      '--log-level', process.env['LOFT_CARTEIRO_LOG'] ? 'log' : 'warn',
     ],
     {
       cwd: join(raiz, 'carteiro'),
       env: { ...process.env, XDG_CONFIG_HOME: `${HD}/config`, WRANGLER_SEND_METRICS: 'false', WRANGLER_LOG_PATH: `${HD}/logs` },
-      stdio: 'ignore',
+      stdio: process.env['LOFT_CARTEIRO_LOG'] ? 'inherit' : 'ignore',
     },
   );
   for (let i = 0; i < 120; i += 1) {

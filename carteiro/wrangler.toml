@@ -8,6 +8,9 @@ preview_urls = false
 
 [vars]
 PROJETO = "loft-3d6c0f"
+# 0.12.0: as insígnias especiais, dadas à mão (por @ ou uid). Ver src/insignias.ts.
+# Ids: criador, testador, bug, lancamento.
+ESPECIAIS = '{"criador":[],"testador":[],"bug":[],"lancamento":[]}'
 
 [observability]
 enabled = true

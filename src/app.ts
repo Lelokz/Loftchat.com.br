@@ -133,6 +133,14 @@ import type { User } from 'firebase/auth';
 import type { Member, MemberId, VoiceParticipant } from './types/models';
 import { textoDoErro } from './lib/firestore-errors';
 import { ligarAvisos } from './lib/avisos';
+import { acompanharJogando, aoMudarJogando, jogandoDe, ligarMeuJogo, pararJogando } from './lib/jogando';
+import { capaPeloNome } from './lib/catalogo-jogos';
+import { secaoJogandoAgora } from './components/jogos/jogos-ui';
+import { abrirPerfilCompleto, fecharPerfilCompleto } from './components/perfil-completo/perfil-completo';
+import type { AbaDoPerfil } from './components/perfil-completo/perfil-completo';
+import { ligarAvisosDeInsignias } from './components/insignias/insignias-ui';
+import { contarConquista } from './lib/conquistas';
+import type { PessoaJogando } from './components/jogos/jogos-ui';
 import { criarNaoLidas } from './lib/nao-lidas';
 import { mandarArquivos, mandarDocumentos, mandarVoz } from './lib/envios';
 import type { Gravacao } from './lib/gravador';
@@ -2019,6 +2027,13 @@ export function mountApp(
         ownerId: group?.ownerId ?? null,
       },
       fixadas: buildGroupPins(state, group !== null && posso(state, 'desafixar', state.activeChannelId ?? undefined)),
+      // 0.12.0: quem do grupo está jogando (aba Agora).
+      jogando: secaoJogandoAgora(
+        state.members.flatMap((m): PessoaJogando[] => {
+          const jogo = jogandoDe(m.id);
+          return jogo === null ? [] : [{ uid: m.id, nome: m.displayName, initials: m.initials, photo: m.photo, jogo }];
+        }),
+      ),
       // O cartão do grupo no topo da aba Agora (etapa 3a).
       ...(group === null
         ? {}
@@ -3477,10 +3492,50 @@ export function mountApp(
         }
       },
       onEditProfile: () => handleOpenSettings(),
+      onVerPerfil: () => abrirPerfilDe(uid, vinculo, conhecido),
       ...(() => {
         const extra = perfilNoServidor(state, uid);
         return extra === null ? {} : { noServidor: extra };
       })(),
+    });
+  }
+
+  /** 0.12.0: o perfil completo (Jogos, Insígnias, Amigos em comum). */
+  function abrirPerfilDe(
+    uid: string,
+    vinculo: Vinculo,
+    conhecido: { displayName: string; initials: string; photo?: string | undefined } | undefined,
+    aba?: AbaDoPerfil,
+  ): void {
+    const acao =
+      vinculo === 'eu'
+        ? { rotulo: 'Editar perfil', fazer: () => handleOpenSettings() }
+        : vinculo === 'amigo'
+          ? {
+              rotulo: 'Enviar mensagem',
+              fazer: () => {
+                setDrawer(null);
+                store.setView('home');
+                store.openDm(uid);
+              },
+            }
+          : undefined;
+    abrirPerfilCompleto({
+      uid,
+      souEu: vinculo === 'eu',
+      fallback: { displayName: conhecido?.displayName ?? 'Usuário', initials: conhecido?.initials ?? '?', photo: conhecido?.photo },
+      ...(acao === undefined ? {} : { acao }),
+      ...(aba === undefined ? {} : { aba }),
+      abrirOutro: (outro) => {
+        const st = store.getState();
+        const amizade = st.friendships.find((f) => f.members.includes(outro) && f.members.includes(user.uid));
+        const perfil = st.friendProfiles.get(outro);
+        abrirPerfilDe(
+          outro,
+          outro === user.uid ? 'eu' : amizade?.status === 'accepted' ? 'amigo' : amizade !== undefined ? 'pedido' : 'nada',
+          perfil === undefined ? undefined : { displayName: perfil.displayName, initials: perfil.initials, photo: perfil.photo },
+        );
+      },
     });
   }
 
@@ -3591,6 +3646,39 @@ export function mountApp(
   const pararFigurinhas = ligarFigurinhas(user.uid);
 
   /*
+   * JOGANDO AGORA (0.12.0): o meu (só no programa do PC) e o de quem eu vejo —
+   * os membros do grupo aberto e os amigos. Trocou o jogo de alguém: redesenha
+   * a coluna da direita do grupo.
+   */
+  const pararMeuJogo = ligarMeuJogo(user.uid, capaPeloNome);
+
+  /*
+   * INSÍGNIAS (0.12.0): o aviso de insígnia nova (no canto), a conferida ao
+   * abrir (amigos, grupos, tempo de conta…) e, a cada 5 min em chamada, o
+   * "ainda estou aqui" que conta os minutos de voz.
+   */
+  const pararAvisosDeInsignias = ligarAvisosDeInsignias(user.uid, () => abrirPerfilDe(user.uid, 'eu', me, 'insignias'));
+  contarConquista({ evento: 'conferir' });
+  const batidaDaVoz = window.setInterval(() => {
+    if (store.getState().voice !== null) contarConquista({ evento: 'voz' });
+  }, 5 * 60_000);
+  const acompanharQuemJoga = (state: AppState): void =>
+    acompanharJogando(
+      new Set([
+        user.uid,
+        ...state.members.map((m) => m.id),
+        ...state.friendships.filter((f) => f.status === 'accepted').flatMap((f) => f.members),
+      ]),
+    );
+  const pararOuvirJogando = aoMudarJogando(() => {
+    const st = store.getState();
+    if (st.view !== 'group' || memberListEl === null || painelDaSalaNaTela(st)) return;
+    const escondida = memberListEl.hidden;
+    memberListEl = swap(memberListEl, buildMemberList(st));
+    memberListEl.hidden = escondida;
+  });
+
+  /*
    * NÃO LIDAS (0.4.5): mudou uma contagem → redesenha (uma vez só, logo
    * depois) as abas e a coluna da esquerda.
    */
@@ -3621,6 +3709,7 @@ export function mountApp(
     );
 
   const unsubscribe = store.subscribe((state) => {
+    acompanharQuemJoga(state);
     render(state);
     acompanharChamada.aoMudar();
     avisos.conversa(conversaAberta(state));
@@ -3628,6 +3717,7 @@ export function mountApp(
   });
   avisos.conversa(conversaAberta(store.getState()));
   sincronizarNaoLidas(store.getState());
+  acompanharQuemJoga(store.getState());
   render(store.getState());
 
   return {
@@ -3663,6 +3753,12 @@ export function mountApp(
       pararSilencios();
       pararOuvirSilencios();
       pararFigurinhas();
+      pararMeuJogo();
+      pararOuvirJogando();
+      pararAvisosDeInsignias();
+      window.clearInterval(batidaDaVoz);
+      fecharPerfilCompleto();
+      pararJogando();
       store.dispose();
     },
   };
