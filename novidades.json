@@ -1,5 +1,12 @@
 [
   {
+    "versao": "0.11.5",
+    "data": "2026-11-25",
+    "itens": [
+      "Reações agora só pelo botão direito (no celular, segurando o dedo na mensagem): passar o mouse não mostra mais a barrinha. Responder e Encaminhar continuam no mesmo menu."
+    ]
+  },
+  {
     "versao": "0.11.0",
     "data": "2026-11-25",
     "itens": [

@@ -2,6 +2,12 @@
 
 Estado em 15/11/2026.
 
+## Reações só pelo botão direito (25/11/2026) — versão 0.11.5
+
+O Léo pediu: a barrinha que aparecia ao passar o mouse na mensagem saiu
+(`instalarBarraDeReacoes` apagada). Reação, Responder e Encaminhar ficam no
+menu do botão direito / toque longo.
+
 ## Reações, encaminhar, arquivos e silenciar (25/11/2026) — versão 0.11.0
 
 Maquetes aprovadas (Arquivo/Loft-desktop/maquete-reacoes e maquete-silenciar).
