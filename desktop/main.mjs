@@ -549,6 +549,8 @@ function ligarJogos() {
     ligarDeteccao(app.getPath('userData'), mandar);
     ipcMain.handle('loft:jogo-atual', () => jogoAtual());
   }
+  // 0.13.0: Reportar bug — o print da própria janela (nada de outras janelas nem da tela toda).
+  ipcMain.handle('loft:tirar-print', async (evento) => (await evento.sender.capturePage()).toPNG());
   ipcMain.handle('loft:programas-abertos', () => programasAbertos());
   ipcMain.handle('loft:jogos-escolhidos', () => jogosEscolhidos());
   ipcMain.handle('loft:jogo-marcar', (_evento, caminho, nome) => marcarJogo(String(caminho), String(nome)));

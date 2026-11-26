@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('loftDesktop', {
     ipcRenderer.on('loft:jogo', repassar);
     return () => ipcRenderer.removeListener('loft:jogo', repassar);
   },
+  // 0.13.0: Reportar bug → "Tirar print agora" (só a janela do Loft).
+  tirarPrint: () => ipcRenderer.invoke('loft:tirar-print'),
   programasAbertos: () => ipcRenderer.invoke('loft:programas-abertos'),
   jogosEscolhidos: () => ipcRenderer.invoke('loft:jogos-escolhidos'),
   marcarJogo: (caminho, nome) => ipcRenderer.invoke('loft:jogo-marcar', String(caminho), String(nome)),

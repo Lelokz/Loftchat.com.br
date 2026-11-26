@@ -34,6 +34,8 @@ export interface ProgramaAberto {
 }
 
 export interface LoftDesktop {
+  /** 0.13.0: print da janela do Loft (PNG) para o Reportar bug. Só nas versões novas. */
+  tirarPrint?(): Promise<Uint8Array>;
   fontesDeTela(): Promise<FonteDeTela[]>;
   /** Avisa a janela qual fonte o próximo getDisplayMedia deve entregar. */
   escolherFonte(id: string): Promise<void>;

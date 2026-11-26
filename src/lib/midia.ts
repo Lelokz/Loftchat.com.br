@@ -20,7 +20,7 @@ export const MAX_VIDEO = 50 * MB;
 export const MAX_ARQUIVO = 50 * MB;
 const LADO_MAXIMO = 2048;
 
-export type TipoDoArquivo = 'imagem' | 'gif' | 'video' | 'figurinha' | 'capa' | 'audio' | 'unica' | 'arquivo';
+export type TipoDoArquivo = 'imagem' | 'gif' | 'video' | 'figurinha' | 'capa' | 'audio' | 'unica' | 'arquivo' | 'reporte';
 
 export interface Preparado {
   kind: Extract<MessageKind, 'image' | 'gif' | 'video'>;

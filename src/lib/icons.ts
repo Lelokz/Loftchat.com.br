@@ -262,3 +262,7 @@ export const sparkleIcon = (size?: number): string =>
 /** Medalha (0.12.5): a aba Insígnias das Configurações do grupo. */
 export const medalIcon = (size?: number): string =>
   svg('<path d="M8 3h8l-2 6h-4z"/><circle cx="12" cy="15" r="5.5"/><path d="m12 12.5.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/>', size);
+
+/** 0.13.0: Reportar bug. */
+export const bugIcon = (size?: number): string =>
+  svg('<path d="M8 8.5V7a4 4 0 0 1 8 0v1.5"/><rect x="6.5" y="8.5" width="11" height="11.5" rx="5.5"/><path d="M12 12v8M3.5 13h3M17.5 13h3M4.5 8.5l2.3 1.6M19.5 8.5l-2.3 1.6M4.5 19l2.5-2M19.5 19 17 17"/>', size);

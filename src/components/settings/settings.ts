@@ -1,4 +1,6 @@
 import { renderPainelDoCriador } from '../criador/painel';
+import { renderReportarBug } from '../reportar-bug/reportar-bug';
+import type { SecaoDeBug } from '../reportar-bug/reportar-bug';
 import './settings.css';
 
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -6,7 +8,7 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { controllerIcon, sparkleIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
+import { bugIcon, controllerIcon, sparkleIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
 import { renderJanelaSection, temSecaoJanela } from './janela-section';
 import { renderNotificacoesSection } from './notificacoes-section';
 import { renderJogosSection } from './jogos-section';
@@ -94,7 +96,7 @@ export interface SettingsOptions {
   criador?: boolean;
 }
 
-export type Secao = 'criador' | 'perfil' | 'jogos' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'sobre';
+export type Secao = 'criador' | 'perfil' | 'jogos' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'bug' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -298,6 +300,8 @@ export function openSettings(options: SettingsOptions): void {
     el('span', { class: 'settings__nav-label' }, ['Loftchat']),
     // Só no programa do PC (no celular não tem janela nem bandeja).
     temSecaoJanela() && itemDoMenu('janela', 'Janela e bandeja', windowIcon(18)),
+    // 0.13.0: Reportar bug.
+    itemDoMenu('bug', 'Reportar bug', bugIcon(18)),
     itemDoMenu('sobre', 'Sobre o Loftchat', logoIcon(18)),
     el('span', { class: 'settings__nav-spacer' }),
     versao,
@@ -937,12 +941,16 @@ export function openSettings(options: SettingsOptions): void {
 
   /** A seção Sobre aberta (para de acompanhar a atualização ao sair dela). */
   let secaoSobre: SobreSection | null = null;
+  /** 0.13.0: a seção Reportar bug aberta (para o gravador e a lista ao sair). */
+  let secaoBug: SecaoDeBug | null = null;
 
   function mostrar(secao: Secao): void {
     secaoDeVoz?.parar();
     secaoDeVoz = null;
     secaoSobre?.parar();
     secaoSobre = null;
+    secaoBug?.parar();
+    secaoBug = null;
     secaoAtual = secao;
     for (const [qual, botao] of botoesDoMenu) {
       botao.classList.toggle('is-active', qual === secao);
@@ -979,6 +987,9 @@ export function openSettings(options: SettingsOptions): void {
       conteudo.replaceChildren(...renderNotificacoesSection());
     } else if (secao === 'janela') {
       conteudo.replaceChildren(...renderJanelaSection());
+    } else if (secao === 'bug') {
+      secaoBug = renderReportarBug(user.uid, dialog);
+      conteudo.replaceChildren(...secaoBug.elementos);
     } else if (secao === 'sobre') {
       secaoSobre = renderSobreSection(() => salvo.displayName);
       conteudo.replaceChildren(...secaoSobre.elementos);
@@ -1277,6 +1288,8 @@ export function openSettings(options: SettingsOptions): void {
     secaoDeVoz = null;
     secaoSobre?.parar();
     secaoSobre = null;
+    secaoBug?.parar();
+    secaoBug = null;
     // Saiu sem salvar (sair da conta fecha à força): a prévia não fica.
     previewAppearance(null);
     dialog.remove();
