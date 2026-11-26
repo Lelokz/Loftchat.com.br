@@ -1,6 +1,53 @@
 {
   "indexes": [
     {
+      "_comment": "Insígnias do servidor (0.12.5): o carteiro conta as mensagens de cada membro no grupo (e num canal, e por tipo de mídia) quando uma insígnia é criada.",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "authorId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comment": "Insígnias do servidor (0.12.5): mensagens de um membro num canal.",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "channelId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comment": "Insígnias do servidor (0.12.5): fotos/vídeos/áudios/figurinhas de um membro no grupo.",
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comment": "Insígnias do servidor (0.12.5): quantos entraram pelos convites de alguém neste grupo.",
+      "collectionGroup": "memberships",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "inviteCode", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comment": "Insígnias do servidor (0.12.5): os convites que alguém criou neste grupo.",
+      "collectionGroup": "invites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING" },
+        { "fieldPath": "groupId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "_comment": "Lista de mensagens do canal: where('groupId','==',g) + where('channelId','==',c) + orderBy('sentAt') + limitToLast(50). O groupId está na consulta por causa das REGRAS, não da busca — ver subscribeMessages. Ordenar no cliente não substituiria este índice — com limitToLast o SERVIDOR precisa saber a ordem para escolher quais 50 devolver. E `sentAt` é DESCENDING de propósito, apesar de o código dizer orderBy('sentAt') sem argumento: o SDK implementa limitToLast invertendo a ordenação enviada ao servidor (os 50 ÚLTIMOS ascendentes são os 50 PRIMEIROS descendentes) e revertendo o resultado no cliente. Um índice ASCENDING não atende esta consulta — publiquei um assim primeiro e a leitura continuou falhando.",
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",

@@ -25,6 +25,7 @@ import {
 } from '../../src/lib/permissoes';
 import type { RegrasDoCanal } from '../../src/lib/permissoes';
 import { firestore, json, lerCampos, nomeCompleto, quemChamou, raiz } from './index';
+import { acaoDeInsignia, contarNoGrupo, depoisDeSalvar } from './insignias-grupo';
 import type { Env } from './index';
 
 type Dados = Record<string, unknown>;
@@ -587,6 +588,12 @@ export async function rotaCargos(req: Request, env: Env): Promise<Response> {
         break;
       }
       default: {
+        // 0.12.5: as insígnias do servidor (ver insignias-grupo.ts).
+        const daInsignia = await acaoDeInsignia(env, acao, grupo, q, dono, cargos, corpo, escritas);
+        if (daInsignia !== null) {
+          resposta = daInsignia;
+          break;
+        }
         const extra = await acoesExtras(env, acao, grupo, q, dono, cargos, corpo, escritas);
         if (extra === null) return json({ erro: 'ação não existe' }, 400);
         resposta = extra;
@@ -595,6 +602,9 @@ export async function rotaCargos(req: Request, env: Env): Promise<Response> {
 
     if (escritas.length > 0) await gravarTudo(env, escritas);
     await recalcular(env, grupo);
+    // 0.12.5: insígnia nova/editada vale para quem já cumpre; cargo dado/tirado mexe nas de cargo.
+    if (acao === 'insignia-salvar') await depoisDeSalvar(env, grupo).catch((e: unknown) => console.log('insígnias do grupo:', e instanceof Error ? e.message : String(e)));
+    if (acao === 'dar' && typeof corpo['membro'] === 'string') await contarNoGrupo(env, corpo['membro'], grupo, {}).catch((e: unknown) => console.log('insígnias do grupo:', e instanceof Error ? e.message : String(e)));
     return json(resposta);
   } catch (e) {
     if (e instanceof Recusa) return json({ erro: e.message }, e.status);

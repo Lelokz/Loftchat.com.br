@@ -45,6 +45,9 @@ export const SECOES_DE_PERMISSOES: SecaoDePermissoes[] = [
       { id: 'gerenciar-figurinhas', nome: 'Gerenciar figurinhas do servidor', desc: 'Edita e apaga figurinhas do grupo, inclusive as dos outros.' },
       { id: 'criar-comandos', nome: 'Criar comandos personalizados', desc: 'Cria comandos com / próprios do grupo (ex.: /regras).' },
       { id: 'gerenciar-comandos', nome: 'Gerenciar comandos personalizados', desc: 'Edita e apaga comandos do grupo, inclusive os dos outros.' },
+      { id: 'criar-insignias', nome: 'Criar insígnias', desc: 'Cria insígnias do servidor (nome, ícone, raridade e como ganhar).' },
+      { id: 'editar-insignias', nome: 'Editar e apagar insígnias', desc: 'Muda ou apaga as insígnias do servidor. Apagar tira de todo mundo.' },
+      { id: 'dar-insignias', nome: 'Dar e tirar insígnias', desc: 'Dá ou tira insígnias do servidor à mão, de quem está ABAIXO do cargo mais alto dele.' },
     ],
   },
   {
@@ -276,4 +279,5 @@ export const PERMS_DAS_CONFIGURACOES = [
   'editar-nome', 'editar-foto', 'editar-banner', 'editar-descricao', 'editar-cor', 'editar-boas-vindas',
   'editar-canais', 'ordenar-canais', 'gerenciar-categorias', 'gerenciar-cargos', 'dar-cargos',
   'expulsar', 'banir', 'castigo', 'ver-registro', 'desbanir', 'permissoes-canais', 'criar-comandos', 'gerenciar-comandos',
+  'criar-insignias', 'editar-insignias',
 ];

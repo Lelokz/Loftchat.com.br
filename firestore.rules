@@ -1007,6 +1007,30 @@ service cloud.firestore {
     }
 
     /*
+     * INSÍGNIAS DO SERVIDOR (0.12.5). Quem cria, edita, dá e conta é o
+     * CARTEIRO (com as permissões dos cargos). Os membros do grupo leem as
+     * insígnias do grupo e quem tem o quê; a frase secreta fica no
+     * `Interno`, que ninguém lê. Cada um só mexe no próprio `avisadoAte`.
+     */
+    match /insigniasDoGrupo/{insigniaId} {
+      allow read: if isMember(resource.data.groupId);
+    }
+    match /insigniasDoGrupoInterno/{insigniaId} {
+      allow read, write: if false;
+    }
+    match /insigniasDoMembro/{docId} {
+      allow read: if isMember(resource.data.groupId);
+      allow update: if signedIn() && resource.data.uid == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avisadoAte'])
+        && request.resource.data.avisadoAte is string
+        && request.resource.data.avisadoAte.size() <= 40;
+    }
+    // As especiais que o criador dá (0.12.5): só o carteiro.
+    match /especiais/{docId} {
+      allow read, write: if false;
+    }
+
+    /*
      * JOGANDO AGORA (0.12.0): o programa do PC grava o jogo aberto. Público
      * para quem tem conta (como o perfil). `visto` é sempre a hora do
      * servidor: quem lê ignora o que parou de renovar.

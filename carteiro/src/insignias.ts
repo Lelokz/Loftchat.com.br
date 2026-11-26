@@ -19,6 +19,7 @@ import { firestore, json, ler, lerCampos, lerVarios, nomeCompleto, quemChamou, r
 import type { Env } from './index';
 import { lancamentoDoJogo } from './jogos';
 import { criadorDe } from './especiais';
+import { conferirNosGrupos, contarJogoNoGrupo, contarMensagemNoGrupo, contarReacaoNoGrupo, contarVozNoGrupo } from './insignias-grupo';
 
 type Dados = Record<string, unknown>;
 
@@ -38,16 +39,16 @@ function local(ms = Date.now()): Date {
   return new Date(ms - 3 * 60 * MINUTO);
 }
 
-function diaDe(ms = Date.now()): string {
+export function diaDe(ms = Date.now()): string {
   return local(ms).toISOString().slice(0, 10);
 }
 
-function ontem(dia: string): string {
+export function ontem(dia: string): string {
   return new Date(Date.parse(`${dia}T12:00:00Z`) - 24 * 60 * MINUTO).toISOString().slice(0, 10);
 }
 
 /** Um nome qualquer → chave curta que vale como campo do Firestore. */
-function chaveDe(texto: string): string {
+export function chaveDe(texto: string): string {
   let h = 5381;
   for (const c of texto.toLowerCase()) h = ((h * 33) ^ c.codePointAt(0)!) >>> 0;
   return `j${h.toString(36)}`;
@@ -81,7 +82,7 @@ function arvore(planos: Record<string, unknown>): Dados {
   return campos;
 }
 
-interface Escrita {
+export interface Escrita {
   caminho: string;
   /** Campos trocados ('n.amigos', 'tem.primeira'…). */
   definir?: Record<string, unknown>;
@@ -92,7 +93,7 @@ interface Escrita {
 }
 
 /** Grava tudo de uma vez. false = alguma marca já existia (já contado). */
-async function gravarTudo(env: Env, escritas: Escrita[]): Promise<boolean> {
+export async function gravarTudo(env: Env, escritas: Escrita[]): Promise<boolean> {
   const writes = escritas.map((e) => ({
     update: { name: nomeCompleto(env, e.caminho), fields: arvore(e.definir ?? {}) },
     updateMask: { fieldPaths: Object.keys(e.definir ?? {}).map((c) => c.split('.').map((p) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(p) ? p : `\`${p}\``)).join('.')) },
@@ -109,7 +110,7 @@ async function gravarTudo(env: Env, escritas: Escrita[]): Promise<boolean> {
 }
 
 /** Uma consulta simples (só igualdades / array-contains). */
-async function consultar(
+export async function consultar(
   env: Env,
   colecao: string,
   filtros: Array<[string, 'EQUAL' | 'ARRAY_CONTAINS' | 'IN', unknown]>,
@@ -139,7 +140,7 @@ async function consultar(
 }
 
 /** Quantos documentos batem (sem ler um por um). */
-async function contar(env: Env, colecao: string, filtros: Array<[string, 'EQUAL' | 'IN', unknown]>): Promise<number> {
+export async function contar(env: Env, colecao: string, filtros: Array<[string, 'EQUAL' | 'IN', unknown]>): Promise<number> {
   const where =
     filtros.length === 1
       ? { fieldFilter: { field: { fieldPath: filtros[0]![0] }, op: filtros[0]![1], value: valor(filtros[0]![2]) } }
@@ -199,7 +200,7 @@ async function contarPara(env: Env, uid: string, conta: Conta, doc?: Dados | nul
 /* -------------------------------- mensagens -------------------------------- */
 
 const EMOJI = /\p{Extended_Pictographic}/gu;
-const TIPOS: Record<string, string> = { image: 'fotos', video: 'videos', audio: 'audios', file: 'arquivos', sticker: 'figurinhas', gif: 'gifs' };
+export const TIPOS: Record<string, string> = { image: 'fotos', video: 'videos', audio: 'audios', file: 'arquivos', sticker: 'figurinhas', gif: 'gifs' };
 
 /** Chamado pelo /avisar, depois de conferir que a mensagem é dessa pessoa e é nova. */
 export async function contarMensagem(env: Env, uid: string, tipo: 'grupo' | 'pv', msg: Dados): Promise<void> {
@@ -249,11 +250,18 @@ export async function contarMensagem(env: Env, uid: string, tipo: 'grupo' | 'pv'
     definir['ultimoDia'] = hoje;
   }
   await contarPara(env, uid, { somar, maximo, definir }, doc);
+  // 0.12.5: as insígnias do servidor também contam.
+  if (tipo === 'grupo') await contarMensagemNoGrupo(env, uid, msg).catch(grupoFalhou);
 }
 
 /** Chamado pela transcrição (0.10.5) quando deu certo. */
 export async function contarTranscricao(env: Env, uid: string): Promise<void> {
   await contarPara(env, uid, { somar: { transcricoes: 1 } });
+}
+
+/** As insígnias do servidor nunca atrapalham a conta do Loft (nem a mensagem). */
+function grupoFalhou(e: unknown): void {
+  console.log('insígnias do grupo:', e instanceof Error ? e.message : String(e));
 }
 
 /* ------------------------------- os eventos ------------------------------- */
@@ -297,6 +305,7 @@ async function reagir(env: Env, uid: string, corpo: Dados): Promise<string[]> {
       }
     }
     await contarPara(env, autor, { somar: { reacoesRecebidas: 1 }, maximo }, dele);
+    if (tipo === 'grupo') await contarReacaoNoGrupo(env, autor, String(msg['groupId'] ?? '')).catch(grupoFalhou);
   }
   return minhasNovas;
 }
@@ -356,7 +365,9 @@ async function voz(env: Env, uid: string): Promise<string[]> {
   const extras: Escrita[] = [
     { caminho: `insigniasInterno/${uid}`, definir: { voz: { canal, entrou, ultima: agora, inicio, tela: transmitindo } } },
   ];
-  return (await contarPara(env, uid, { somar, maximo }, undefined, extras)) ?? [];
+  const novas = (await contarPara(env, uid, { somar, maximo }, undefined, extras)) ?? [];
+  await contarVozNoGrupo(env, uid, canal, minutos).catch(grupoFalhou);
+  return novas;
 }
 
 /** "Ainda estou jogando": o jogo vem de `jogando/{uid}` (o PC grava). */
@@ -434,7 +445,9 @@ async function jogo(env: Env, uid: string): Promise<string[]> {
     if ([...porGrupo.values()].some((q) => q >= 3)) maximo['esquadrao'] = 1;
   }
 
-  return (await contarPara(env, uid, { somar, maximo }, undefined, [{ caminho: `insigniasInterno/${uid}`, definir: definirInterno }])) ?? [];
+  const novas = (await contarPara(env, uid, { somar, maximo }, undefined, [{ caminho: `insigniasInterno/${uid}`, definir: definirInterno }])) ?? [];
+  await contarJogoNoGrupo(env, uid, nome, outros.map((o) => o.id), minutos).catch(grupoFalhou);
+  return novas;
 }
 
 /** Ao abrir o app (e depois de criar grupo, aceitar amigo, salvar o perfil): amigos, grupos, convites, cargo, tempo de conta, perfil. */
@@ -528,7 +541,9 @@ async function conferir(env: Env, uid: string): Promise<string[]> {
     if (usuario['brilho'] !== 'roxo') extras.push({ caminho: `users/${uid}`, definir: { brilho: 'roxo' } });
   }
 
-  return (await contarPara(env, uid, { maximo, definir }, doc, extras)) ?? [];
+  const novas = (await contarPara(env, uid, { maximo, definir }, doc, extras)) ?? [];
+  await conferirNosGrupos(env, uid).catch(grupoFalhou);
+  return novas;
 }
 
 /* -------------------------------- as rotas -------------------------------- */
