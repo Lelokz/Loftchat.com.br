@@ -3,6 +3,8 @@ import './member-list.css';
 import { avatarEl, corDoCargo, el, iconeDoCargo } from '../../lib/dom';
 import { renderLoading } from '../empty-state/empty-state';
 import { statusLine } from '../person-card/person-card';
+import { linhaJogando } from '../jogos/jogos-ui';
+import { jogandoDe } from '../../lib/jogando';
 import type { Member, MemberId } from '../../types/models';
 
 export interface MemberListProps {
@@ -101,6 +103,8 @@ function bloco_(titulo: string, people: Member[]): HTMLElement {
               ]),
               // O status da pessoa (etapa 2d), se ela pôs um e ainda vale.
               statusLine(member.customStatus, 'member__status') ?? false,
+              // 0.12.0: "Jogando X", quando o PC dela vê um jogo aberto.
+              linhaJogando(jogandoDe(member.id)),
             ]),
           ],
         ),

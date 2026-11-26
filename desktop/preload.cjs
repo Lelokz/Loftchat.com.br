@@ -50,6 +50,17 @@ contextBridge.exposeInMainWorld('loftDesktop', {
   janelaPuxar: (borda, x, y) => ipcRenderer.send('loft:janela-puxar', String(borda), Number(x), Number(y)),
   janelaPuxando: (x, y) => ipcRenderer.send('loft:janela-puxando', Number(x), Number(y)),
   janelaSoltar: () => ipcRenderer.send('loft:janela-soltar'),
+  // 0.12.0: jogando agora (ver desktop/jogos.mjs).
+  jogoAtual: () => ipcRenderer.invoke('loft:jogo-atual'),
+  aoMudarJogo: (ouvinte) => {
+    const repassar = (_evento, jogo) => ouvinte(jogo ?? null);
+    ipcRenderer.on('loft:jogo', repassar);
+    return () => ipcRenderer.removeListener('loft:jogo', repassar);
+  },
+  programasAbertos: () => ipcRenderer.invoke('loft:programas-abertos'),
+  jogosEscolhidos: () => ipcRenderer.invoke('loft:jogos-escolhidos'),
+  marcarJogo: (caminho, nome) => ipcRenderer.invoke('loft:jogo-marcar', String(caminho), String(nome)),
+  esquecerJogo: (caminho) => ipcRenderer.invoke('loft:jogo-esquecer', String(caminho)),
   aoAbrirAviso: (ouvinte) => {
     const repassar = (_evento, rota) => ouvinte(String(rota));
     ipcRenderer.on('loft:abrir-aviso', repassar);

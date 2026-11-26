@@ -31,6 +31,7 @@ import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, normalize, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { esquecerJogo, jogoAtual, jogosEscolhidos, ligarDeteccao, marcarJogo, programasAbertos } from './jogos.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -533,6 +534,27 @@ function ligarAvisos() {
   });
 }
 
+/*
+ * JOGANDO AGORA (0.12.0): ver jogos.mjs. O chat recebe o jogo aberto e grava
+ * o "Jogando…" (se a pessoa deixou). Nos testes, LOFT_JOGO_TESTE finge um jogo.
+ */
+const JOGO_DE_TESTE = !app.isPackaged && process.env.LOFT_JOGO_TESTE ? JSON.parse(process.env.LOFT_JOGO_TESTE) : null;
+
+function ligarJogos() {
+  const mandar = (jogo) => janela?.webContents.send('loft:jogo', jogo);
+  if (JOGO_DE_TESTE !== null) {
+    const fingido = { ...JOGO_DE_TESTE, desde: Date.now() };
+    ipcMain.handle('loft:jogo-atual', () => fingido);
+  } else {
+    ligarDeteccao(app.getPath('userData'), mandar);
+    ipcMain.handle('loft:jogo-atual', () => jogoAtual());
+  }
+  ipcMain.handle('loft:programas-abertos', () => programasAbertos());
+  ipcMain.handle('loft:jogos-escolhidos', () => jogosEscolhidos());
+  ipcMain.handle('loft:jogo-marcar', (_evento, caminho, nome) => marcarJogo(String(caminho), String(nome)));
+  ipcMain.handle('loft:jogo-esquecer', (_evento, caminho) => esquecerJogo(String(caminho)));
+}
+
 function criarJanela() {
   const propria = escolhas.barra === 'loftchat';
   // Cantos redondos no Linux = janela transparente com o chat arredondado
@@ -639,6 +661,7 @@ if (!app.requestSingleInstanceLock()) {
 
     ligarCompartilhamentoDeTela();
     ligarAvisos();
+    ligarJogos();
     lerEscolhas();
     ligarJanela();
     criarJanela();

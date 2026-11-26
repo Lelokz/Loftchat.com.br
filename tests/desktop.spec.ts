@@ -92,6 +92,10 @@ test.beforeEach(async () => {
       LOFT_AUDIO_TESTE: '1',
       // As notificações ficam guardadas para o teste, nunca na tela de verdade.
       LOFT_AVISOS_TESTE: '1',
+      // 0.12.0: um jogo "aberto" de mentira (o teste do jogando agora).
+      ...(test.info().title.startsWith('jogando agora')
+        ? { LOFT_JOGO_TESTE: JSON.stringify({ nome: 'Terraria', loja: 'Steam', steamId: 105600 }) }
+        : {}),
       ...(semFalso
         ? { PULSE_SOURCE: 'loft-teste-mudo.monitor', PULSE_SINK: 'loft-teste-mudo' }
         : {}),
@@ -732,4 +736,30 @@ test('janela própria (0.7.0): botões, maximizar, puxar a borda e Configuraçõ
   await d.getByRole('radio', { name: 'Do Loftchat (padrão)' }).click();
   await expect(d.getByRole('button', { name: 'Reiniciar agora' })).toBeHidden();
   await janela.screenshot({ path: 'test-results/janela/configuracoes.png' });
+});
+
+test('jogando agora (0.12.0): o PC grava o jogo aberto, e a chave de Configurações → Jogos apaga e volta', async () => {
+  test.setTimeout(120_000);
+  const conta = newAccount('Jogando PC');
+  accounts.push(conta);
+  await signUpThroughUi(janela, conta);
+  await resolveTokens(conta);
+  const jogando = async (): Promise<string> => JSON.stringify((await lerComoDono(`jogando/${conta.uid}`)) ?? {});
+  await expect.poll(jogando, { timeout: 20_000 }).toContain('Terraria');
+  expect(await jogando()).toContain('library_600x900.jpg');
+
+  await janela.getByRole('button', { name: 'Configurações', exact: true }).first().click();
+  await janela.locator('.settings__nav-item', { hasText: 'Jogos' }).click();
+  const chave = janela.getByRole('switch', { name: 'Mostrar o que estou jogando' });
+  await expect(chave).toBeEnabled();
+  await expect(chave).toHaveAttribute('aria-checked', 'true');
+  await chave.click();
+  await expect.poll(jogando, { timeout: 20_000 }).toBe('{}');
+  await chave.click();
+  await expect.poll(jogando, { timeout: 20_000 }).toContain('Terraria');
+
+  // "Jogo não apareceu? Escolher o programa aberto": lista os programas abertos deste PC.
+  await janela.getByRole('button', { name: /Escolher o programa aberto/ }).click();
+  await expect(janela.locator('.jg-cfg__programa').first()).toBeVisible({ timeout: 20_000 });
+  await janela.screenshot({ path: 'test-results/jogos-insignias/pc-configuracoes-jogos.png' });
 });

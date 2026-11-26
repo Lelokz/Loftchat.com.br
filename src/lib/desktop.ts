@@ -18,6 +18,21 @@ export interface FonteDeTela {
   icone: string | null;
 }
 
+/** 0.12.0: o jogo aberto no PC (desktop/jogos.mjs). */
+export interface JogoDoPc {
+  nome: string;
+  /** Steam, Epic, GOG, Battle.net, Riot, EA, Ubisoft, Xbox, Minecraft, Roblox, Lutris… ou null. */
+  loja: string | null;
+  steamId?: number;
+  /** Desde quando está aberto (ms). */
+  desde: number;
+}
+
+export interface ProgramaAberto {
+  caminho: string;
+  nome: string;
+}
+
 export interface LoftDesktop {
   fontesDeTela(): Promise<FonteDeTela[]>;
   /** Avisa a janela qual fonte o próximo getDisplayMedia deve entregar. */
@@ -58,6 +73,13 @@ export interface LoftDesktop {
   aoAbrirAviso?(ouvinte: (rota: string) => void): () => void;
   /** 0.10.0: a janela some de print e gravação (Windows e Mac; o Linux não tem como). */
   protegerTela?(ligar: boolean): void;
+  /** 0.12.0: jogando agora. */
+  jogoAtual?(): Promise<JogoDoPc | null>;
+  aoMudarJogo?(ouvinte: (jogo: JogoDoPc | null) => void): () => void;
+  programasAbertos?(): Promise<ProgramaAberto[]>;
+  jogosEscolhidos?(): Promise<ProgramaAberto[]>;
+  marcarJogo?(caminho: string, nome: string): Promise<void>;
+  esquecerJogo?(caminho: string): Promise<void>;
 }
 
 /** O nome que o venmic dá ao microfone virtual (desktop/main.mjs). */

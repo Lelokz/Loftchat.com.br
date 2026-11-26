@@ -43,6 +43,8 @@ export interface GroupPanelProps {
   midia?: () => HTMLElement;
   /** Cartão do grupo (etapa 3a), no topo da aba Agora. */
   cartao?: HTMLElement;
+  /** 0.12.0: "Jogando agora — N", embaixo do cartão na aba Agora. */
+  jogando?: HTMLElement | false;
 }
 
 const NOMES: Record<AbaDoPainel, string> = { agora: 'Agora', membros: 'Membros', midia: 'Mídia', fixadas: 'Fixadas' };
@@ -82,7 +84,11 @@ export function renderGroupPanel(props: GroupPanelProps): HTMLElement {
         ? [renderPinnedList(props.fixadas)]
         : props.aba === 'midia'
           ? props.midia === undefined ? [] : [props.midia()]
-        : [...(props.cartao === undefined ? [] : [props.cartao]), ...agora(props.salas, props.onEntrar)];
+        : [
+            ...(props.cartao === undefined ? [] : [props.cartao]),
+            ...(props.jogando === undefined || props.jogando === false ? [] : [props.jogando]),
+            ...agora(props.salas, props.onEntrar),
+          ];
 
   return el('aside', { class: 'members group-panel', 'aria-label': NOMES[props.aba] }, [
     abas,

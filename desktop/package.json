@@ -27,6 +27,7 @@
     "copyright": "© 2026 Loftchat",
     "files": [
       "main.mjs",
+      "jogos.mjs",
       "preload.cjs",
       "icone.png",
     "bandeja/*.png",
