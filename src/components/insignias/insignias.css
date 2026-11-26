@@ -20,6 +20,18 @@
   filter: drop-shadow(0 0 10px rgb(253 224 71 / 60%)) drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
 }
 
+.ins-med--cromo-roxo {
+  filter: drop-shadow(0 0 10px rgb(150 70 255 / 70%)) drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
+}
+
+.ins-med--cromo-ouro {
+  filter: drop-shadow(0 0 9px rgb(255 200 80 / 45%)) drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
+}
+
+.ins-med--cromo-prata {
+  filter: drop-shadow(0 0 9px rgb(170 200 255 / 45%)) drop-shadow(0 3px 6px rgb(0 0 0 / 45%));
+}
+
 .ins-med--apagada {
   filter: none;
 }

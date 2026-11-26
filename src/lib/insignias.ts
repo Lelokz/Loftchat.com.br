@@ -1,5 +1,6 @@
 /**
- * INSÍGNIAS (0.12.0): as 100, da mais fácil à mais difícil.
+ * INSÍGNIAS (0.12.0): as 100, da mais fácil à mais difícil — e (0.12.5) as
+ * especiais, que só o criador dá (Exclusiva) ou que são só dele (Especial).
  *
  * Cada uma diz QUAL contador olha (`conta`) e a META (`alvo`): ganha quem tem
  * `n[conta] >= alvo`. Os contadores moram em `insignias/{uid}.n` e só o
@@ -10,7 +11,10 @@
  * precisa deles).
  */
 
-export type Raridade = 'comum' | 'incomum' | 'rara' | 'epica' | 'lendaria';
+export type Raridade = 'comum' | 'incomum' | 'rara' | 'epica' | 'lendaria' | 'exclusiva' | 'especial';
+
+/** As cromadas (0.12.5): metal com reflexo de arco-íris; a cor do nome que brilha. */
+export type Cromo = 'roxo' | 'ouro' | 'prata';
 
 export interface Insignia {
   id: string;
@@ -27,17 +31,34 @@ export interface Insignia {
   /** O contador (insignias/{uid}.n) e a meta. */
   conta: string;
   alvo: number;
+  /** Cromada: o metal da medalha (e do nome de quem tem). */
+  cromo?: Cromo;
 }
 
 export const RARIDADES: Record<Raridade, { nome: string; a: string; b: string; borda: string; glifo: string; dificuldade: string }> = {
   comum: { nome: 'Comum', a: '#c3cad6', b: '#5b6577', borda: '#e2e8f0', glifo: '#fff', dificuldade: 'fácil' },
   incomum: { nome: 'Incomum', a: '#6ee7a0', b: '#13804a', borda: '#bbf7d0', glifo: '#fff', dificuldade: 'um pouco de esforço' },
   rara: { nome: 'Rara', a: '#7cb8ff', b: '#1d4fd8', borda: '#bfdbfe', glifo: '#fff', dificuldade: 'pra quem usa muito' },
-  epica: { nome: 'Épica', a: '#d8a6ff', b: '#7a1fc7', borda: '#f0d9ff', glifo: '#fff', dificuldade: 'difícil' },
+  // 0.12.5: a épica ficou lilás (mais clara), para não confundir com o roxo cromado da Especial.
+  epica: { nome: 'Épica', a: '#f0dcff', b: '#b98ae8', borda: '#fbf3ff', glifo: '#4b2470', dificuldade: 'difícil' },
   lendaria: { nome: 'Lendária', a: '#ffe58a', b: '#c47a06', borda: '#fff4c2', glifo: '#4a2a00', dificuldade: 'quase impossível' },
+  exclusiva: { nome: 'Exclusiva', a: '#f6f9ff', b: '#6f86ad', borda: '#ffffff', glifo: '#24324d', dificuldade: 'só o criador dá' },
+  especial: { nome: 'Especial', a: '#e7d2ff', b: '#6a12e8', borda: '#f1e2ff', glifo: '#fff', dificuldade: 'uma só no Loft' },
 };
 
-export const ORDEM_DAS_RARIDADES: Raridade[] = ['comum', 'incomum', 'rara', 'epica', 'lendaria'];
+/** Os pontos de cor de cada metal (o reflexo) e quanto do arco-íris aparece. */
+export const CROMOS: Record<Cromo, { cores: string[]; borda: string; glifo: string; holo: number; brilho: string }> = {
+  roxo: { cores: ['#2a0570', '#7a1dff', '#e7d2ff', '#9a3dff', '#3d0a9c', '#b46bff', '#f3e8ff', '#6a12e8'], borda: '#f1e2ff', glifo: '#fff', holo: 0.38, brilho: 'rgb(150 70 255 / 70%)' },
+  ouro: { cores: ['#7a4d00', '#e0a419', '#fff6d5', '#d39a12', '#8a5a00', '#ffd76a', '#fffbe9', '#b37a05'], borda: '#fff3c8', glifo: '#4a2c00', holo: 0.22, brilho: 'rgb(255 200 80 / 45%)' },
+  prata: { cores: ['#3f5376', '#9fb4d6', '#ffffff', '#8aa1c7', '#4a5d80', '#cfe0ff', '#f6f9ff', '#6f86ad'], borda: '#ffffff', glifo: '#24324d', holo: 0.3, brilho: 'rgb(170 200 255 / 45%)' },
+};
+
+/** As que não contam na coleção (ninguém consegue todas): Exclusiva e Especial. */
+export function eEspecial(ins: Insignia): boolean {
+  return ins.raridade === 'exclusiva' || ins.raridade === 'especial';
+}
+
+export const ORDEM_DAS_RARIDADES: Raridade[] = ['comum', 'incomum', 'rara', 'epica', 'lendaria', 'exclusiva', 'especial'];
 const ROMANOS = ['I', 'II', 'III', 'IV', 'V'];
 
 export const INSIGNIAS: Insignia[] = [];
@@ -121,8 +142,10 @@ um('Tempo de casa', 'fielloft', 'fielloft', 'Fiel ao Loft', 'Usou o Loft em 100 
 um('Tempo de casa', 'estiloso', 'estiloso', 'Estiloso', 'Perfil completo.', 'comum', 'perfilCompleto');
 
 /* --- Especiais (dadas à mão, ver ESPECIAIS no carteiro) ---------------------- */
-um('Especiais', 'criador', 'criador', 'Criador do Loftchat', 'Fez o Loftchat.', 'lendaria', 'esp_criador');
-um('Especiais', 'testador', 'testador', 'Testador', 'Testou o Loftchat no beta.', 'epica', 'esp_testador');
+um('Especiais', 'criador', 'criador', 'Criador do Loftchat', 'Fez o Loftchat. Só existe uma.', 'especial', 'esp_criador', 1, { cromo: 'roxo' });
+um('Especiais', 'confidente', 'confidente', 'Confidente', 'Amigo de confiança do criador.', 'exclusiva', 'esp_confidente', 1, { cromo: 'ouro' });
+// O id continua "testador" (é o mesmo de antes); o nome novo é Linha de Frente.
+um('Especiais', 'testador', 'linhadefrente', 'Linha de Frente', 'Testou o Loftchat no beta, com bug e tudo.', 'exclusiva', 'esp_testador', 1, { cromo: 'prata' });
 um('Especiais', 'bug', 'bug', 'Caçador de bugs', 'Achou um bug que foi consertado.', 'rara', 'esp_bug');
 um('Especiais', 'primeiros', 'primeiros', 'Primeiros 10', 'Uma das 10 primeiras contas.', 'lendaria', 'primeiros');
 um('Especiais', 'lancamento', 'lancamento', 'Lançamento 1.0', 'Estava no Loft no dia da 1.0.', 'epica', 'esp_lancamento');
@@ -136,9 +159,16 @@ um('Secretas', 'boanoite', 'boanoite', 'Boa noite', 'Disse "boa noite" 100 vezes
 um('Secretas', 'q404', 'q404', '4:04', 'Mensagem às 4h04.', 'incomum', 'q404', 1, S);
 um('Secretas', 'colecao', 'colecao', 'Colecionadora', 'Ganhou 50 insígnias.', 'epica', '_ganhas', 50, S);
 um('Secretas', 'completo', 'completo', 'Completo', 'Ganhou todas as outras.', 'lendaria', '_ganhas', 99, S);
+// "Todas as outras" = as normais (as especiais não entram na conta).
+INSIGNIAS.find((i) => i.id === 'completo')!.alvo = INSIGNIAS.filter((i) => !eEspecial(i) && i.id !== 'completo').length;
 
 export const POR_ID: ReadonlyMap<string, Insignia> = new Map(INSIGNIAS.map((i) => [i.id, i]));
 export const CATEGORIAS: string[] = [...new Set(INSIGNIAS.map((i) => i.categoria))];
+
+/** Quantas das normais (sem as especiais) estão nesta lista de ids. */
+export function normaisGanhas(ids: Iterable<string>): number {
+  return [...ids].filter((id) => POR_ID.get(id) !== undefined && !eEspecial(POR_ID.get(id)!)).length;
+}
 
 /** As que a pessoa ganha com estes contadores (fora as que já tem). */
 export function novasInsignias(n: Record<string, number>, tem: ReadonlySet<string>): string[] {
@@ -148,7 +178,7 @@ export function novasInsignias(n: Record<string, number>, tem: ReadonlySet<strin
   for (let volta = 0; volta < 2; volta += 1) {
     for (const ins of INSIGNIAS) {
       if (ganhas.has(ins.id)) continue;
-      const valor = ins.conta === '_ganhas' ? [...ganhas].filter((id) => id !== ins.id).length : (n[ins.conta] ?? 0);
+      const valor = ins.conta === '_ganhas' ? [...ganhas].filter((id) => id !== ins.id && POR_ID.get(id) !== undefined && !eEspecial(POR_ID.get(id)!)).length : (n[ins.conta] ?? 0);
       if (valor >= ins.alvo) {
         ganhas.add(ins.id);
         novas.push(ins.id);

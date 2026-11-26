@@ -192,7 +192,7 @@ test('jogando agora, jogos do perfil, cartão, perfil completo e Configurações
   await expect(perfil.locator('.pfc__amigo')).toHaveCount(1);
   await expect(perfil.locator('.pfc__amigo')).toContainText('Gabi jogos');
   await perfil.getByRole('tab', { name: 'Insígnias' }).click();
-  await expect(perfil.locator('.ins-topo__conta')).toContainText('de 100');
+  await expect(perfil.locator('.ins-topo__conta')).toContainText('de 98');
   await page.keyboard.press('Escape');
   await expect(perfil).toHaveCount(0);
 

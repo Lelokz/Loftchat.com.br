@@ -5,9 +5,9 @@ import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { el, iconEl } from '../../lib/dom';
 import { db } from '../../lib/firebase';
 import { closeIcon } from '../../lib/icons';
-import { CATEGORIAS, INSIGNIAS, POR_ID, RARIDADES, progresso } from '../../lib/insignias';
+import { CATEGORIAS, CROMOS, INSIGNIAS, POR_ID, RARIDADES, eEspecial, normaisGanhas, progresso } from '../../lib/insignias';
 import type { Insignia } from '../../lib/insignias';
-import { DESENHOS } from './desenhos';
+import { DESENHOS, ICONES_DO_SERVIDOR } from './desenhos';
 
 /**
  * AS INSÍGNIAS NA TELA (0.12.0): a medalha (escudo na cor da raridade com o
@@ -59,27 +59,50 @@ export function medalha(ins: Insignia, tamanho: number, estado: EstadoDaMedalha 
   const id = `${PREFIXO}${seq++}`;
   const apagada = estado !== 'tem';
   const escondida = estado === 'secreta';
-  const glifo = escondida ? DESENHOS['segredo']! : (DESENHOS[ins.icone] ?? DESENHOS['segredo']!);
-  const a = apagada ? '#3a3350' : r.a;
-  const b = apagada ? '#221d33' : r.b;
-  const borda = apagada ? '#4b4466' : r.borda;
-  const cor = apagada ? '#8a83a3' : r.glifo;
-  const brilho = !apagada && (ins.raridade === 'epica' || ins.raridade === 'lendaria');
+  // As do servidor (0.12.5) usam os ícones de lá: "srv:fogo".
+  const desenho = ins.icone.startsWith('srv:') ? ICONES_DO_SERVIDOR[ins.icone.slice(4)] : DESENHOS[ins.icone];
+  const glifo = escondida ? DESENHOS['segredo']! : (desenho ?? DESENHOS['segredo']!);
+  const cromo = !apagada && ins.cromo !== undefined ? CROMOS[ins.cromo] : null;
+  const cores = apagada ? ['#3a3350', '#221d33'] : cromo !== null ? cromo.cores : [r.a, r.b];
+  const borda = apagada ? '#4b4466' : (cromo?.borda ?? r.borda);
+  const cor = apagada ? '#8a83a3' : (cromo?.glifo ?? r.glifo);
+  const brilho = !apagada && (ins.raridade === 'epica' || ins.raridade === 'lendaria' || cromo !== null);
+  const escudo = 'M32 3.5 55 12.5c1.3.5 2 1.6 2 3v15.2C57 45 46.3 55.3 33.2 60.2a3.4 3.4 0 0 1-2.4 0C17.7 55.3 7 45 7 30.7V15.5c0-1.4.7-2.5 2-3z';
+  /*
+   * CROMADA (0.12.5): o metal tem vários pontos de cor (o reflexo), uma
+   * película de arco-íris que anda devagar e um brilho que passa por cima.
+   */
+  const holo =
+    cromo === null
+      ? ''
+      : `<linearGradient id="${id}h" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ff5fd2"/><stop offset=".2" stop-color="#ffb35c"/><stop offset=".4" stop-color="#f7ff7a"/><stop offset=".6" stop-color="#6dffc4"/><stop offset=".8" stop-color="#5cc8ff"/><stop offset="1" stop-color="#b57bff"/><animateTransform attributeName="gradientTransform" type="translate" values="-.6 0;.6 0;-.6 0" dur="5s" repeatCount="indefinite"/></linearGradient>
+       <linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="1"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".85"/><stop offset=".65" stop-color="#fff" stop-opacity="0"/><animateTransform attributeName="gradientTransform" type="translate" values="-1 -1;1 1" dur="3.2s" repeatCount="indefinite"/></linearGradient>`;
+  const camadas = cromo === null ? '' : `<path d="${escudo}" fill="url(#${id}h)" opacity="${cromo.holo}" style="mix-blend-mode:overlay"/><path d="${escudo}" fill="url(#${id}s)" opacity=".55"/>`;
+  const estrelinhas =
+    cromo !== null && ins.raridade === 'especial'
+      ? '<g fill="#fff"><path d="M50 9l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z"/><path d="M13 44l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" opacity=".8"/></g>'
+      : '';
   const nivel =
     ins.nivel !== undefined && !escondida
       ? `<g transform="translate(32 55)"><rect x="-9" y="-6" width="18" height="12" rx="6" fill="${apagada ? '#2a2440' : '#120d1f'}" stroke="${borda}" stroke-width="1.2"/><text x="0" y="3.4" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="8.5" fill="${apagada ? '#8a83a3' : '#fff'}">${['I', 'II', 'III', 'IV', 'V'][ins.nivel - 1]}</text></g>`
       : '';
-  const span = el('span', { class: `ins-med${brilho ? ` ins-med--${ins.raridade}` : ''}${apagada ? ' ins-med--apagada' : ''}`, 'aria-hidden': 'true' });
+  const span = el('span', {
+    class: `ins-med${brilho ? ` ins-med--${cromo !== null ? `cromo-${ins.cromo!}` : ins.raridade}` : ''}${apagada ? ' ins-med--apagada' : ''}`,
+    'aria-hidden': 'true',
+  });
   span.style.width = `${tamanho}px`;
   span.style.height = `${tamanho}px`;
   span.innerHTML = `<svg viewBox="0 0 64 64" width="${tamanho}" height="${tamanho}">
     <defs>
-      <linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>
+      <linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">${cores.map((c, i) => `<stop offset="${(i / (cores.length - 1)).toFixed(3)}" stop-color="${c}"/>`).join('')}</linearGradient>
       <linearGradient id="${id}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      ${holo}
     </defs>
-    <path d="M32 3.5 55 12.5c1.3.5 2 1.6 2 3v15.2C57 45 46.3 55.3 33.2 60.2a3.4 3.4 0 0 1-2.4 0C17.7 55.3 7 45 7 30.7V15.5c0-1.4.7-2.5 2-3z" fill="url(#${id})" stroke="${borda}" stroke-width="2.2"/>
+    <path d="${escudo}" fill="url(#${id})" stroke="${borda}" stroke-width="2.2"/>
+    ${camadas}
     <path d="M32 7.5 52 15.3v9.2C42 21 22 21 12 24.5v-9.2z" fill="url(#${id}l)"/>
     <g transform="translate(17 15.5) scale(1.25)" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${glifo}</g>
+    ${estrelinhas}
     ${nivel}
   </svg>`;
   return span;
@@ -97,7 +120,7 @@ function fecharDica(): void {
 function textoDaDica(ins: Insignia, estado: EstadoDaMedalha, dados: DadosDeInsignias | null): Array<HTMLElement | false> {
   const r = RARIDADES[ins.raridade];
   if (estado === 'secreta') return [el('b', {}, ['Insígnia secreta']), el('span', {}, ['Descubra como ganhar.'])];
-  const p = estado === 'falta' && dados !== null ? progresso(ins, dados.n, dados.tem.size) : null;
+  const p = estado === 'falta' && dados !== null ? progresso(ins, dados.n, normaisGanhas(dados.tem.keys())) : null;
   const quando = dados?.tem.get(ins.id);
   return [
     el('b', {}, [ins.nome]),
@@ -154,7 +177,7 @@ function comDica(alvo: HTMLElement, ins: Insignia, estado: EstadoDaMedalha, dado
 /** Celular: a folha embaixo com a medalha grande, o que fazer e o progresso. */
 function abrirFolha(ins: Insignia, estado: EstadoDaMedalha, dados: DadosDeInsignias | null, onde: Element): void {
   const r = RARIDADES[ins.raridade];
-  const p = estado === 'falta' && dados !== null ? progresso(ins, dados.n, dados.tem.size) : null;
+  const p = estado === 'falta' && dados !== null ? progresso(ins, dados.n, normaisGanhas(dados.tem.keys())) : null;
   const veu = el('div', { class: 'ins-folha-veu' });
   const folha = el('div', { class: 'ins-folha', role: 'dialog', 'aria-label': estado === 'secreta' ? 'Insígnia secreta' : ins.nome }, [
     el('div', { class: 'ins-folha__puxa' }),
@@ -193,12 +216,15 @@ export function filaDeInsignias(ids: string[] | undefined, tamanho = 22, dados: 
 export function abaInsignias(dados: DadosDeInsignias, celular: boolean): HTMLElement {
   let filtro: 'todas' | 'tem' | 'faltam' = 'todas';
   const grade = el('div', { class: 'ins-grade' });
-  const total = INSIGNIAS.length;
+  // As especiais (Exclusiva e Especial) só aparecem para quem tem e não entram na conta.
+  const visiveis = INSIGNIAS.filter((i) => !eEspecial(i) || dados.tem.has(i.id));
+  const total = INSIGNIAS.filter((i) => !eEspecial(i)).length;
+  const ganhas = normaisGanhas(dados.tem.keys());
 
   function desenhar(): void {
     const filhos: HTMLElement[] = [];
     for (const cat of CATEGORIAS) {
-      const daqui = INSIGNIAS.filter((i) => i.categoria === cat).filter((i) =>
+      const daqui = visiveis.filter((i) => i.categoria === cat).filter((i) =>
         filtro === 'todas' ? true : filtro === 'tem' ? dados.tem.has(i.id) : !dados.tem.has(i.id),
       );
       if (daqui.length === 0) continue;
@@ -231,8 +257,8 @@ export function abaInsignias(dados: DadosDeInsignias, celular: boolean): HTMLEle
 
   return el('div', { class: `ins-aba${celular ? ' ins-aba--celular' : ''}` }, [
     el('div', { class: 'ins-topo' }, [
-      el('span', { class: 'ins-topo__conta' }, [String(dados.tem.size), el('small', {}, [`de ${total}`])]),
-      el('span', { class: 'ins-barra ins-barra--topo' }, [el('i', { style: `width:${Math.round((dados.tem.size / total) * 100)}%` })]),
+      el('span', { class: 'ins-topo__conta' }, [String(ganhas), el('small', {}, [`de ${total}`])]),
+      el('span', { class: 'ins-barra ins-barra--topo' }, [el('i', { style: `width:${Math.round((ganhas / total) * 100)}%` })]),
       el('span', { class: 'ins-filtros' }, botoes),
     ]),
     grade,

@@ -68,4 +68,97 @@ export const DESENHOS: Record<string, string> = {
   emojis: '<circle cx="8" cy="8" r="4.5"/><circle cx="16" cy="16" r="4.5"/><path d="M6.4 8.6h.01M9.6 8.6h.01M14.4 16.6h.01M17.6 16.6h.01"/>',
   dupla: '<rect x="2" y="8.5" width="9" height="7.5" rx="3.7"/><rect x="13" y="8.5" width="9" height="7.5" rx="3.7"/><path d="M4.6 12.3h3.4M6.3 10.6V14M17.2 11.6h.01M19.2 13.2h.01"/>',
   segredo: '<path d="M9.2 9a2.9 2.9 0 1 1 4 2.7c-.8.4-1.2 1-1.2 1.8v.8"/><path d="M12 17.5h.01"/>',
+  // 0.12.5: as exclusivas.
+  confidente: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/><circle cx="12" cy="11.6" r="1.7"/><path d="M12 13.3v2.7"/>',
+  linhadefrente: '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/><path d="M10.5 18h.01M14 17h.01"/>',
 };
+
+/**
+ * OS ÍCONES DAS INSÍGNIAS DO SERVIDOR (0.12.5): 61 desenhos para quem cria
+ * insígnia no grupo escolher (a maquete aprovada). Na insígnia o ícone vai
+ * como "srv:nome".
+ */
+export const ICONES_DO_SERVIDOR: Record<string, string> = {
+  // Jogos
+  controle: '<path d="M6 11h4M8 9v4"/><path d="M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15a3 3 0 0 0 5.4 2l1.3-1.6h6.6l1.3 1.6A3 3 0 0 0 22 15l-.7-6.4A4 4 0 0 0 17.3 5z"/>',
+  espada: '<path d="M20 4 9.5 14.5"/><path d="M20 4h-4.5M20 4v4.5"/><path d="m7 12 5 5"/><path d="M5.5 16.5l2 2M4 20l2.5-2.5"/>',
+  escudo: '<path d="M12 3 5 6v5c0 5 3 8.5 7 10 4-1.5 7-5 7-10V6z"/><path d="M12 7.5v9M8 11h8"/>',
+  pocao: '<path d="M10 3h4M10.5 3v5.5L6 15.5A4 4 0 0 0 9.5 21h5a4 4 0 0 0 3.5-5.5L13.5 8.5V3"/><path d="M7.5 15h9"/>',
+  dado: '<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="15.5" cy="15.5" r="1.1"/>',
+  trofeu: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M8.5 20h7M9.5 17h5"/>',
+  alvo: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  coroa: '<path d="m3.5 8 4.5 4 4-7 4 7 4.5-4L18.5 18h-13z"/><path d="M5.5 21h13"/>',
+  bau: '<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 13h18M5 9a7 5 0 0 1 14 0"/><rect x="10.5" y="11.5" width="3" height="4" rx="1"/>',
+  cogumelo: '<path d="M4 12a8 7 0 0 1 16 0z"/><path d="M9 12v6a3 3 0 0 0 6 0v-6"/><circle cx="9" cy="8.5" r="1.3"/><circle cx="15" cy="8" r="1"/>',
+  // Música
+  nota: '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  fone: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+  microfone: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/>',
+  violao: '<path d="M14.5 9.5 20 4M18 3l3 3"/><path d="M11 8.5a3.5 3.5 0 0 0-4.5 1.5A4.5 4.5 0 0 0 4 15a5 5 0 0 0 5 5 4.5 4.5 0 0 0 5-2.5 3.5 3.5 0 0 0 1.5-4.5"/><circle cx="10" cy="14" r="1.5"/>',
+  disco: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 6a6 6 0 0 0-6 6"/>',
+  // Esporte
+  bola: '<circle cx="12" cy="12" r="8.5"/><path d="m12 7.5 4 2.9-1.5 4.7h-5L8 10.4z"/><path d="M12 3.5v4M16 10.4l4-1.2M14.5 15.1l2.4 3.4M9.5 15.1l-2.4 3.4M8 10.4 4 9.2"/>',
+  basquete: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17"/><path d="M6 6a9 9 0 0 1 0 12M18 6a9 9 0 0 0 0 12"/>',
+  haltere: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
+  medalha: '<path d="M8 3h8l-2 6h-4z"/><circle cx="12" cy="15" r="5.5"/><path d="m12 12.5.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/>',
+  chegada: '<path d="M5 21V4"/><path d="M5 4h13v9H5"/><path d="M9.3 4v9M13.6 4v9M5 8.5h13"/>',
+  // Comida
+  pizza: '<path d="M12 21 3.5 6.5a14 14 0 0 1 17 0z"/><path d="M5.2 9.4a11 11 0 0 1 13.6 0"/><circle cx="10" cy="12" r="1.1"/><circle cx="14" cy="14.5" r="1.1"/>',
+  cafe: '<path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H16.5"/><path d="M8 3.5c-.8 1 .8 2 0 3M12 3.5c-.8 1 .8 2 0 3"/><path d="M3 21.5h15"/>',
+  hamburguer: '<path d="M4 10a8 6 0 0 1 16 0z"/><path d="M3.5 13.5h17"/><path d="M4 17h16v.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/>',
+  bolo: '<path d="M4 21v-8.5h16V21"/><path d="M4 16.5s2 1.5 4 0 4 0 4 0 2 1.5 4 0 4 0 4 0"/><path d="M12 12.5V8.5"/><path d="M12 6c.9 0 1.3-1.1 0-2.8-1.3 1.7-.9 2.8 0 2.8z"/><path d="M2.5 21h19"/>',
+  sorvete: '<path d="m8 11 4 10 4-10"/><path d="M7 11a5 5 0 1 1 10 0z"/>',
+  // Natureza
+  folha: '<path d="M5 19C5 10 10 4.5 20 4c0 10-5.5 15-14 15z"/><path d="M5 19 14 10"/>',
+  arvore: '<path d="M12 3 6 11h3l-4 6h14l-4-6h3z"/><path d="M12 17v4"/>',
+  flor: '<path d="M7 4v5a5 5 0 0 0 10 0V4l-2.5 2L12 3 9.5 6z"/><path d="M12 14v7M12 18c-2.5 0-4-1.5-4.5-3.5M12 19c2.5 0 4-1.5 4.5-3.5"/>',
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  lua: '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5z"/>',
+  fogo: '<path d="M12 21.5a6.5 6.5 0 0 0 6.5-6.5c0-4.3-3.2-6.4-4.3-10.8-2.2 2.2-3.2 4.3-3.2 6.5-1.1-1.1-1.6-2.2-1.6-3.2-2 1.8-3.9 4.4-3.9 7.5a6.5 6.5 0 0 0 6.5 6.5z"/>',
+  gota: '<path d="M12 3s6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10 12 3 12 3z"/>',
+  montanha: '<path d="m2.5 20 7-12 4 6.5 2.5-3.5 5.5 9z"/><path d="m7.6 11.2 1.9 1.3 1.6-1.4"/>',
+  onda: '<path d="M2.5 9c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 5 0"/><path d="M2.5 15c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 5 0"/>',
+  neve: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="m9.5 4.5 2.5 2 2.5-2M9.5 19.5l2.5-2 2.5 2"/>',
+  raio: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
+  arcoiris: '<path d="M3 18a9 9 0 0 1 18 0M6.5 18a5.5 5.5 0 0 1 11 0M10 18a2 2 0 0 1 4 0"/>',
+  // Bichos
+  gato: '<path d="M4.5 11V4l4 3h7l4-3v7a7.5 7.5 0 0 1-15 0z"/><path d="M9.5 12h.01M14.5 12h.01M11 15l1 .8 1-.8"/>',
+  cachorro: '<path d="M6 8.5C6 6 8.5 4 12 4s6 2 6 4.5V14a6 6 0 0 1-12 0z"/><path d="M6 8 3 11.5 5 15M18 8l3 3.5-2 3.5"/><path d="M9.5 11h.01M14.5 11h.01M11 15h2l-1 1.3z"/>',
+  peixe: '<path d="M3 12c3.5-5 10-6.5 15 0-5 6.5-11.5 5-15 0z"/><path d="m18 12 3.5-3.5v7z"/><circle cx="8" cy="11" r=".8"/>',
+  pata: '<circle cx="7" cy="9" r="1.8"/><circle cx="12" cy="6.5" r="1.8"/><circle cx="17" cy="9" r="1.8"/><path d="M8 16a4 4 0 0 1 8 0c0 2-1.8 3-4 3s-4-1-4-3z"/>',
+  passaro: '<path d="M4 15c4 0 6-2 8-6 1.5-3 4-4 6-3l2 1-2 1c0 6-4 10-10 10H4z"/><path d="M16.5 7.5h.01"/><path d="M8 18l-2 3M11 17.5 10 21"/>',
+  borboleta: '<path d="M12 7v13"/><path d="M12 11C10 6 6 3.5 4 5s-.5 6 2 7.5c-2 1-3 4-1 5s4.5-1 7-6.5M12 11c2-5 6-7.5 8-6s.5 6-2 7.5c2 1 3 4 1 5s-4.5-1-7-6.5"/>',
+  // Objetos
+  livro: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
+  foguete: '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>',
+  lampada: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  chave: '<circle cx="8" cy="15" r="4.5"/><path d="m11.2 11.8 8.8-8.8M17 6l2.5 2.5M14.5 8.5l2 2"/>',
+  presente: '<rect x="3.5" y="9" width="17" height="4" rx="1"/><path d="M5 13v8h14v-8M12 9v12"/><path d="M12 9C10 9 7.5 8 7.5 6.2a2 2 0 0 1 4-.2L12 9l.5-3a2 2 0 0 1 4 .2C16.5 8 14 9 12 9z"/>',
+  ancora: '<circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 10.5h8M4.5 13a7.5 7.5 0 0 0 15 0"/><path d="m3 14.5 1.5-1.5 1.5 1.5M18 14.5l1.5-1.5 1.5 1.5"/>',
+  diamante: '<path d="M6.5 4h11l3.5 5-9 11L3 9z"/><path d="M3 9h18M9.5 4 8 9l4 11 4-11-1.5-5"/>',
+  lupa: '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5.5 5.5"/>',
+  paleta: '<path d="M12 3a9 9 0 0 0 0 18c1.5 0 2-1 2-2s-.8-1.5-.8-2.5S14 15 15 15h2a4 4 0 0 0 4-4c0-4.5-4-8-9-8z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
+  // Símbolos
+  estrela: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  coracao: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+  caveira: '<path d="M12 3a8 8 0 0 0-8 8c0 2.6 1.3 4.6 3 5.8V20h10v-3.2c1.7-1.2 3-3.2 3-5.8a8 8 0 0 0-8-8z"/><circle cx="9" cy="11.5" r="1.8"/><circle cx="15" cy="11.5" r="1.8"/><path d="M10.5 20v-2M13.5 20v-2"/>',
+  olho: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  infinito: '<path d="M7 8.5a3.5 3.5 0 1 0 0 7c3.5 0 6.5-7 10-7a3.5 3.5 0 1 1 0 7c-3.5 0-6.5-7-10-7z"/>',
+  check: '<circle cx="12" cy="12" r="8.5"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
+  sorriso: '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+  brilho: '<path d="M11 3l1.8 4.7 4.7 1.8-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
+  balao: '<path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 19.5l1.3-4.6A7.5 7.5 0 1 1 20 11.5z"/>',
+};
+
+/** As abas da grade de ícones. */
+export const CATEGORIAS_DE_ICONES: Array<[string, string[]]> = [
+  ['Jogos', ['controle', 'espada', 'escudo', 'pocao', 'dado', 'trofeu', 'alvo', 'coroa', 'bau', 'cogumelo']],
+  ['Música', ['nota', 'fone', 'microfone', 'violao', 'disco']],
+  ['Esporte', ['bola', 'basquete', 'haltere', 'medalha', 'chegada']],
+  ['Comida', ['pizza', 'cafe', 'hamburguer', 'bolo', 'sorvete']],
+  ['Natureza', ['folha', 'arvore', 'flor', 'sol', 'lua', 'fogo', 'gota', 'montanha', 'onda', 'neve', 'raio', 'arcoiris']],
+  ['Bichos', ['gato', 'cachorro', 'peixe', 'pata', 'passaro', 'borboleta']],
+  ['Objetos', ['livro', 'camera', 'foguete', 'lampada', 'chave', 'presente', 'ancora', 'diamante', 'lupa', 'paleta']],
+  ['Símbolos', ['estrela', 'coracao', 'caveira', 'olho', 'infinito', 'check', 'sorriso', 'brilho', 'balao']],
+];
