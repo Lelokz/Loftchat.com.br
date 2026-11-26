@@ -102,8 +102,17 @@ test('especiais: só o criador dá, o presente chega no privado e o nome brilha 
   expect(r.ok).toBe(true);
 
   // O "conferir" dá a dele (Criador do Loftchat) e o nome roxo.
-  expect((await chamar(criador, '/conquistas', { evento: 'conferir' })).status).toBe(200);
-  await expect.poll(async () => (await lerComoDono(`users/${criador.uid}`))?.['brilho']?.['stringValue'], { timeout: 20_000 }).toBe('roxo');
+  // (O app já conferiu ao entrar, antes do @ mudar; o carteiro ignora outro
+  // conferir nos 10 s seguintes — então pede de novo até valer.)
+  await expect
+    .poll(
+      async () => {
+        expect((await chamar(criador, '/conquistas', { evento: 'conferir' })).status).toBe(200);
+        return (await lerComoDono(`users/${criador.uid}`))?.['brilho']?.['stringValue'];
+      },
+      { timeout: 40_000, intervals: [3_000] },
+    )
+    .toBe('roxo');
   expect((await lerComoDono(`insignias/${criador.uid}`))?.['tem']).toBeDefined();
 
   // REGRAS: ninguém se dá brilho, nem cria presente, nem lê quem tem.

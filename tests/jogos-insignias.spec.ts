@@ -183,6 +183,9 @@ test('jogando agora, jogos do perfil, cartão, perfil completo e Configurações
   // --- o perfil completo ----------------------------------------------------------------
   await pop.getByRole('button', { name: 'Ver perfil completo' }).click();
   const perfil = page.locator('.pfc');
+  // (0.12.5: dentro de um grupo o perfil abre na aba do grupo; os jogos vêm logo depois.)
+  await expect(perfil.getByRole('tab').first()).toHaveAttribute('aria-selected', 'true');
+  await perfil.getByRole('tab', { name: 'Jogos' }).click();
   await expect(perfil.getByRole('tab', { name: 'Jogos' })).toHaveAttribute('aria-selected', 'true');
   await expect(perfil.locator('.jg-etq', { hasText: 'Zerando' })).toBeVisible();
   await expect(perfil).toContainText('Quero jogar · 1');
@@ -243,6 +246,11 @@ test('insígnias: o carteiro conta, não conta duas vezes, avisa no canto e as 5
   await signInThroughUi(page, ana);
   await page.locator(`.group-bar__button[data-group-id="${grupo}"]`).click();
 
+  // O teste de cima deixa a Ana com o app aberto tempo bastante para o carteiro
+  // já ter dado (e o aviso já ter saído): começa do zero para ver o aviso aqui.
+  for (const c of ['insignias', 'insigniasInterno']) {
+    await fetch(`${FS}/${c}/${ana.uid}`, { method: 'DELETE', headers: { authorization: 'Bearer owner' } });
+  }
   // A conferida tem um intervalo mínimo de 10 s por pessoa: espera e abre o app de novo.
   await page.waitForTimeout(11_000);
   await page.reload();

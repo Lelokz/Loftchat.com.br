@@ -249,27 +249,27 @@ service cloud.firestore {
        * src/lib/person-theme.ts —, nunca texto livre que vire CSS na tela de
        * outra pessoa.
        */
-      function changed(field) {
-        return request.resource.data.get(field, null) != resource.data.get(field, null);
-      }
       function profileLookOk() {
         let d = request.resource.data;
-        return !changed('brilho')
-          && (!changed('displayName')
+        // Uma conta só (diff) em vez de comparar campo por campo: o perfil
+        // inteiro com jogos chegava perto do teto de 1000 do Firestore.
+        let m = d.diff(resource.data).affectedKeys();
+        return !('brilho' in m)
+          && (!('displayName' in m)
                   || (d.displayName is string && d.displayName.size() >= 1 && d.displayName.size() <= 32))
-          && (!changed('bio') || d.get('bio', '') is string && d.get('bio', '').size() <= 160)
-          && (!changed('accentId')
+          && (!('bio' in m) || d.get('bio', '') is string && d.get('bio', '').size() <= 160)
+          && (!('accentId' in m)
                 || d.get('accentId', 'roxo') in ['roxo', 'rosa', 'verde', 'azul', 'laranja', 'claro'])
-          && (!changed('fontId')
+          && (!('fontId' in m)
                 || d.get('fontId', 'nunito') in ['nunito', 'classica', 'pixelada', 'forte'])
-          && (!changed('photo') || !('photo' in d) || imageOk(d.photo, 90000))
-          && (!changed('nameColor')
+          && (!('photo' in m) || !('photo' in d) || imageOk(d.photo, 90000))
+          && (!('nameColor' in m)
                 || d.get('nameColor', 'padrao')
                      in ['padrao', 'roxo', 'rosa', 'vermelho', 'laranja', 'amarelo', 'verde', 'azul'])
-          && (!changed('customStatus') || !('customStatus' in d) || statusOk(d.customStatus))
-          && (!changed('links') || !('links' in d) || linksOk(d.links))
-          && (!changed('jogos') || !('jogos' in d) || jogosOk(d.jogos))
-          && (!changed('insigniasNoCartao') || !('insigniasNoCartao' in d) || insigniasNoCartaoOk(d.insigniasNoCartao));
+          && (!('customStatus' in m) || !('customStatus' in d) || statusOk(d.customStatus))
+          && (!('links' in m) || !('links' in d) || linksOk(d.links))
+          && (!('jogos' in m) || !('jogos' in d) || jogosOk(d.jogos))
+          && (!('insigniasNoCartao' in m) || !('insigniasNoCartao' in d) || insigniasNoCartaoOk(d.insigniasNoCartao));
       }
 
       /*
