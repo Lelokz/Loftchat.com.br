@@ -29,6 +29,8 @@ export interface PersonPopoverOptions {
   noServidor?: HTMLElement;
   /** 0.12.0: "Ver perfil completo". */
   onVerPerfil?: () => void;
+  /** 0.12.5: dentro de um grupo, a fileira é a das insígnias DO GRUPO (no lugar das do Loft). */
+  insigniasDoServidor?: HTMLElement;
 }
 
 let aberto: { el: HTMLElement; fechar: () => void } | null = null;
@@ -203,7 +205,7 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
         cardBg: 'cardBg' in art ? art.cardBg : undefined,
         customStatus: perfil.customStatus,
         links: perfil.links,
-        insignias: filaDeInsignias(insigniasDoCartao(perfil.insigniasNoCartao, insignias), 22, () => insignias),
+        insignias: options.insigniasDoServidor ?? filaDeInsignias(insigniasDoCartao(perfil.insigniasNoCartao, insignias), 22, () => insignias),
       }, perfil.jogos);
     },
   );

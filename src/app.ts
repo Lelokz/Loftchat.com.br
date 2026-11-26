@@ -1,3 +1,6 @@
+import { comoInsignia, doMembro, insigniasDoGrupoUmaVez, ouvirMinhasDosGrupos } from './lib/insignias-servidor';
+import type { Extras, InsigniaDoGrupo } from './lib/insignias-grupo';
+import { filaDoServidor } from './components/insignias-servidor/perfil';
 import { abrirPresente, souCriador } from './lib/especiais';
 import { notarBrilho } from './lib/brilho';
 import { mostrarAbertura } from './components/insignias/presente';
@@ -141,7 +144,7 @@ import { capaPeloNome } from './lib/catalogo-jogos';
 import { secaoJogandoAgora } from './components/jogos/jogos-ui';
 import { abrirPerfilCompleto, fecharPerfilCompleto } from './components/perfil-completo/perfil-completo';
 import type { AbaDoPerfil } from './components/perfil-completo/perfil-completo';
-import { ligarAvisosDeInsignias } from './components/insignias/insignias-ui';
+import { ligarAvisosDeInsignias, mostrarAvisoDeInsignia } from './components/insignias/insignias-ui';
 import { contarConquista } from './lib/conquistas';
 import type { PessoaJogando } from './components/jogos/jogos-ui';
 import { criarNaoLidas } from './lib/nao-lidas';
@@ -3502,12 +3505,45 @@ export function mountApp(
         }
       },
       onEditProfile: () => handleOpenSettings(),
-      onVerPerfil: () => abrirPerfilDe(uid, vinculo, conhecido),
+      onVerPerfil: () => abrirPerfilDe(uid, vinculo, conhecido, undefined, grupoDoPerfil(state, uid)),
       ...(() => {
         const extra = perfilNoServidor(state, uid);
         return extra === null ? {} : { noServidor: extra };
       })(),
+      ...(() => {
+        const fila = filaDoGrupoNoCartao(state, uid);
+        return fila === null ? {} : { insigniasDoServidor: fila };
+      })(),
     });
+  }
+
+  /** 0.12.5: o perfil aberto de dentro de um grupo leva o grupo (a aba com as insígnias de lá). */
+  function grupoDoPerfil(state: AppState, uid: string): { id: string; nome: string; extras: Extras } | undefined {
+    if (state.view !== 'group') return undefined;
+    const group = activeGroup(state);
+    const membro = state.members.find((m) => m.id === uid);
+    if (group === undefined || membro === undefined) return undefined;
+    return {
+      id: group.id,
+      nome: group.name,
+      extras: { ...(membro.entrouEm === undefined ? {} : { entrou: membro.entrouEm }), cargos: membro.cargos ?? [] },
+    };
+  }
+
+  /** 0.12.5: a fileira "Insígnias do grupo" do cartão (chega um pouco depois; o "+" para quem pode dar). */
+  function filaDoGrupoNoCartao(state: AppState, uid: string): HTMLElement | null {
+    const g = grupoDoPerfil(state, uid);
+    if (g === undefined) return null;
+    const caixa = el('div', { class: 'isv-perfil-slot' });
+    const podeDar = posso(state, 'dar-insignias');
+    const preencher = (): void => {
+      void Promise.all([insigniasDoGrupoUmaVez(g.id), doMembro(g.id, uid)]).then(([defs, dele]) => {
+        const fila = filaDoServidor({ grupo: g.id, nomeDoGrupo: g.nome, membro: uid, defs, dele, podeDar, aoMudar: preencher });
+        caixa.replaceChildren(...(fila === null ? [] : [fila]));
+      });
+    };
+    preencher();
+    return caixa;
   }
 
   /** 0.12.0: o perfil completo (Jogos, Insígnias, Amigos em comum). */
@@ -3516,6 +3552,7 @@ export function mountApp(
     vinculo: Vinculo,
     conhecido: { displayName: string; initials: string; photo?: string | undefined } | undefined,
     aba?: AbaDoPerfil,
+    grupo?: { id: string; nome: string; extras: Extras },
   ): void {
     const acao =
       vinculo === 'eu'
@@ -3536,6 +3573,7 @@ export function mountApp(
       fallback: { displayName: conhecido?.displayName ?? 'Usuário', initials: conhecido?.initials ?? '?', photo: conhecido?.photo },
       ...(acao === undefined ? {} : { acao }),
       ...(aba === undefined ? {} : { aba }),
+      ...(grupo === undefined ? {} : { grupo }),
       abrirOutro: (outro) => {
         const st = store.getState();
         const amizade = st.friendships.find((f) => f.members.includes(outro) && f.members.includes(user.uid));
@@ -3698,6 +3736,20 @@ export function mountApp(
    * "ainda estou aqui" que conta os minutos de voz.
    */
   const pararAvisosDeInsignias = ligarAvisosDeInsignias(user.uid, () => abrirPerfilDe(user.uid, 'eu', me, 'insignias'));
+  // 0.12.5: insígnia nova de um GRUPO — o mesmo aviso, com o nome do grupo.
+  const pararAvisosDosGrupos = ouvirMinhasDosGrupos(user.uid, (grupo, ids) => {
+    void insigniasDoGrupoUmaVez(grupo).then((defs) => {
+      const novas = ids.map((id) => defs.find((d) => d.id === id)).filter((d): d is InsigniaDoGrupo => d !== undefined);
+      const primeira = novas[novas.length - 1];
+      if (primeira === undefined) return;
+      const nome = store.getState().groups.find((g) => g.id === grupo)?.name ?? 'Grupo';
+      mostrarAvisoDeInsignia(comoInsignia(primeira), {
+        grupo: nome,
+        ...(novas.length > 1 ? { mais: novas.length - 1 } : {}),
+        onVer: () => abrirPerfilDe(user.uid, 'eu', me, 'grupo', { id: grupo, nome, extras: {} }),
+      });
+    });
+  });
   contarConquista({ evento: 'conferir' });
   const batidaDaVoz = window.setInterval(() => {
     if (store.getState().voice !== null) contarConquista({ evento: 'voz' });
@@ -3797,6 +3849,7 @@ export function mountApp(
       pararMeuJogo();
       pararOuvirJogando();
       pararAvisosDeInsignias();
+      pararAvisosDosGrupos();
       window.clearInterval(batidaDaVoz);
       fecharPerfilCompleto();
       pararJogando();

@@ -258,3 +258,7 @@ export const searchIcon = (size?: number): string => svg('<circle cx="11" cy="11
 /** Brilho de duas estrelas (0.12.5): Configurações → Criador. */
 export const sparkleIcon = (size?: number): string =>
   svg('<path d="M11 3l1.8 4.7 4.7 1.8-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>', size);
+
+/** Medalha (0.12.5): a aba Insígnias das Configurações do grupo. */
+export const medalIcon = (size?: number): string =>
+  svg('<path d="M8 3h8l-2 6h-4z"/><circle cx="12" cy="15" r="5.5"/><path d="m12 12.5.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/>', size);

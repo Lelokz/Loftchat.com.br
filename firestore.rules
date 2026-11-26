@@ -1019,7 +1019,8 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /insigniasDoMembro/{docId} {
-      allow read: if isMember(resource.data.groupId);
+      // As minhas (o aviso de insígnia nova ouve todas) ou as de quem está num grupo meu.
+      allow read: if signedIn() && (resource.data.uid == uid() || isMember(resource.data.groupId));
       allow update: if signedIn() && resource.data.uid == uid()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avisadoAte'])
         && request.resource.data.avisadoAte is string

@@ -1,9 +1,11 @@
+import { criarSecaoDeInsignias } from '../insignias-servidor/secao';
+import type { SecaoDeInsignias } from '../insignias-servidor/secao';
 import '../settings/settings.css';
 import { recalcularDepois } from '../../lib/cargos';
 import './group-settings.css';
 
 import { el, iconEl } from '../../lib/dom';
-import { arrowLeftIcon, closeIcon, faceIcon, gearIcon, menuIcon, peopleIcon, shieldIcon } from '../../lib/icons';
+import { arrowLeftIcon, closeIcon, faceIcon, gearIcon, medalIcon, menuIcon, peopleIcon, shieldIcon } from '../../lib/icons';
 import { criarSecaoCargos } from '../cargos/cargos-section';
 import { fecharEscolhaDeCargos } from '../cargos/chips';
 import { MAX_WELCOME, welcomeProblem } from '../../lib/welcome';
@@ -43,7 +45,7 @@ export interface GroupSettingsOptions {
   aoPermissoes?: (alvo: { canal: string } | { categoria: string; nome: string }) => void;
 }
 
-type Secao = 'visao' | 'canais' | 'cargos' | 'membros' | 'boas' | 'registro' | 'banidos' | 'comandos';
+type Secao = 'visao' | 'canais' | 'cargos' | 'membros' | 'boas' | 'registro' | 'banidos' | 'comandos' | 'insignias';
 
 interface Rascunho {
   name: string;
@@ -137,6 +139,12 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     iconEl(peopleIcon(18)),
     el('span', {}, ['Membros']),
   ]);
+  // 0.12.5: as insígnias do servidor (a seção liga quando abre pela primeira vez).
+  const insigniasBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
+    iconEl(medalIcon(18)),
+    el('span', {}, ['Insígnias']),
+  ]);
+  let secaoInsignias: SecaoDeInsignias | null = null;
   // 0.8.5 etapa 4: Registro e Banidos, na parte "Moderação".
   const registroBotao = el('button', { class: 'settings__nav-item', type: 'button' }, [
     el('span', { class: 'icon', 'aria-hidden': 'true' }, ['📜']),
@@ -151,6 +159,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     el('span', {}, ['Comandos']),
   ]);
   comandosBotao.addEventListener('click', () => irPara('comandos'));
+  insigniasBotao.addEventListener('click', () => irPara('insignias'));
   registroBotao.addEventListener('click', () => irPara('registro'));
   banidosBotao.addEventListener('click', () => irPara('banidos'));
   cargosBotao.addEventListener('click', () => irPara('cargos'));
@@ -184,12 +193,14 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   secao = podeVisao ? 'visao' : podeCanais ? 'canais' : podeCargos ? 'cargos' : podeMembros ? 'membros' : 'boas';
   const podeComandos = p('criar-comandos') || p('gerenciar-comandos');
   comandosBotao.hidden = !podeComandos;
+  const podeInsignias = p('criar-insignias') || p('editar-insignias');
+  insigniasBotao.hidden = !podeInsignias;
   const podeRegistro = p('ver-registro');
   const podeBanidos = p('banir') || p('desbanir');
   registroBotao.hidden = !podeRegistro;
   banidosBotao.hidden = !podeBanidos;
   const rotuloModeracao = el('span', { class: 'settings__nav-label', hidden: !podeRegistro && !podeBanidos }, ['Moderação']);
-  if (!podeVisao && !podeCanais && !podeCargos && !podeMembros && !podeBoas) secao = podeComandos ? 'comandos' : podeRegistro ? 'registro' : 'banidos';
+  if (!podeVisao && !podeCanais && !podeCargos && !podeMembros && !podeBoas) secao = podeComandos ? 'comandos' : podeInsignias ? 'insignias' : podeRegistro ? 'registro' : 'banidos';
   const nomeNoMenu = el('span', { class: 'group-settings__nav-name' }, [group.name]);
   const menu = el('nav', { class: 'settings__nav', 'aria-label': 'Seções do grupo' }, [
     el('span', { class: 'settings__nav-label' }, ['Grupo']),
@@ -197,6 +208,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
     visao,
     canaisBotao,
     cargosBotao,
+    insigniasBotao,
     membrosBotao,
     comandosBotao,
     boasBotao,
@@ -454,12 +466,12 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
 
   function desenhar(refocus?: string): void {
     erroGeral = null;
-    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['cargos', cargosBotao], ['membros', membrosBotao], ['boas', boasBotao], ['registro', registroBotao], ['banidos', banidosBotao], ['comandos', comandosBotao]] as const) {
+    for (const [qual, botao] of [['visao', visao], ['canais', canaisBotao], ['cargos', cargosBotao], ['membros', membrosBotao], ['boas', boasBotao], ['registro', registroBotao], ['banidos', banidosBotao], ['comandos', comandosBotao], ['insignias', insigniasBotao]] as const) {
       botao.classList.toggle('is-active', qual === secao);
       if (qual === secao) botao.setAttribute('aria-current', 'page');
       else botao.removeAttribute('aria-current');
     }
-    const largo = secao === 'cargos' || secao === 'membros' || secao === 'registro' || secao === 'banidos' || secao === 'comandos';
+    const largo = secao === 'cargos' || secao === 'membros' || secao === 'registro' || secao === 'banidos' || secao === 'comandos' || secao === 'insignias';
     dialog.classList.toggle('settings--com-previa', secao !== 'canais' && !largo);
     dialog.classList.toggle('group-settings--larga', largo);
     const rolagem = conteudo.scrollTop;
@@ -473,6 +485,11 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
       const posicao = foco?.selectionStart ?? null;
       erroGeral = el('p', { class: 'settings__error', role: 'alert' });
       erroGeral.hidden = true;
+      if (secao === 'insignias') {
+        secaoInsignias ??= criarSecaoDeInsignias({ grupo: group, canais: options.channels, pode: p });
+        conteudo.replaceChildren(secaoInsignias.raiz);
+        return;
+      }
       const partes =
         secao === 'cargos'
           ? cargosSecao.cargos()
@@ -626,6 +643,7 @@ export function openGroupSettings(options: GroupSettingsOptions): void {
   document.addEventListener('keydown', onKey);
   dialog.addEventListener('close', () => {
     cargosSecao.parar();
+    secaoInsignias?.parar();
     fecharEscolhaDeCargos();
     document.removeEventListener('keydown', onKey);
     dialog.remove();

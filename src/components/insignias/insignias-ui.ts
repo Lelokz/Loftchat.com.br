@@ -140,7 +140,7 @@ function barra(fracao: number, ins: Insignia): HTMLElement {
 }
 
 /** Passar o mouse mostra a dica; tocar (celular) abre a folha embaixo. */
-function comDica(alvo: HTMLElement, ins: Insignia, estado: EstadoDaMedalha, dados: () => DadosDeInsignias | null): HTMLElement {
+export function comDica(alvo: HTMLElement, ins: Insignia, estado: EstadoDaMedalha, dados: () => DadosDeInsignias | null): HTMLElement {
   alvo.tabIndex = 0;
   alvo.setAttribute('role', 'button');
   alvo.setAttribute('aria-label', estado === 'secreta' ? 'Insígnia secreta' : `${ins.nome}: ${ins.desc}`);
@@ -299,7 +299,7 @@ function pilhaDosAvisos(): HTMLElement {
 }
 
 /** O aviso temático de "insígnia nova", no canto escolhido (padrão: inferior direito). */
-export function mostrarAvisoDeInsignia(ins: Insignia, opcoes: { mais?: number; onVer?: () => void } = {}): void {
+export function mostrarAvisoDeInsignia(ins: Insignia, opcoes: { mais?: number; onVer?: () => void; grupo?: string } = {}): void {
   const r = RARIDADES[ins.raridade];
   const especial = ins.raridade === 'epica' || ins.raridade === 'lendaria';
   const confete =
@@ -312,7 +312,7 @@ export function mostrarAvisoDeInsignia(ins: Insignia, opcoes: { mais?: number; o
         )
       : [];
   const marca = el('span', { class: 'ins-aviso__marca', 'aria-hidden': 'true' });
-  marca.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${DESENHOS[ins.icone] ?? ''}</svg>`;
+  marca.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${(ins.icone.startsWith('srv:') ? ICONES_DO_SERVIDOR[ins.icone.slice(4)] : DESENHOS[ins.icone]) ?? ''}</svg>`;
   const fecharBtn = el('button', { class: 'ins-aviso__fechar', type: 'button', 'aria-label': 'Fechar' }, [iconEl(closeIcon(14))]);
   const ver = el('button', { class: 'ins-aviso__ver', type: 'button' }, ['Ver no perfil']);
   const aviso = el(
@@ -331,7 +331,8 @@ export function mostrarAvisoDeInsignia(ins: Insignia, opcoes: { mais?: number; o
       el('div', { class: 'ins-aviso__corpo' }, [
         medalha(ins, 84),
         el('div', { class: 'ins-aviso__txt' }, [
-          el('span', { class: 'ins-aviso__tag' }, [`Insígnia nova · ${r.nome}`]),
+          // 0.12.5: a do servidor diz de qual grupo é.
+          el('span', { class: 'ins-aviso__tag' }, [`Insígnia nova · ${opcoes.grupo ?? r.nome}`]),
           el('b', {}, [ins.nome]),
           el('p', {}, [ins.desc]),
           (opcoes.mais ?? 0) > 0 && el('p', { class: 'ins-aviso__mais' }, [`e mais ${opcoes.mais} ${opcoes.mais === 1 ? 'insígnia' : 'insígnias'}`]),

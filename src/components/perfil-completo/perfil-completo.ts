@@ -1,3 +1,7 @@
+import { abaDoServidor } from '../insignias-servidor/perfil';
+import { doMembro, insigniasDoGrupoUmaVez } from '../../lib/insignias-servidor';
+import type { DoMembro } from '../../lib/insignias-servidor';
+import type { Extras, InsigniaDoGrupo } from '../../lib/insignias-grupo';
 import './perfil-completo.css';
 
 import { doc, updateDoc } from 'firebase/firestore';
@@ -17,7 +21,7 @@ import { abaInsignias, filaDeInsignias, ouvirInsignias } from '../insignias/insi
 import type { DadosDeInsignias } from '../insignias/insignias-ui';
 import { showToast } from '../toast/toast';
 
-export type AbaDoPerfil = 'jogos' | 'insignias' | 'amigos';
+export type AbaDoPerfil = 'grupo' | 'jogos' | 'insignias' | 'amigos';
 
 export interface PerfilCompletoOptions {
   uid: string;
@@ -28,6 +32,8 @@ export interface PerfilCompletoOptions {
   aba?: AbaDoPerfil;
   /** Abrir o perfil de um amigo em comum. */
   abrirOutro?: (uid: string) => void;
+  /** 0.12.5: aberto de dentro de um grupo → a aba do grupo (as insígnias de lá) vem primeiro. */
+  grupo?: { id: string; nome: string; extras: Extras };
 }
 
 let aberto: (() => void) | null = null;
@@ -57,7 +63,8 @@ export function insigniasDoCartao(escolhidas: string[] | undefined, dados: Dados
 export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   fecharPerfilCompleto();
   const celular = matchMedia('(max-width: 720px)').matches;
-  let aba: AbaDoPerfil = opcoes.aba ?? 'jogos';
+  let aba: AbaDoPerfil = opcoes.aba ?? (opcoes.grupo !== undefined ? 'grupo' : 'jogos');
+  let doGrupo: { defs: InsigniaDoGrupo[]; dele: DoMembro } | null = null;
   let perfil: UserProfile | null = null;
   let dados: DadosDeInsignias | null = null;
   let escolhendo = false;
@@ -124,10 +131,10 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   }
 
   function desenharAbas(): void {
-    const nomes: Record<AbaDoPerfil, string> = { jogos: 'Jogos', insignias: 'Insígnias', amigos: 'Amigos em comum' };
+    const nomes: Record<AbaDoPerfil, string> = { grupo: opcoes.grupo?.nome ?? '', jogos: 'Jogos', insignias: 'Insígnias', amigos: 'Amigos em comum' };
     abas.replaceChildren(
       ...(Object.keys(nomes) as AbaDoPerfil[])
-        .filter((a) => a !== 'amigos' || !opcoes.souEu)
+        .filter((a) => (a !== 'amigos' || !opcoes.souEu) && (a !== 'grupo' || opcoes.grupo !== undefined))
         .map((a) => {
           const b = el('button', { class: `pfc__aba${a === aba ? ' is-on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(a === aba) }, [nomes[a]]);
           b.addEventListener('click', () => {
@@ -142,6 +149,19 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   }
 
   function desenharCorpo(): void {
+    if (aba === 'grupo' && opcoes.grupo !== undefined) {
+      const g = opcoes.grupo;
+      if (doGrupo === null) {
+        corpo.replaceChildren(el('p', { class: 'pfc__vazio' }, ['Carregando…']));
+        void Promise.all([insigniasDoGrupoUmaVez(g.id), doMembro(g.id, opcoes.uid)]).then(([defs, dele]) => {
+          doGrupo = { defs, dele };
+          if (aba === 'grupo' && caixa.isConnected) desenharCorpo();
+        });
+        return;
+      }
+      corpo.replaceChildren(abaDoServidor(doGrupo.defs, doGrupo.dele, g.extras, g.nome, celular));
+      return;
+    }
     if (aba === 'jogos') {
       const jogo = jogandoDe(opcoes.uid);
       const blocos = [...(jogo === null ? [] : [blocoJogandoAgora(jogo, true, celular)]), ...blocosDosJogos(perfil?.jogos, true, celular)];
