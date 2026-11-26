@@ -896,6 +896,8 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
   let pararComandos: (() => void) | null = null;
   /** O comando aberto no formulário ('novo' = criando). */
   let editandoComando: string | null = null;
+  /** Sobe a cada formulário aberto: a resposta de um salvar antigo não fecha o formulário novo. */
+  let vezDoFormulario = 0;
   let rascunhoComando = { nome: '', descricao: '', resposta: '', cargos: [] as string[] };
 
   function secaoComandos(): HTMLElement[] {
@@ -918,6 +920,7 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
     const podeMexer = (c: ComandoDoGrupo): boolean => podeTodos || (podeCriar && c.criadoPor === op.eu);
     const abrir = (c: ComandoDoGrupo | null): void => {
       editandoComando = c === null ? 'novo' : c.id;
+      vezDoFormulario += 1;
       rascunhoComando = c === null ? { nome: '', descricao: '', resposta: '', cargos: [] } : { nome: c.nome, descricao: c.descricao, resposta: c.resposta, cargos: [...c.cargos] };
       op.redesenhar();
     };
@@ -953,9 +956,12 @@ export function criarSecaoCargos(op: SecaoCargosOpcoes): SecaoCargos {
       salvar.addEventListener('click', () => {
         salvar.disabled = true;
         const id = editandoComando === 'novo' ? null : editandoComando;
+        const vez = vezDoFormulario;
         void salvarComando(op.groupId, id, { nome: r.nome, descricao: r.descricao, resposta: r.resposta, cargos: r.cargos })
           .then(() => {
             showToast(`/${r.nome} salvo.`);
+            // A lista pode chegar antes da resposta e a pessoa já ter aberto outro.
+            if (vez !== vezDoFormulario) return;
             editandoComando = null;
             op.redesenhar();
           })
