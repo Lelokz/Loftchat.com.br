@@ -2,6 +2,30 @@
 
 Estado em 15/11/2026.
 
+## Reportar bug (26/11/2026) — versão 0.13.0
+
+Maquete aprovada (Arquivo/Loft-desktop/maquete-reportar-bug, PC e celular).
+
+1. **A aba** (`components/reportar-bug/`, prefixo `rbg-`): Configurações →
+   Reportar bug (seção Loftchat). "Novo reporte | Meus reportes · N";
+   título, categoria (13, `lib/reportes-comum.ts`; no celular a lista vira
+   gaveta), texto, áudio (o gravador do chat), até 5 anexos e "Tirar print
+   agora" (só no PC novo: `loft:tirar-print` = `capturePage` da própria
+   janela). "Vai junto": versão, aparelho, sistema e tela. Mandou → pula
+   para a lista. Sem aviso de conserto: o estado fica só ali.
+2. **O carteiro** (`carteiro/src/reportes.ts`): `POST /reportes` (5 por dia,
+   dia de Brasília, em `reportesInterno/{uid}`); arquivos pelo
+   `POST /arquivo?tipo=reporte` (pasta fechada). `reportes/{id}`: só o dono
+   lê, só o carteiro grava.
+3. **O lado do criador**: `/reportes/admin/lista`, `/reportes/admin/arquivo/<chave>`
+   e `POST /reportes/admin` (visto / confirmar / consertado + versão), com a
+   chave `CHAVE_REPORTES` (segredo do carteiro; cópia no HD em
+   Arquivo/Loft-desktop/reportes/chave.txt). Ferramenta: Arquivo/Loft-desktop/reportes/olhar.mjs.
+4. **Caçador de bugs** em série (`bug1/bug2/bug3`, 1/5/15, rara/épica/lendária),
+   contador `n.bugs`: sobe ao confirmar (uma vez por reporte,
+   `marcasDeConquista/bug_<id>`). A coleção passa a ser "de 100".
+5. Teste: `tests/reportar-bug.spec.ts`.
+
 ## Insígnias do servidor e as especiais (26/11/2026) — versão 0.12.5
 
 Maquete aprovada (Arquivo/Loft-desktop/maquete-insignias-servidor, PC e

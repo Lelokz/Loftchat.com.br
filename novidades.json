@@ -1,5 +1,14 @@
 [
   {
+    "versao": "0.13.0",
+    "data": "2026-11-26",
+    "itens": [
+      "Reportar bug: em Configurações → Reportar bug dá para contar o problema com título, categoria, texto, um áudio e até 5 prints, vídeos ou arquivos. No programa do PC tem o botão \"Tirar print agora\". A versão, o aparelho, o sistema e o tamanho da tela vão junto, e você vê a lista antes de mandar.",
+      "Em \"Meus reportes\" você acompanha cada um: Enviado → Visto → Consertado na versão tal. Só o criador do Loftchat lê os reportes. Dá para mandar até 5 por dia.",
+      "Caçador de bugs virou série: I com 1 bug confirmado, II com 5 e III com 15. Conta bug confirmado, não reporte mandado."
+    ]
+  },
+  {
     "versao": "0.12.5",
     "data": "2026-11-26",
     "itens": [
