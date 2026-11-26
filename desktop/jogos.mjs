@@ -327,7 +327,8 @@ async function processosWindows() {
   const novos = [...pids.entries()].filter(([pid, nome]) => !visto.has(pid) && !NUNCA.test(semExe(nome)) && !/^(svchost|system|registry|smss|csrss|wininit|services|lsass|winlogon|dwm|fontdrvhost|conhost|runtimebroker|searchhost|sihost|taskhostw|ctfmon|dllhost|audiodg|spoolsv|msedge|chrome|firefox|opera|brave|discord|loftchat|code|powershell|cmd|tasklist|wmiprvse)\.exe$/i.test(nome));
   if (novos.length > 0) {
     const filtro = novos.slice(0, 200).map(([pid]) => `ProcessId=${pid}`).join(' OR ');
-    const script = `Get-CimInstance Win32_Process -Filter "${filtro}" | ForEach-Object { "$($_.ProcessId)\`t$($_.ExecutablePath)\`t$($_.CommandLine)" }`;
+    // UTF-8 na saída: sem isto, pasta com acento ("Coração") chegava embaralhada.
+    const script = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_Process -Filter "${filtro}" | ForEach-Object { "$($_.ProcessId)\`t$($_.ExecutablePath)\`t$($_.CommandLine)" }`;
     const texto = await rodar('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script]);
     const achados = new Map();
     for (const l of texto.split(/\r?\n/)) {
