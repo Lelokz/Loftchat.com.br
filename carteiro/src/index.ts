@@ -23,6 +23,7 @@ import { transcrever } from './transcricao';
 import { buscarJogos } from './jogos';
 import { contarMensagem, rotaAmigosEmComum, rotaConquistas } from './insignias';
 import { rotaEspeciais } from './especiais';
+import { rotaReportes } from './reportes';
 import type { EnvJogos } from './jogos';
 import type { Balde } from './arquivos';
 
@@ -42,6 +43,8 @@ export interface Env extends EnvJogos {
   ESPECIAIS?: string;
   /** 0.12.5: o @ do criador do Loftchat (padrão: lelokz) — só ele dá as especiais. */
   CRIADOR?: string;
+  /** 0.13.0: a chave de quem lê os reportes de bug (segredo; ver reportes.ts). */
+  CHAVE_REPORTES?: string;
 }
 
 const TEXTO_MAX = 180;
@@ -573,6 +576,8 @@ export default {
       if (req.method === 'POST' && url.pathname === '/amigos-em-comum') return await rotaAmigosEmComum(req, env);
       // 0.12.5: as especiais que só o criador dá (ver especiais.ts).
       if (req.method === 'POST' && url.pathname === '/especiais') return await rotaEspeciais(req, env);
+      // 0.13.0: reportar bug (ver reportes.ts).
+      if (url.pathname === '/reportes' || url.pathname.startsWith('/reportes/')) return await rotaReportes(req, env, url.pathname);
       // 0.12.0: catálogo de jogos (ver jogos.ts).
       if (req.method === 'GET' && url.pathname === '/jogos/busca') return await buscarJogos(req, env);
       // 0.8.5: cargos, permissões e moderação (ver cargos.ts).

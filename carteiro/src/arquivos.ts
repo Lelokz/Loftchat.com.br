@@ -49,11 +49,13 @@ export const TIPOS: Record<string, { maximo: number; aceita: RegExp }> = {
   // Arquivo qualquer (0.11.0): PDF, ZIP, documento, programa… Sai SEMPRE como download.
   arquivo: { maximo: 50 * MB, aceita: /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/ },
   // Visualização única (0.10.0): foto ou vídeo. NUNCA sai pelo GET público (unica.ts).
+  // 0.13.0: anexos e áudio dos reportes de bug. NUNCA saem pelo GET público (reportes.ts).
+  reporte: { maximo: 50 * MB, aceita: /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/ },
   unica: { maximo: 50 * MB, aceita: /^(image\/(webp|jpeg|png)|video\/(mp4|webm|quicktime|3gpp|x-matroska))$/ },
 };
 
 /** Pastas que o GET público não entrega. */
-const FECHADAS = new Set(['unica']);
+const FECHADAS = new Set(['unica', 'reporte']);
 const PRAZO_DA_UNICA_DIAS = 14;
 
 const LIMITE_GUARDADO = 9.5 * GB;
@@ -128,7 +130,7 @@ export async function receberArquivo(req: Request, balde: Balde, uid: string): P
   const nome = (url.searchParams.get('nome') ?? '').replace(/[\u0000-\u001f"\\/<>:|?*]/g, '').trim().slice(0, 120);
   const salvo = await balde.put(chave, req.body, {
     httpMetadata: { contentType: formato, cacheControl: FECHADAS.has(tipo) ? 'no-store' : 'public, max-age=31536000, immutable' },
-    customMetadata: { uid, ...(tipo === 'arquivo' && nome !== '' ? { nome } : {}) },
+    customMetadata: { uid, ...((tipo === 'arquivo' || tipo === 'reporte') && nome !== '' ? { nome } : {}) },
   });
   if (salvo === null) return json({ erro: 'não salvou' }, 500);
   // Conta o que entrou, até a próxima limpeza recontar tudo.

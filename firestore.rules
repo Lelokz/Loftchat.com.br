@@ -1032,6 +1032,18 @@ service cloud.firestore {
     }
 
     /*
+     * REPORTAR BUG (0.13.0): só quem mandou lê o próprio reporte; só o
+     * carteiro grava (limite por dia, arquivos da própria pessoa, estado).
+     */
+    match /reportes/{reporteId} {
+      allow read: if signedIn() && resource.data.uid == uid();
+      allow write: if false;
+    }
+    match /reportesInterno/{docId} {
+      allow read, write: if false;
+    }
+
+    /*
      * JOGANDO AGORA (0.12.0): o programa do PC grava o jogo aberto. Público
      * para quem tem conta (como o perfil). `visto` é sempre a hora do
      * servidor: quem lê ignora o que parou de renovar.

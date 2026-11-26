@@ -9,6 +9,9 @@ import { expect } from '@playwright/test';
  */
 
 const FS_HOST = process.env['FIRESTORE_EMULATOR_HOST'];
+/** 0.13.0: a chave de ler os reportes no carteiro de teste. */
+export const CHAVE_REPORTES_DE_TESTE = 'chave-de-teste-dos-reportes-0123456789abcdef';
+
 export const FS = `http://${FS_HOST}/v1/projects/loft-3d6c0f/databases/(default)/documents`;
 const PORTA = 8799;
 export const CARTEIRO = `http://127.0.0.1:${PORTA}`;
@@ -29,6 +32,8 @@ export async function ligarCarteiroLocal(): Promise<() => void> {
       '--var', 'WHISPER_FALSO:1',
       // 0.12.5: o criador nos testes (o @ que o teste dá para uma conta).
       '--var', 'CRIADOR:criadorteste',
+      // 0.13.0: a chave de ler os reportes nos testes.
+      '--var', `CHAVE_REPORTES:${CHAVE_REPORTES_DE_TESTE}`,
       '--persist-to', `${HD}/estado-dev`,
       '--log-level', process.env['LOFT_CARTEIRO_LOG'] ? 'log' : 'warn',
     ],

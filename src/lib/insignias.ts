@@ -146,7 +146,8 @@ um('Especiais', 'criador', 'criador', 'Criador do Loftchat', 'Fez o Loftchat. S�
 um('Especiais', 'confidente', 'confidente', 'Confidente', 'Amigo de confiança do criador.', 'exclusiva', 'esp_confidente', 1, { cromo: 'ouro' });
 // O id continua "testador" (é o mesmo de antes); o nome novo é Linha de Frente.
 um('Especiais', 'testador', 'linhadefrente', 'Linha de Frente', 'Testou o Loftchat no beta, com bug e tudo.', 'exclusiva', 'esp_testador', 1, { cromo: 'prata' });
-um('Especiais', 'bug', 'bug', 'Caçador de bugs', 'Achou um bug que foi consertado.', 'rara', 'esp_bug');
+// 0.13.0: conta bug CONFIRMADO pelo Reportar bug (Configurações), não reporte mandado.
+serie('Especiais', 'bug', 'bug', 'Caçador de bugs', 'bugs', [1, 5, 15], ['rara', 'epica', 'lendaria'], (m) => `${m} ${m === '1' ? 'bug confirmado' : 'bugs confirmados'}.`);
 um('Especiais', 'primeiros', 'primeiros', 'Primeiros 10', 'Uma das 10 primeiras contas.', 'lendaria', 'primeiros');
 um('Especiais', 'lancamento', 'lancamento', 'Lançamento 1.0', 'Estava no Loft no dia da 1.0.', 'epica', 'esp_lancamento');
 

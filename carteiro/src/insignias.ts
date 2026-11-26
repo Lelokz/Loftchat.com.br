@@ -171,7 +171,7 @@ interface Conta {
  * tudo numa escrita só (mais as `extras`, como a marca de já contado).
  * Devolve as insígnias novas (null = já tinha sido contado).
  */
-async function contarPara(env: Env, uid: string, conta: Conta, doc?: Dados | null, extras: Escrita[] = []): Promise<string[] | null> {
+export async function contarPara(env: Env, uid: string, conta: Conta, doc?: Dados | null, extras: Escrita[] = []): Promise<string[] | null> {
   const atual = doc === undefined ? await ler(env, `insignias/${uid}`) : doc;
   const n = { ...((atual?.['n'] ?? {}) as Record<string, number>) };
   const tem = new Set(Object.keys((atual?.['tem'] ?? {}) as Dados));
