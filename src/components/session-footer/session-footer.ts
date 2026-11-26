@@ -61,8 +61,19 @@ export function renderSessionFooter(
   ]);
   settingsButton.addEventListener('click', onOpenSettings);
 
+  /*
+   * A MINHA FOTO abre o meu cartão (0.12.0): no celular era o único jeito de
+   * chegar no próprio perfil — antes a foto nem aparecia lá. O clique cai no
+   * ouvinte de `data-profile-uid` do app, como qualquer foto.
+   */
+  const meuPerfil = el(
+    'button',
+    { class: 'session-footer__eu', type: 'button', title: 'Meu perfil', 'aria-label': 'Meu perfil', 'data-profile-uid': member.id },
+    [avatarEl(member.initials, 'sm', '', member.photo, member.id)],
+  );
+
   return el('footer', { class: 'session-footer' }, [
-    avatarEl(member.initials, 'sm', '', member.photo, member.id),
+    meuPerfil,
     identidade,
     settingsButton,
     signOutButton,

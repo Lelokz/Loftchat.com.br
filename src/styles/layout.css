@@ -210,12 +210,19 @@
    * Celular estreito (revisão dos celulares, 23/11/2026): a fileira de cima
    * não cabia — em 360 px o "+" cobria o nome do grupo e em 320 o "Privado"
    * virava "ivado". Sai o logo (a aba Privado é o início), o Privado fica só
-   * com o ícone (o nome continua para o leitor de tela) e o cartão fica só
-   * com a engrenagem.
+   * com o ícone (o nome continua para o leitor de tela) e o cartão fica com
+   * a foto (abre o meu perfil) e a engrenagem.
    */
-  .app > .group-bar .group-bar__brand,
-  .app > .group-bar .session-footer > .avatar {
+  .app > .group-bar .group-bar__brand {
     display: none;
+  }
+
+  /* A minha foto fica (é o caminho para o meu perfil), menor, ao lado da
+     engrenagem. */
+  .app > .group-bar .session-footer__eu .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
   }
 
   .app > .group-bar .group-bar__tab-label {

@@ -340,6 +340,15 @@ test('insígnias: o carteiro conta, não conta duas vezes, avisa no canto e as 5
   await page.getByRole('radio', { name: 'Inferior direito' }).click();
   await page.keyboard.press('Escape');
 
+  // A minha foto (no canto) abre o MEU cartão — antes não tinha caminho para o próprio perfil.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Meu perfil' }).click();
+  await expect(page.locator('.person-popover')).toContainText('Ana jogos');
+  await expect(page.locator('.person-popover').getByRole('button', { name: 'Editar perfil' })).toBeVisible();
+  await page.screenshot({ path: `${PASTA}/8b-meu-perfil-pc.png` });
+  await page.keyboard.press('Escape');
+
   // --- celular: aviso na largura toda e o perfil em tela cheia ------------------------------------
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
@@ -373,5 +382,23 @@ test('insígnias: o carteiro conta, não conta duas vezes, avisa no canto e as 5
   await page.locator('.ins-folha').click();
   await tela.getByRole('button', { name: 'Voltar' }).click();
   await expect(tela).toHaveCount(0);
+
+  // O MEU perfil pelo celular: a foto ao lado da engrenagem → cartão → perfil em tela cheia.
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Meu perfil' }).click();
+  await expect(page.locator('.person-popover')).toContainText('Ana jogos');
+  await page.screenshot({ path: `${PASTA}/14-celular-meu-cartao.png` });
+  await page.locator('.person-popover').getByRole('button', { name: 'Ver perfil completo' }).click();
+  await expect(tela).toBeVisible();
+  await expect(tela.getByRole('button', { name: 'Editar perfil' })).toBeVisible();
+  await page.screenshot({ path: `${PASTA}/15-celular-meu-perfil.png` });
+  await tela.getByRole('button', { name: 'Voltar' }).click();
+  // Celular estreito (320 e 360): a foto cabe na fileira de cima sem cobrir as abas.
+  for (const largura of [320, 360]) {
+    await page.setViewportSize({ width: largura, height: 700 });
+    const foto = await page.getByRole('button', { name: 'Meu perfil' }).boundingBox();
+    expect(foto!.x + foto!.width).toBeLessThanOrEqual(largura);
+    await page.screenshot({ path: `${PASTA}/16-celular-${largura}-barra.png`, clip: { x: 0, y: 0, width: largura, height: 80 } });
+  }
   await ctx.close();
 });
