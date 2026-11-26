@@ -2,6 +2,50 @@
 
 Estado em 15/11/2026.
 
+## Jogos, perfil completo e insígnias (26/11/2026) — versão 0.12.0
+
+Maquetes aprovadas (Arquivo/Loft-desktop/maquete-jogos e maquete-insignias,
+PC e celular).
+
+1. **Jogando agora** (`desktop/jogos.mjs`): o programa do PC olha os
+   processos a cada 15 s (Windows: `tasklist` + PowerShell só nos pids
+   novos; Linux: `/proc`). Steam pelo `steamapps/common/<pasta>` +
+   `appmanifest_*.acf` (no Linux/Proton pelo `SteamAppId` do ambiente),
+   Epic pelos `.item` (Windows) e `installed.json` do Legendary/Heroic,
+   GOG pelo `goggame-<id>.info`, EA/Ubisoft/Xbox pela pasta da loja,
+   Battle.net/Riot/Minecraft/Roblox por lista, Lutris pelos `.yml`; e
+   "escolher o programa aberto" (guardado em `userData/jogos.json`). O
+   chat grava `jogando/{uid}` (`lib/jogando.ts`) com batida de 90 s e
+   `visto` = hora do servidor; quem lê ignora o que passou de 4 min.
+   Aparece na lista de membros, no cartão, na aba Agora e na prévia.
+2. **Jogos do perfil** (`lib/jogos-perfil.ts`, `users/{uid}.jogos`):
+   favorito + frase, até 5 "ultimamente" (até 2 etiquetas), até 20 "quero
+   jogar". Regra `jogosOk` (capa só Steam/IGDB). Catálogo pelo carteiro
+   (`carteiro/src/jogos.ts`, `GET /jogos/busca`): IGDB com a chave da
+   Twitch (segredos IGDB_ID/IGDB_SEGREDO); sem a chave, a busca da Steam.
+   Configurações → Jogos (`settings/jogos-section.ts`), salva na hora.
+3. **Perfil completo** (`components/perfil-completo`): janela no PC, tela
+   cheia no celular; abas Jogos, Insígnias e Amigos em comum (pelo
+   carteiro, `POST /amigos-em-comum`).
+4. **Insígnias** (`lib/insignias.ts`, o mesmo no app e no carteiro): 100,
+   cada uma com `conta` + `alvo`. Quem conta é o carteiro
+   (`carteiro/src/insignias.ts`): a mensagem no `/avisar`; reagir, editar,
+   fixar, batida de chamada (5 min), batida de jogo (5 min) e "conferir"
+   (amigos, grupos, convites, cargo, tempo de conta, perfil) no
+   `POST /conquistas`, sempre conferindo no banco. `insignias/{uid}` (tem +
+   contadores; a pessoa só mexe no `avisadoAte`), `insigniasInterno/{uid}`
+   e `marcasDeConquista/{chave}` (contar uma vez só) fechados. Na primeira
+   conferida conta o histórico de mensagens e mídia (índices novos
+   authorId+kind). Especiais por @ no `wrangler.toml` (ESPECIAIS).
+   Desenhos em `components/insignias/desenhos.ts`; aviso no canto (padrão
+   inferior direito, Configurações → Notificações), largura toda no
+   celular; até 5 no cartão (`users.insigniasNoCartao`, regra confere que
+   tem).
+
+Testes: `jogos-insignias.spec.ts` (2) e `desktop.spec.ts` → "jogando agora"
+(LOFT_JOGO_TESTE finge o jogo). Publicar = regras + índices + carteiro +
+versão.
+
 ## Reações só pelo botão direito (25/11/2026) — versão 0.11.5
 
 O Léo pediu: a barrinha que aparecia ao passar o mouse na mensagem saiu
