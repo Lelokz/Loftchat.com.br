@@ -91,7 +91,7 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
 
   function desenharQuem(): void {
     const nomeTxt = perfil?.displayName ?? opcoes.fallback.displayName;
-    const nome = el('h2', { class: 'pfc__nome' }, [nomeTxt]);
+    const nome = el('h2', { class: `pfc__nome${perfil?.brilho === undefined ? '' : ` nome-brilho nome-brilho--${perfil.brilho}`}` }, [nomeTxt]);
     const desde = perfil?.createdAt ? new Date(perfil.createdAt) : null;
     const botao =
       opcoes.acao === undefined

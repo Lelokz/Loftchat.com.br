@@ -196,6 +196,7 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
         username: perfil.username,
         bio: perfil.bio,
         accentId: perfil.accentId,
+        brilho: perfil.brilho,
         fontId: perfil.fontId,
         photo: perfil.photo,
         banner: 'banner' in art ? art.banner : undefined,

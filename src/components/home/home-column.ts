@@ -1,6 +1,6 @@
 import './home-column.css';
 
-import { avatarEl, el, iconEl } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconEl } from '../../lib/dom';
 import { bellOffIcon, peopleIcon } from '../../lib/icons';
 import type { DmThread, MemberId, UserProfile } from '../../types/models';
 import { bolinha } from '../bolinha/bolinha';
@@ -116,7 +116,7 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
       [
         avatarEl(profile?.initials ?? '?', 'sm', '', profile?.photo, friendUid),
         el('span', { class: 'home-column__dm-text' }, [
-          el('span', { class: 'home-column__dm-name' }, [profile?.displayName ?? 'Usuário']),
+          corDoCargo(el('span', { class: 'home-column__dm-name' }, [profile?.displayName ?? 'Usuário']), { brilho: profile?.brilho }),
           el('span', { class: 'home-column__dm-preview' }, [
             thread.lastMessage.body === '' ? '—' : thread.lastMessage.body,
           ]),

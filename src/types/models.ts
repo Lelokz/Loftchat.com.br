@@ -52,6 +52,8 @@ export interface UserProfile {
   uid: MemberId;
   displayName: string;
   initials: string;
+  /** 0.12.5: o nome que brilha (insígnia especial). Só o carteiro grava. */
+  brilho?: 'roxo' | 'ouro' | 'prata';
   /** O `@`, sem a arroba. Ausente até a pessoa escolher. */
   username?: string;
   /**
@@ -205,6 +207,8 @@ export interface Member {
   id: MemberId;
   displayName: string;
   initials: string;
+  /** 0.12.5: o nome que brilha (insígnia especial). Só o carteiro grava. */
+  brilho?: 'roxo' | 'ouro' | 'prata';
   /** O `@`, quando se sabe (o meu sempre). */
   username?: string;
   /** Foto (data URL), quando a pessoa pôs uma. */

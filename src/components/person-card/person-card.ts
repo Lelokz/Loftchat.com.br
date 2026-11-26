@@ -1,3 +1,4 @@
+import type { Brilho } from '../../lib/brilho';
 import './person-card.css';
 
 import { avatarEl, el } from '../../lib/dom';
@@ -23,6 +24,8 @@ export interface PersonCardData {
   links?: string[] | undefined;
   /** 0.12.0: a fileira de insígnias, logo embaixo do nome. */
   insignias?: HTMLElement | false | undefined;
+  /** 0.12.5: o nome que brilha (insígnia especial). */
+  brilho?: Brilho | undefined;
 }
 
 /** "😴 dormindo" — a linha do status, ou null se não há (ou venceu). */
@@ -48,7 +51,7 @@ export function renderPersonCard(
   extra: HTMLElement[] = [],
   avatarClass = 'person-card__avatar',
 ): HTMLElement {
-  const nome = el('span', { class: 'person-card__name' }, [data.displayName]);
+  const nome = el('span', { class: `person-card__name${data.brilho === undefined ? '' : ` nome-brilho nome-brilho--${data.brilho}`}` }, [data.displayName]);
   const bio = data.bio?.trim() ?? '';
 
   const banner = el('div', { class: 'person-card__banner', 'aria-hidden': 'true' });
@@ -57,7 +60,7 @@ export function renderPersonCard(
   const card = el('div', { class: `person-card${data.cardBg ? ' person-card--fundo' : ''}` }, [
     banner,
     el('div', { class: 'person-card__body' }, [
-      avatarEl(data.initials, 'xl', avatarClass, data.photo),
+      avatarEl(data.initials, 'xl', `${avatarClass}${data.brilho === 'roxo' ? ' avatar--criador' : ''}`, data.photo),
       el('div', { class: 'person-card__identity' }, [
         nome,
         data.username !== undefined &&

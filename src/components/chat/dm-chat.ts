@@ -1,6 +1,6 @@
 import './dm-chat.css';
 
-import { avatarEl, el, iconEl } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconEl } from '../../lib/dom';
 import { cameraIcon, menuIcon, peopleIcon, phoneIcon } from '../../lib/icons';
 import { panelToggleButton } from './chat';
 
@@ -11,6 +11,7 @@ export interface DmFriendView {
   initials: string;
   photo?: string | undefined;
   nameColor?: string | undefined;
+  brilho?: 'roxo' | 'ouro' | 'prata' | undefined;
   /** Sem a arroba. Ausente = a pessoa ainda não escolheu `@` (cadastro antigo). */
   username?: string;
 }
@@ -97,7 +98,7 @@ export function renderDmChat(props: DmChatProps): DmChatParts {
     backButton,
     avatarEl(friend.initials, 'sm', 'dm-chat__avatar', friend.photo, friend.uid),
     el('div', { class: 'dm-chat__identity' }, [
-      el('h1', { class: 'chat__title dm-chat__name' }, [friend.displayName]),
+      corDoCargo(el('h1', { class: 'chat__title dm-chat__name' }, [friend.displayName]), { brilho: friend.brilho }),
       friend.username === undefined || friend.username === ''
         ? false
         : el('span', { class: 'dm-chat__handle' }, [`@${friend.username}`]),

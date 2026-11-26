@@ -217,7 +217,8 @@ service cloud.firestore {
       // configuração — o privado mora em `userPrivate/{uid}`.
       allow read: if signedIn();
 
-      allow create: if signedIn() && userId == uid();
+      // 0.12.5: `brilho` (o nome que brilha) só o carteiro grava.
+      allow create: if signedIn() && userId == uid() && !('brilho' in request.resource.data);
 
       /*
        * O LIMITE DE TROCAS DE `@` É COBRADO AQUI.
@@ -253,7 +254,8 @@ service cloud.firestore {
       }
       function profileLookOk() {
         let d = request.resource.data;
-        return (!changed('displayName')
+        return !changed('brilho')
+          && (!changed('displayName')
                   || (d.displayName is string && d.displayName.size() >= 1 && d.displayName.size() <= 32))
           && (!changed('bio') || d.get('bio', '') is string && d.get('bio', '').size() <= 160)
           && (!changed('accentId')

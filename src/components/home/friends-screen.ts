@@ -1,6 +1,6 @@
 import './friends-screen.css';
 
-import { avatarEl, el, iconEl } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconEl } from '../../lib/dom';
 import { menuIcon } from '../../lib/icons';
 import { trocarConteudoComTransicao } from '../../lib/transition';
 import type { Friendship, MemberId, UserProfile } from '../../types/models';
@@ -72,7 +72,7 @@ function personRow(
     [
       avatarEl(profile?.initials ?? '?', 'sm', '', profile?.photo, uid),
       el('div', { class: 'friends__identity' }, [
-        el('span', { class: 'friends__name' }, [nome]),
+        corDoCargo(el('span', { class: 'friends__name' }, [nome]), { brilho: profile?.brilho }),
         // Sem `@` a pessoa é inencontrável — e mostrar o uid cru não ajudaria
         // ninguém, então some.
         arroba === undefined || arroba === ''

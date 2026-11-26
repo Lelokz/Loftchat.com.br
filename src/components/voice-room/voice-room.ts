@@ -484,7 +484,7 @@ function palcoDaCamera(
     { class: 'room__foco', title: 'Clique para voltar para todos', 'data-uid': p.member.id },
     [
       slot,
-      el('span', { class: 'room__foco-nome' }, [p.isSelf ? `${p.member.displayName} (você)` : p.member.displayName]),
+      corDoCargo(el('span', { class: 'room__foco-nome' }, [p.isSelf ? `${p.member.displayName} (você)` : p.member.displayName]), p.member),
       p.camera === 'pausada' && avisoPausada(),
       cheia,
     ],

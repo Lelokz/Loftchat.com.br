@@ -229,6 +229,56 @@ hr {
   overflow: hidden;
 }
 
+/*
+ * O NOME QUE BRILHA (0.12.5): insígnia especial = nome em metal cromado
+ * (roxo, dourado ou prateado), com o reflexo andando devagar. Vale mais que
+ * a cor do cargo e a cor que a pessoa escolheu.
+ */
+.nome-brilho {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  background-size: 300% 100% !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  animation: nome-brilho 6s linear infinite;
+}
+
+.nome-brilho--roxo {
+  background-image: linear-gradient(100deg, #7a22ff 0%, #b56bff 12%, #f4e9ff 18%, #a24dff 26%, #ff7ad9 34%, #9fd9ff 40%, #8a35ff 50%, #c792ff 62%, #f4e9ff 68%, #9b3dff 76%, #ff7ad9 84%, #9fd9ff 90%, #7a22ff 100%) !important;
+  filter: drop-shadow(0 0 4px rgb(170 90 255 / 95%)) drop-shadow(0 0 12px rgb(140 60 255 / 70%));
+}
+
+.nome-brilho--ouro {
+  background-image: linear-gradient(100deg, #c98a06 0%, #ffd86b 14%, #fff7dc 20%, #e9ad22 30%, #fff1b8 40%, #b87c04 50%, #ffd86b 64%, #fff7dc 70%, #e9ad22 80%, #fff1b8 90%, #c98a06 100%) !important;
+  filter: drop-shadow(0 0 6px rgb(255 190 60 / 40%));
+}
+
+.nome-brilho--prata {
+  background-image: linear-gradient(100deg, #8fa6cc 0%, #e8f0ff 14%, #ffffff 20%, #a9bde0 30%, #d6e6ff 40%, #7f97c0 50%, #e8f0ff 64%, #ffffff 70%, #a9bde0 80%, #d6e6ff 90%, #8fa6cc 100%) !important;
+  filter: drop-shadow(0 0 6px rgb(160 195 255 / 45%));
+}
+
+@keyframes nome-brilho {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 300% 50%;
+  }
+}
+
+/* O aro cromado na foto do Criador. */
+.avatar--criador {
+  box-shadow: 0 0 0 2px #f1e2ff, 0 0 0 3.5px #7a22ff, 0 0 14px rgb(150 70 255 / 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nome-brilho {
+    animation: none;
+  }
+}
+
 /* CARGOS (0.8.5): nome na cor do cargo (sólida ou degradê) + ícone do cargo. */
 .nome-cargo {
   color: var(--cor-cargo) !important;

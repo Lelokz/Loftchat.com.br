@@ -19,6 +19,7 @@
  *    que sempre chega tarde numa corrida.
  */
 
+import { notarBrilho } from './brilho';
 import {
   collection,
   deleteDoc,
@@ -377,6 +378,8 @@ export async function publicProfile(uid: MemberId): Promise<UserProfile | null> 
   if (typeof data['pendingUsername'] === 'string') {
     Object.assign(perfil, { pendingUsername: data['pendingUsername'] });
   }
+  const brilho = notarBrilho(uid, data['brilho']);
+  if (brilho !== undefined) Object.assign(perfil, { brilho });
   for (const campo of ['bio', 'accentId', 'fontId', 'nameColor'] as const) {
     if (typeof data[campo] === 'string') Object.assign(perfil, { [campo]: data[campo] });
   }

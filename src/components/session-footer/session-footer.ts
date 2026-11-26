@@ -1,6 +1,6 @@
 import './session-footer.css';
 
-import { avatarEl, el, iconEl } from '../../lib/dom';
+import { avatarEl, corDoCargo, el, iconEl } from '../../lib/dom';
 import { gearIcon, logoutIcon } from '../../lib/icons';
 import type { Member } from '../../types/models';
 import { showToast } from '../toast/toast';
@@ -42,7 +42,7 @@ export function renderSessionFooter(
       ...(handle === null ? {} : { type: 'button', title: `Copiar ${handle}` }),
     },
     [
-      el('span', { class: 'session-footer__name' }, [member.displayName]),
+      corDoCargo(el('span', { class: 'session-footer__name' }, [member.displayName]), member),
       handle !== null && el('span', { class: 'session-footer__handle' }, [handle]),
     ],
   );

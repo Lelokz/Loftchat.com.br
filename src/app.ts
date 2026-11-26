@@ -242,8 +242,11 @@ export function mountApp(
   // o meu cartão quando chegar.
   void publicProfile(user.uid)
     .then((perfil) => {
-      if (perfil?.photo === undefined || !root.isConnected) return;
-      me.photo = perfil.photo;
+      if (perfil === null || !root.isConnected) return;
+      // 0.12.5: o meu nome que brilha (insígnia especial) também.
+      if (perfil.brilho !== undefined) me.brilho = perfil.brilho;
+      if (perfil.photo === undefined && perfil.brilho === undefined) return;
+      if (perfil.photo !== undefined) me.photo = perfil.photo;
       previous = null;
       render(store.getState());
     })
@@ -2135,6 +2138,7 @@ export function mountApp(
       initials: profile?.initials ?? '?',
       photo: profile?.photo,
       nameColor: profile?.nameColor,
+      brilho: profile?.brilho,
       ...(profile?.username === undefined ? {} : { username: profile.username }),
     };
   }
@@ -2163,6 +2167,7 @@ export function mountApp(
           status: 'online',
           ...(friend.photo === undefined ? {} : { photo: friend.photo }),
           ...(friend.nameColor === undefined ? {} : { nameColor: friend.nameColor }),
+          ...(friend.brilho === undefined ? {} : { brilho: friend.brilho }),
         },
       ],
     ]);

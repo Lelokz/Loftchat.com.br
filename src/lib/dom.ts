@@ -6,6 +6,8 @@
  */
 
 import type { Insignia } from '../types/models';
+import { brilhoDe } from './brilho';
+import type { Brilho } from './brilho';
 
 export type Attrs = Record<string, string | number | boolean | undefined>;
 
@@ -91,11 +93,18 @@ export function avatarEl(
     avatar.classList.add('avatar--cor');
     avatar.style.backgroundColor = corDaPessoa(semente);
   }
+  // 0.12.5: a foto do Criador (insígnia Especial) ganha o aro cromado.
+  if (brilhoDe(semente) === 'roxo') avatar.classList.add('avatar--criador');
   return avatar;
 }
 
 /** Só a cor do cargo no nome (sem o ícone) — devolve o mesmo elemento. */
-export function corDoCargo<T extends HTMLElement>(nome: T, pessoa: { insignia?: Insignia | undefined }): T {
+export function corDoCargo<T extends HTMLElement>(nome: T, pessoa: { insignia?: Insignia | undefined; brilho?: Brilho | undefined }): T {
+  // 0.12.5: o nome que brilha (insígnia especial) vale mais que a cor do cargo.
+  if (pessoa.brilho !== undefined) {
+    nome.classList.add('nome-brilho', `nome-brilho--${pessoa.brilho}`);
+    return nome;
+  }
   const i = pessoa.insignia;
   if (i === undefined || i.cor === null) return nome;
   nome.classList.add('nome-cargo');

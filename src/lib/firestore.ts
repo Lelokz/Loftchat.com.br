@@ -22,6 +22,7 @@
  * serverTimestamp().
  */
 
+import { notarBrilho } from './brilho';
 import {
   addDoc,
   collection,
@@ -369,6 +370,7 @@ function toMember(uid: MemberId, data: DocumentData | undefined): Member {
   const photo = safeImage(data?.['photo'], 'foto');
   const customStatus = parseStatus(data?.['customStatus']);
   const nameColor = typeof data?.['nameColor'] === 'string' ? (data['nameColor'] as string) : undefined;
+  const brilho = notarBrilho(uid, data?.['brilho']);
   return {
     id: uid,
     displayName,
@@ -381,6 +383,7 @@ function toMember(uid: MemberId, data: DocumentData | undefined): Member {
     ...(photo === undefined ? {} : { photo }),
     ...(customStatus === undefined ? {} : { customStatus }),
     ...(nameColor === undefined ? {} : { nameColor }),
+    ...(brilho === undefined ? {} : { brilho }),
   };
 }
 
