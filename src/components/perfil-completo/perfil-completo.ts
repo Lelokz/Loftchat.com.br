@@ -63,11 +63,11 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   let escolhendo = false;
 
   const veu = el('div', { class: 'pc-veu' });
-  const caixa = el('div', { class: `pc${celular ? ' pc--celular' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': `Perfil de ${opcoes.fallback.displayName}`, tabindex: -1 });
-  const banner = el('div', { class: 'pc__banner' });
-  const esquerda = el('div', { class: 'pc__quem' });
-  const abas = el('div', { class: 'pc__abas', role: 'tablist' });
-  const corpo = el('div', { class: 'pc__corpo', role: 'tabpanel' });
+  const caixa = el('div', { class: `pfc${celular ? ' pfc--celular' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': `Perfil de ${opcoes.fallback.displayName}`, tabindex: -1 });
+  const banner = el('div', { class: 'pfc__banner' });
+  const esquerda = el('div', { class: 'pfc__quem' });
+  const abas = el('div', { class: 'pfc__abas', role: 'tablist' });
+  const corpo = el('div', { class: 'pfc__corpo', role: 'tabpanel' });
 
   function fechar(): void {
     pararInsignias();
@@ -84,20 +84,20 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   };
   veu.addEventListener('click', fechar);
 
-  const voltar = el('button', { class: 'pc__fechar', type: 'button', 'aria-label': celular ? 'Voltar' : 'Fechar' }, [
+  const voltar = el('button', { class: 'pfc__fechar', type: 'button', 'aria-label': celular ? 'Voltar' : 'Fechar' }, [
     iconEl(celular ? arrowLeftIcon(18) : closeIcon(16)),
   ]);
   voltar.addEventListener('click', fechar);
 
   function desenharQuem(): void {
     const nomeTxt = perfil?.displayName ?? opcoes.fallback.displayName;
-    const nome = el('h2', { class: 'pc__nome' }, [nomeTxt]);
+    const nome = el('h2', { class: 'pfc__nome' }, [nomeTxt]);
     const desde = perfil?.createdAt ? new Date(perfil.createdAt) : null;
     const botao =
       opcoes.acao === undefined
         ? false
         : (() => {
-            const b = el('button', { class: 'pc__acao', type: 'button' }, [opcoes.acao.rotulo]);
+            const b = el('button', { class: 'pfc__acao', type: 'button' }, [opcoes.acao.rotulo]);
             b.addEventListener('click', () => {
               fechar();
               opcoes.acao!.fazer();
@@ -105,14 +105,14 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
             return b;
           })();
     esquerda.replaceChildren(
-      avatarEl(perfil?.initials ?? opcoes.fallback.initials, 'xl', 'pc__foto', perfil?.photo ?? opcoes.fallback.photo, opcoes.uid),
+      avatarEl(perfil?.initials ?? opcoes.fallback.initials, 'xl', 'pfc__foto', perfil?.photo ?? opcoes.fallback.photo, opcoes.uid),
       nome,
-      ...(perfil?.username ? [el('span', { class: 'pc__arroba' }, [`@${perfil.username}`])] : []),
+      ...(perfil?.username ? [el('span', { class: 'pfc__arroba' }, [`@${perfil.username}`])] : []),
       ...[filaDeInsignias(insigniasDoCartao(perfil?.insigniasNoCartao, dados), celular ? 32 : 34, () => dados)].filter((x): x is HTMLElement => x !== false),
-      ...(!celular && (perfil?.bio ?? '') !== '' ? [el('p', { class: 'pc__bio' }, [perfil!.bio!])] : []),
+      ...(!celular && (perfil?.bio ?? '') !== '' ? [el('p', { class: 'pfc__bio' }, [perfil!.bio!])] : []),
       ...(!celular && desde !== null && !Number.isNaN(desde.getTime())
         ? [
-            el('div', { class: 'pc__desde' }, [
+            el('div', { class: 'pfc__desde' }, [
               'Membro do Loftchat desde',
               el('b', {}, [desde.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })]),
             ]),
@@ -129,7 +129,7 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
       ...(Object.keys(nomes) as AbaDoPerfil[])
         .filter((a) => a !== 'amigos' || !opcoes.souEu)
         .map((a) => {
-          const b = el('button', { class: `pc__aba${a === aba ? ' is-on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(a === aba) }, [nomes[a]]);
+          const b = el('button', { class: `pfc__aba${a === aba ? ' is-on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(a === aba) }, [nomes[a]]);
           b.addEventListener('click', () => {
             aba = a;
             escolhendo = false;
@@ -148,13 +148,13 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
       corpo.replaceChildren(
         ...(blocos.length > 0
           ? blocos
-          : [el('p', { class: 'pc__vazio' }, [perfil === null ? 'Carregando…' : opcoes.souEu ? 'Você ainda não pôs jogos no perfil. Vá em Configurações → Jogos.' : 'Nenhum jogo no perfil ainda.'])]),
+          : [el('p', { class: 'pfc__vazio' }, [perfil === null ? 'Carregando…' : opcoes.souEu ? 'Você ainda não pôs jogos no perfil. Vá em Configurações → Jogos.' : 'Nenhum jogo no perfil ainda.'])]),
       );
       return;
     }
     if (aba === 'insignias') {
       if (dados === null) {
-        corpo.replaceChildren(el('p', { class: 'pc__vazio' }, ['Carregando…']));
+        corpo.replaceChildren(el('p', { class: 'pfc__vazio' }, ['Carregando…']));
         return;
       }
       const conteudo = abaInsignias(dados, celular);
@@ -163,17 +163,17 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
       corpo.replaceChildren(conteudo);
       return;
     }
-    corpo.replaceChildren(el('p', { class: 'pc__vazio' }, ['Procurando amigos em comum…']));
+    corpo.replaceChildren(el('p', { class: 'pfc__vazio' }, ['Procurando amigos em comum…']));
     void amigosEmComum(opcoes.uid).then((lista) => {
       if (aba !== 'amigos' || !caixa.isConnected) return;
       corpo.replaceChildren(
         lista.length === 0
-          ? el('p', { class: 'pc__vazio' }, ['Nenhum amigo em comum.'])
+          ? el('p', { class: 'pfc__vazio' }, ['Nenhum amigo em comum.'])
           : el(
               'ul',
-              { class: 'pc__amigos' },
+              { class: 'pfc__amigos' },
               lista.map((a) => {
-                const item = el('button', { class: 'pc__amigo', type: 'button' }, [
+                const item = el('button', { class: 'pfc__amigo', type: 'button' }, [
                   avatarEl(a.initials, 'md', '', a.photo, a.uid),
                   el('span', {}, [el('b', {}, [a.displayName]), a.username ? el('span', {}, [`@${a.username}`]) : false]),
                 ]);
@@ -193,15 +193,15 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   let escolha: string[] = [];
   function barraDeEscolha(): HTMLElement {
     if (!escolhendo) {
-      const b = el('button', { class: 'pc__escolher', type: 'button' }, ['Escolher as do cartão']);
+      const b = el('button', { class: 'pfc__escolher', type: 'button' }, ['Escolher as do cartão']);
       b.addEventListener('click', () => {
         escolhendo = true;
         escolha = insigniasDoCartao(perfil?.insigniasNoCartao, dados);
         desenharCorpo();
       });
-      return el('div', { class: 'pc__escolha' }, [el('span', {}, ['Até 5 aparecem no seu cartão.']), b]);
+      return el('div', { class: 'pfc__escolha' }, [el('span', {}, ['Até 5 aparecem no seu cartão.']), b]);
     }
-    const salvar = el('button', { class: 'pc__escolher is-on', type: 'button' }, ['Pronto']);
+    const salvar = el('button', { class: 'pfc__escolher is-on', type: 'button' }, ['Pronto']);
     salvar.addEventListener('click', () => {
       escolhendo = false;
       const lista = escolha.slice(0, 5);
@@ -214,7 +214,7 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
         () => showToast('Não deu para salvar. Confira a internet.'),
       );
     });
-    return el('div', { class: 'pc__escolha is-escolhendo' }, [el('span', {}, [`Toque nas que você tem · ${escolha.length} de 5`]), salvar]);
+    return el('div', { class: 'pfc__escolha is-escolhendo' }, [el('span', {}, [`Toque nas que você tem · ${escolha.length} de 5`]), salvar]);
   }
 
   function ligarEscolha(conteudo: HTMLElement): void {
@@ -250,8 +250,8 @@ export function abrirPerfilCompleto(opcoes: PerfilCompletoOptions): void {
   desenharCorpo();
   caixa.append(
     voltar,
-    el('div', { class: 'pc__esquerda' }, [banner, esquerda]),
-    el('div', { class: 'pc__direita' }, [abas, corpo]),
+    el('div', { class: 'pfc__esquerda' }, [banner, esquerda]),
+    el('div', { class: 'pfc__direita' }, [abas, corpo]),
   );
   if (!celular) document.body.append(veu);
   document.body.append(caixa);

@@ -92,7 +92,7 @@ test('silenciar: canal, aviso no topo, carteiro calado, privado, grupo e celular
   // Abrindo o canal: "Silenciado até HH:MM" no topo; clicar reativa.
   await canal.click();
   const topo = page.locator('.silenciado-topo');
-  await expect(topo).toContainText(/Silenciado até \d\d:\d\d/);
+  await expect(topo).toContainText(/Silenciado até (amanhã às )?\d\d:\d\d/);
   await page.screenshot({ path: 'test-results/silenciar/2-topo.png' });
   await topo.click();
   await expect(canal).not.toHaveClass(/is-silenciado/);

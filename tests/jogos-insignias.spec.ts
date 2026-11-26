@@ -182,15 +182,15 @@ test('jogando agora, jogos do perfil, cartão, perfil completo e Configurações
 
   // --- o perfil completo ----------------------------------------------------------------
   await pop.getByRole('button', { name: 'Ver perfil completo' }).click();
-  const perfil = page.locator('.pc');
+  const perfil = page.locator('.pfc');
   await expect(perfil.getByRole('tab', { name: 'Jogos' })).toHaveAttribute('aria-selected', 'true');
   await expect(perfil.locator('.jg-etq', { hasText: 'Zerando' })).toBeVisible();
   await expect(perfil).toContainText('Quero jogar · 1');
   await expect(perfil.getByRole('button', { name: 'Enviar mensagem' })).toBeVisible();
   await page.screenshot({ path: `${PASTA}/3-perfil-jogos.png` });
   await perfil.getByRole('tab', { name: 'Amigos em comum' }).click();
-  await expect(perfil.locator('.pc__amigo')).toHaveCount(1);
-  await expect(perfil.locator('.pc__amigo')).toContainText('Gabi jogos');
+  await expect(perfil.locator('.pfc__amigo')).toHaveCount(1);
+  await expect(perfil.locator('.pfc__amigo')).toContainText('Gabi jogos');
   await perfil.getByRole('tab', { name: 'Insígnias' }).click();
   await expect(perfil.locator('.ins-topo__conta')).toContainText('de 100');
   await page.keyboard.press('Escape');
@@ -315,7 +315,7 @@ test('insígnias: o carteiro conta, não conta duas vezes, avisa no canto e as 5
   await page.getByRole('tab', { name: 'Membros' }).click();
   await page.locator('.member', { hasText: 'Ana jogos' }).click();
   await page.locator('.person-popover').getByRole('button', { name: 'Ver perfil completo' }).click();
-  const perfil = page.locator('.pc');
+  const perfil = page.locator('.pfc');
   await perfil.getByRole('tab', { name: 'Insígnias' }).click();
   await expect(perfil.locator('.ins-topo__conta')).not.toContainText(/^0/);
   await perfil.locator('[data-insignia="tagarela1"]').hover();
@@ -323,7 +323,7 @@ test('insígnias: o carteiro conta, não conta duas vezes, avisa no canto e as 5
   await page.screenshot({ path: `${PASTA}/7-perfil-insignias.png` });
   await perfil.getByRole('button', { name: 'Escolher as do cartão' }).click();
   await perfil.locator('[data-insignia="risada"]').click();
-  await expect(perfil.locator('.pc__escolha')).toContainText(/de 5/);
+  await expect(perfil.locator('.pfc__escolha')).toContainText(/de 5/);
   await perfil.getByRole('button', { name: 'Pronto' }).click();
   await expect.poll(async () => JSON.stringify(await lerComoDono(`users/${ana.uid}`))).toContain('insigniasNoCartao');
   await page.keyboard.press('Escape');
@@ -360,7 +360,7 @@ test('insígnias: o carteiro conta, não conta duas vezes, avisa no canto e as 5
   await expect(page.locator('.person-popover .jg-agora')).toBeVisible();
   await page.screenshot({ path: `${PASTA}/10-celular-cartao.png` });
   await page.locator('.person-popover').getByRole('button', { name: 'Ver perfil completo' }).click();
-  const tela = page.locator('.pc--celular');
+  const tela = page.locator('.pfc--celular');
   await expect(tela).toBeVisible();
   await expect(tela.getByRole('button', { name: 'Voltar' })).toBeVisible();
   await page.waitForTimeout(800);

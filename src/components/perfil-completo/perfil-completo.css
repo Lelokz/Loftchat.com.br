@@ -8,7 +8,7 @@
   animation: pc-aparece 0.18s ease-out;
 }
 
-.pc {
+.pfc {
   position: fixed;
   z-index: 910;
   top: 50%;
@@ -42,41 +42,41 @@
   }
 }
 
-.pc__banner {
+.pfc__banner {
   height: 120px;
   background: linear-gradient(120deg, var(--card-cor-fim, #3b2370), var(--card-cor, #3b2370)) center / cover no-repeat;
 }
 
-.pc__esquerda {
+.pfc__esquerda {
   position: relative;
   min-height: 0;
   overflow-y: auto;
   background: var(--surface-side);
 }
 
-.pc__quem {
+.pfc__quem {
   position: relative;
   margin-top: -50px;
   padding: 0 22px 22px;
 }
 
-.pc__foto {
+.pfc__foto {
   border: 6px solid var(--surface-side);
 }
 
-.pc__nome {
+.pfc__nome {
   margin: 12px 0 0;
   font-size: 24px;
   overflow-wrap: anywhere;
 }
 
-.pc__arroba {
+.pfc__arroba {
   color: var(--text-muted);
   font-size: 13.5px;
   font-weight: 700;
 }
 
-.pc__quem .ins-fila {
+.pfc__quem .ins-fila {
   margin-top: 12px;
   gap: 4px;
   padding: 6px;
@@ -84,7 +84,7 @@
   background: rgb(0 0 0 / 25%);
 }
 
-.pc__bio {
+.pfc__bio {
   color: var(--text-secondary);
   font-size: 13.5px;
   font-weight: 600;
@@ -93,7 +93,7 @@
   overflow-wrap: anywhere;
 }
 
-.pc__desde {
+.pfc__desde {
   margin-top: 14px;
   color: var(--text-muted);
   font-size: 12px;
@@ -101,7 +101,7 @@
   text-transform: uppercase;
 }
 
-.pc__desde b {
+.pfc__desde b {
   display: block;
   margin-top: 3px;
   color: var(--text-secondary);
@@ -109,7 +109,7 @@
   text-transform: none;
 }
 
-.pc__acao {
+.pfc__acao {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,7 +122,7 @@
   font: 800 13.5px var(--font-sans);
 }
 
-.pc__fechar {
+.pfc__fechar {
   position: absolute;
   z-index: 3;
   top: 14px;
@@ -136,25 +136,25 @@
   color: var(--text-secondary);
 }
 
-.pc__fechar:hover {
+.pfc__fechar:hover {
   color: var(--text-primary);
 }
 
-.pc__direita {
+.pfc__direita {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   padding: 18px 24px 0;
 }
 
-.pc__abas {
+.pfc__abas {
   display: flex;
   gap: 6px;
   margin-right: 44px;
   border-bottom: 1px solid var(--border);
 }
 
-.pc__aba {
+.pfc__aba {
   margin-bottom: -1px;
   padding: 10px 12px;
   border-bottom: 2px solid transparent;
@@ -163,32 +163,32 @@
   font-weight: 800;
 }
 
-.pc__aba:hover {
+.pfc__aba:hover {
   color: var(--text-secondary);
 }
 
-.pc__aba.is-on {
+.pfc__aba.is-on {
   border-color: var(--accent);
   color: var(--text-primary);
 }
 
-.pc__corpo {
+.pfc__corpo {
   min-height: 0;
   padding: 14px 2px 24px;
   overflow-y: auto;
 }
 
-.pc__corpo > .jg-sec:first-child {
+.pfc__corpo > .jg-sec:first-child {
   margin-top: 4px;
 }
 
-.pc__vazio {
+.pfc__vazio {
   margin: 18px 0;
   color: var(--text-muted);
   font-weight: 700;
 }
 
-.pc__amigos {
+.pfc__amigos {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 6px;
@@ -197,7 +197,7 @@
   list-style: none;
 }
 
-.pc__amigo {
+.pfc__amigo {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -207,23 +207,23 @@
   text-align: left;
 }
 
-.pc__amigo:hover {
+.pfc__amigo:hover {
   background: var(--surface-hover);
 }
 
-.pc__amigo b {
+.pfc__amigo b {
   display: block;
   color: var(--text-primary);
   font-size: 14px;
 }
 
-.pc__amigo span span {
+.pfc__amigo span span {
   color: var(--text-muted);
   font-size: 12.5px;
   font-weight: 700;
 }
 
-.pc__escolha {
+.pfc__escolha {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -237,12 +237,12 @@
   font-weight: 700;
 }
 
-.pc__escolha.is-escolhendo {
+.pfc__escolha.is-escolhendo {
   border-color: var(--accent);
   color: var(--text-primary);
 }
 
-.pc__escolher {
+.pfc__escolher {
   flex: none;
   padding: 6px 12px;
   border-radius: 9px;
@@ -252,7 +252,7 @@
   font-weight: 800;
 }
 
-.pc__escolher.is-on {
+.pfc__escolher.is-on {
   background: var(--accent);
   color: #fff;
 }
@@ -272,7 +272,7 @@
 
 /* --- celular: tela cheia ---------------------------------------------------- */
 
-.pc--celular {
+.pfc--celular {
   inset: 0;
   display: block;
   width: auto;
@@ -291,11 +291,11 @@
   }
 }
 
-.pc--celular .pc__banner {
+.pfc--celular .pfc__banner {
   height: 150px;
 }
 
-.pc--celular .pc__fechar {
+.pfc--celular .pfc__fechar {
   top: calc(12px + env(safe-area-inset-top, 0px));
   right: auto;
   left: 12px;
@@ -305,48 +305,48 @@
   color: #fff;
 }
 
-.pc--celular .pc__esquerda {
+.pfc--celular .pfc__esquerda {
   overflow: visible;
   background: none;
 }
 
-.pc--celular .pc__quem {
+.pfc--celular .pfc__quem {
   margin-top: -44px;
   padding: 0 16px;
 }
 
-.pc--celular .pc__foto {
+.pfc--celular .pfc__foto {
   border-color: var(--surface-chat);
 }
 
-.pc--celular .pc__nome {
+.pfc--celular .pfc__nome {
   margin-top: 8px;
   font-size: 23px;
 }
 
-.pc--celular .pc__acao {
+.pfc--celular .pfc__acao {
   height: 40px;
   margin-top: 12px;
   border-radius: 12px;
   font-size: 14px;
 }
 
-.pc--celular .pc__direita {
+.pfc--celular .pfc__direita {
   display: block;
   padding: 0;
 }
 
-.pc--celular .pc__abas {
+.pfc--celular .pfc__abas {
   margin: 12px 0 0;
   padding: 0 10px;
 }
 
-.pc--celular .pc__aba {
+.pfc--celular .pfc__aba {
   padding: 10px 8px;
   font-size: 13.5px;
 }
 
-.pc--celular .pc__corpo {
+.pfc--celular .pfc__corpo {
   padding: 12px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   overflow: visible;
 }
