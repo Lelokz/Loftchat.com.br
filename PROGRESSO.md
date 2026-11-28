@@ -2,6 +2,29 @@
 
 Estado em 15/11/2026.
 
+## Patch de bugs reportados (28/11/2026) — versão 0.13.5
+
+Os 7 primeiros reportes do Reportar bug (Arquivo/Loft-desktop/reportes/baixados).
+
+1. **Ver como**: `.ver-como` com `-webkit-app-region: no-drag` (a faixa fica
+   por cima da barra de arrastar da janela; o Windows engolia o clique).
+2. **Amigos ao vivo** (`state/store.ts` → `ensureProfiles`): um `onSnapshot`
+   por pessoa em vez de um `getDoc` guardado para sempre. Leitura que falhava
+   virava "Usuário" até fechar o app; o brilho dado depois não aparecia na
+   tela de Amigos nem na lista do privado. `perfilDosDados` em `lib/friends.ts`.
+3. **Android, chamada de vídeo**: Android 14+ derruba o app que liga o serviço
+   "microfone" sem RECORD_AUDIO concedido. `PluginDaChamada` pede o microfone
+   antes; `ServicoDaChamada` pega a recusa e para sem derrubar.
+4. **Cartão no grupo (celular)**: fechava em todo `resize`; o teclado (busca da
+   lista de cargos) muda só a altura. Agora só a largura fecha.
+5. **Membro desde** do dono: a data (entrada ou criação do grupo) + "criou o grupo".
+6. **Quero jogar**: `.jg-fila--quero` quebra em linhas (rolava de lado com a
+   barra escondida).
+7. **Jogando agora preso** (sem confirmar com ele qual jogo): o detector
+   (`desktop/jogos.mjs`, `NUNCA`) ignora Wallpaper Engine, SteamVR, Lossless
+   Scaling, Soundpad e ajudantes/serviços/overlay/anti-cheat.
+8. Teste: `tests/patch-0135.spec.ts`.
+
 ## Reportar bug (26/11/2026) — versão 0.13.0
 
 Maquete aprovada (Arquivo/Loft-desktop/maquete-reportar-bug, PC e celular).

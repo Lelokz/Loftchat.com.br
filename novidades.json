@@ -1,5 +1,19 @@
 [
   {
+    "versao": "0.13.5",
+    "data": "2026-11-28",
+    "itens": [
+      "Correções dos bugs que vocês reportaram. Valeu!",
+      "Chamada de vídeo no celular: o app não fecha mais na primeira chamada (agora pede o microfone antes).",
+      "\"Vendo o grupo como…\": o botão \"Voltar ao normal\" volta a funcionar no programa do PC.",
+      "Amigos e conversas: o nome e a foto de quem você conversa não somem mais (\"Usuário\"), e o nome que brilha aparece também na tela de Amigos e na lista do privado.",
+      "No celular, o \"+\" de cargos no perfil dentro do grupo não fecha mais o perfil.",
+      "\"Membro desde\" do dono do grupo mostra a data em que ele criou o grupo.",
+      "\"Quero jogar\" no perfil mostra todos os jogos, não só os primeiros.",
+      "\"Jogando agora\": o programa do PC não confunde mais programas que ficam abertos (Wallpaper Engine, SteamVR, ajudantes e anti-cheat de jogos) com o jogo."
+    ]
+  },
+  {
     "versao": "0.13.0",
     "data": "2026-11-26",
     "itens": [
