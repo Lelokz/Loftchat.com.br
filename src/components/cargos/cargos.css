@@ -1076,6 +1076,9 @@
   color: var(--text-primary);
   font-size: 14px;
   transform: translateX(-50%);
+  /* 0.13.5: fica por cima da barra de arrastar a janela do PC — sem isto o
+     Windows engolia o clique no "Voltar ao normal". */
+  -webkit-app-region: no-drag;
 }
 
 .ver-como[hidden] {

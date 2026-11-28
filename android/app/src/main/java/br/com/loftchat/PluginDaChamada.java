@@ -22,7 +22,10 @@ import com.getcapacitor.annotation.PermissionCallback;
  */
 @CapacitorPlugin(
     name = "Chamada",
-    permissions = { @Permission(alias = "notificacoes", strings = { Manifest.permission.POST_NOTIFICATIONS }) }
+    permissions = {
+        @Permission(alias = "notificacoes", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+        @Permission(alias = "microfone", strings = { Manifest.permission.RECORD_AUDIO })
+    }
 )
 public class PluginDaChamada extends Plugin {
     private static PluginDaChamada atual;
@@ -38,6 +41,26 @@ public class PluginDaChamada extends Plugin {
 
     @PluginMethod
     public void iniciar(PluginCall call) {
+        // 0.13.5: Android 14+ derruba o app que liga o "Em chamada" (tipo
+        // microfone) sem o microfone JÁ liberado — era o que fechava o app na
+        // primeira chamada de vídeo. Primeiro o microfone, depois o resto.
+        if (getPermissionState("microfone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microfone", call, "depoisDoMicrofone");
+            return;
+        }
+        depoisDoMicrofoneLiberado(call);
+    }
+
+    @PermissionCallback
+    private void depoisDoMicrofone(PluginCall call) {
+        if (getPermissionState("microfone") != PermissionState.GRANTED) {
+            call.reject("Sem o microfone liberado, o aviso da chamada não liga.");
+            return;
+        }
+        depoisDoMicrofoneLiberado(call);
+    }
+
+    private void depoisDoMicrofoneLiberado(PluginCall call) {
         // Android 13+: sem esta permissão a notificação some da gaveta (a voz
         // continua). Pede; se a pessoa já recusou, o Android responde na hora
         // sem perguntar de novo, e a chamada segue igual.

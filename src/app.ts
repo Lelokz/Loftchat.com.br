@@ -3624,15 +3624,12 @@ export function mountApp(
       caixa.append(el('span', { class: 'perfil-servidor__castigo' }, [`⏳ De castigo até ${ate}`]));
     }
     if (membro.nomeReal !== undefined) caixa.append(el('span', { class: 'perfil-servidor__desde' }, [`Apelido neste grupo · nome: ${membro.nomeReal}`]));
-    const quando = membro.id === group.ownerId ? 'Criou o grupo' : membro.entrouEm;
-    if (quando !== undefined) {
+    // 0.13.5: o dono também mostra a data (a de quando criou o grupo).
+    const quando = membro.id === group.ownerId ? (membro.entrouEm ?? group.createdAt) : membro.entrouEm;
+    if (quando !== undefined && quando !== '') {
       const data = new Date(quando);
-      const texto =
-        membro.id === group.ownerId
-          ? 'Dono do grupo'
-          : Number.isNaN(data.getTime())
-            ? ''
-            : data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const dia = Number.isNaN(data.getTime()) ? '' : data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const texto = membro.id === group.ownerId ? (dia === '' ? 'Criou o grupo' : `${dia} · criou o grupo`) : dia;
       const desde = el('span', { class: 'perfil-servidor__desde' }, [texto]);
       caixa.append(el('span', { class: 'cg-rotulo' }, ['Membro desde']), desde);
       // Quem convidou: o convite guarda quem criou.

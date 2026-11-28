@@ -39,7 +39,13 @@ public class ServicoDaChamada extends Service {
         int tipo = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
             ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             : 0;
-        ServiceCompat.startForeground(this, ID, notificacao(sala == null ? "Sala de voz" : sala), tipo);
+        try {
+            ServiceCompat.startForeground(this, ID, notificacao(sala == null ? "Sala de voz" : sala), tipo);
+        } catch (RuntimeException erro) {
+            // 0.13.5: sem a permissão do microfone o Android recusa (SecurityException);
+            // a chamada segue sem a notificação em vez de fechar o app.
+            stopSelf();
+        }
         return START_NOT_STICKY;
     }
 

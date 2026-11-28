@@ -177,6 +177,13 @@
   gap: 12px;
 }
 
+/* 0.13.5: o "Quero jogar" (até 20) quebra em linhas — rolando de lado, com a
+   barra escondida, no PC só dava para ver os primeiros. */
+.jg-fila--quero {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
 .jg-fila__item {
   display: grid;
   justify-items: center;

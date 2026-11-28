@@ -362,7 +362,11 @@ export async function unblockUser(me: MemberId, other: MemberId): Promise<void> 
 export async function publicProfile(uid: MemberId): Promise<UserProfile | null> {
   const snapshot = await getDoc(doc(db, 'users', uid));
   if (!snapshot.exists()) return null;
-  const data = snapshot.data();
+  return perfilDosDados(uid, snapshot.data());
+}
+
+/** O perfil público a partir dos dados do documento (0.13.5: também para quem ouve ao vivo). */
+export function perfilDosDados(uid: MemberId, data: Record<string, unknown>): UserProfile {
   const perfil: UserProfile = {
     uid,
     displayName: typeof data['displayName'] === 'string' ? data['displayName'] : 'Usuário',

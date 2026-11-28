@@ -13,7 +13,9 @@ import type { User } from 'firebase/auth';
 import type { Unsubscribe } from 'firebase/firestore';
 
 import { isPermissionDenied, messagesErrorMessage } from '../lib/firestore-errors';
-import { pairId, subscribeBlocks, subscribeFriendships, publicProfile } from '../lib/friends';
+import { pairId, subscribeBlocks, subscribeFriendships, perfilDosDados } from '../lib/friends';
+import { db } from '../lib/firebase';
+import { doc as docRef, onSnapshot as ouvirDoc } from 'firebase/firestore';
 import { loadProfileArt } from '../lib/profile';
 import {
   subscribeChannels,
@@ -869,29 +871,52 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
    * mesmo cuidado que fez a etapa 13 pôr teto na paginação.
    */
   const profileCache = new Map<MemberId, UserProfile>();
+  /**
+   * 0.13.5: AO VIVO (um ouvinte por pessoa da tela de amigos). Antes era uma
+   * leitura só, guardada para sempre: se ela falhasse (internet piscando ao
+   * abrir), a pessoa virava "Usuário" até fechar o app; e o nome que passou a
+   * brilhar depois não aparecia aqui.
+   */
+  const ouvindoPerfis = new Map<MemberId, Unsubscribe>();
+  const artes = new Map<MemberId, object>();
+  let avisoDePerfis: number | undefined;
+  const avisarPerfis = (): void => {
+    // Vários chegando juntos viram um redesenho só.
+    window.clearTimeout(avisoDePerfis);
+    avisoDePerfis = window.setTimeout(() => patch({ friendProfiles: new Map(profileCache) }), 30);
+  };
 
   async function ensureProfiles(uids: MemberId[]): Promise<void> {
-    const faltando = uids.filter((uid) => uid !== '' && !profileCache.has(uid));
-    if (faltando.length === 0) return;
-
-    await Promise.all(
-      faltando.map(async (uid) => {
-        // O banner e o fundo moram em `profileArt/` (etapa 2b): vêm juntos,
-        // porque o cartão do PV é feito destes perfis.
-        const [perfil, art] = await Promise.all([
-          publicProfile(uid).catch(() => null),
-          loadProfileArt(uid).catch(() => ({})),
-        ]);
-        if (perfil !== null) Object.assign(perfil, art);
-        // Guarda até o "não achei", como um perfil mínimo: sem isso, um uid sem
-        // documento seria buscado de novo a cada render.
-        profileCache.set(
-          uid,
-          perfil ?? { uid, displayName: 'Usuário', initials: '?', createdAt: '' },
-        );
-      }),
-    );
-    patch({ friendProfiles: new Map(profileCache) });
+    const faltando = uids.filter((uid) => uid !== '' && !ouvindoPerfis.has(uid));
+    for (const uid of faltando) {
+      // O banner e o fundo moram em `profileArt/` (etapa 2b): vêm uma vez.
+      void loadProfileArt(uid)
+        .catch(() => ({}))
+        .then((art) => {
+          artes.set(uid, art);
+          const p = profileCache.get(uid);
+          if (p !== undefined) {
+            Object.assign(p, art);
+            avisarPerfis();
+          }
+        });
+      ouvindoPerfis.set(
+        uid,
+        ouvirDoc(
+          docRef(db, 'users', uid),
+          (snap) => {
+            const perfil = snap.exists()
+              ? perfilDosDados(uid, snap.data())
+              : { uid, displayName: 'Usuário', initials: '?', createdAt: '' };
+            Object.assign(perfil, artes.get(uid) ?? {});
+            profileCache.set(uid, perfil);
+            avisarPerfis();
+          },
+          // Falhou: não guarda "Usuário"; tenta de novo na próxima mudança de amizades.
+          () => ouvindoPerfis.delete(uid),
+        ),
+      );
+    }
   }
 
   const stopFriendships = subscribeFriendships(
@@ -1836,6 +1861,9 @@ export function createStore(user: User, onListenerError: (error: unknown) => voi
       pararUnicas();
       window.clearInterval(relogioDasChamadas);
       stopFriendships();
+      for (const parar of ouvindoPerfis.values()) parar();
+      ouvindoPerfis.clear();
+      window.clearTimeout(avisoDePerfis);
       stopBlocks();
       stopDmThreads();
       stopDmMessages?.();

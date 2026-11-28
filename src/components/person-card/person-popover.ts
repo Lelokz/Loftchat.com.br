@@ -158,6 +158,12 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
       anchor.focus?.();
     }
   };
+  // 0.13.5: só a LARGURA mudar fecha. No celular, o teclado que abre (a busca
+  // da lista de cargos) muda só a altura — e fechava o cartão.
+  const larguraAntes = window.innerWidth;
+  const redimensionou = (): void => {
+    if (window.innerWidth !== larguraAntes) fechar();
+  };
   const rolou = (event: Event): void => {
     if (!pop.contains(event.target as Node)) fechar();
   };
@@ -166,7 +172,7 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
     document.removeEventListener('pointerdown', foraDaqui, true);
     document.removeEventListener('keydown', tecla, true);
     window.removeEventListener('scroll', rolou, true);
-    window.removeEventListener('resize', fechar);
+    window.removeEventListener('resize', redimensionou);
     pop.remove();
     if (aberto?.el === pop) aberto = null;
   }
@@ -177,7 +183,7 @@ export function openPersonPopover(options: PersonPopoverOptions): void {
     document.addEventListener('pointerdown', foraDaqui, true);
     document.addEventListener('keydown', tecla, true);
     window.addEventListener('scroll', rolou, true);
-    window.addEventListener('resize', fechar);
+    window.addEventListener('resize', redimensionou);
   });
 
   // Dentro de um <dialog> aberto (Configurações), o cartão precisa estar na
