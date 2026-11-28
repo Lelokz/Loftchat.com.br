@@ -2,7 +2,7 @@ import './auth-screen.css';
 
 import { el, iconEl } from '../../lib/dom';
 import { usernameProblem } from '../../lib/friends';
-import { logoIcon } from '../../lib/icons';
+import { eyeIcon, eyeOffIcon, logoIcon } from '../../lib/icons';
 import { textoDoErro } from '../../lib/firestore-errors';
 
 export interface AuthScreenProps {
@@ -80,6 +80,38 @@ export function renderAuthScreen({
     placeholder: 'Pelo menos 6 caracteres',
   });
 
+  /*
+   * 0.14.0 VER A SENHA (ideia do Arthur): o olhinho no canto do campo mostra
+   * e esconde o que foi digitado. Um olhinho só cuida dos dois campos (senha e
+   * repetir senha), para não ficar um aberto e outro fechado.
+   */
+  const camposDeSenha: HTMLInputElement[] = [];
+  const olhinhos: HTMLButtonElement[] = [];
+  let senhaAberta = false;
+  function desenharOlhinhos(): void {
+    for (const c of camposDeSenha) c.type = senhaAberta ? 'text' : 'password';
+    for (const b of olhinhos) {
+      b.replaceChildren(iconEl((senhaAberta ? eyeOffIcon : eyeIcon)(18)));
+      const rotulo = senhaAberta ? 'Esconder a senha' : 'Mostrar a senha';
+      b.title = rotulo;
+      b.setAttribute('aria-label', rotulo);
+      b.setAttribute('aria-pressed', String(senhaAberta));
+    }
+  }
+  function comOlhinho(campo: HTMLInputElement): HTMLElement {
+    camposDeSenha.push(campo);
+    const olho = el('button', { class: 'auth__olho', type: 'button' }) as HTMLButtonElement;
+    olhinhos.push(olho);
+    // Não tira o foco do campo (no celular o teclado não fecha).
+    olho.addEventListener('pointerdown', (e) => e.preventDefault());
+    olho.addEventListener('click', () => {
+      senhaAberta = !senhaAberta;
+      desenharOlhinhos();
+    });
+    desenharOlhinhos();
+    return el('div', { class: 'auth__senha' }, [campo, olho]);
+  }
+
   const nameField = el('div', { class: 'auth__field' }, [
     el('label', { class: 'auth__label', for: 'auth-name' }, ['Nome de exibição']),
     nameInput,
@@ -123,7 +155,7 @@ export function renderAuthScreen({
   }) as HTMLInputElement;
   const confirmField = el('div', { class: 'auth__field' }, [
     el('label', { class: 'auth__label', for: 'auth-confirm-password' }, ['Repetir senha']),
-    confirmInput,
+    comOlhinho(confirmInput),
   ]);
   confirmField.hidden = true;
 
@@ -230,7 +262,7 @@ export function renderAuthScreen({
       el('label', { class: 'auth__label', for: 'auth-email' }, ['E-mail']),
       emailInput,
     ]),
-    el('div', { class: 'auth__field' }, [passwordLabel, passwordInput]),
+    el('div', { class: 'auth__field' }, [passwordLabel, comOlhinho(passwordInput as HTMLInputElement)]),
     confirmField,
     errorBox,
     submitButton,

@@ -1,6 +1,7 @@
 package br.com.loftchat;
 
 import android.app.Activity;
+import android.os.Build;
 import android.content.pm.ActivityInfo;
 import android.view.WindowManager;
 
@@ -85,5 +86,21 @@ public class PluginDaTela extends Plugin {
         JSObject resposta = new JSObject();
         resposta.put("escondida", escondeu);
         call.resolve(resposta);
+    }
+
+    /**
+     * 0.14.0: MARCA E MODELO do celular (o navegador interno esconde o modelo
+     * do userAgent). Vai no Reportar bug e no "Mandar informações da tela".
+     */
+    @PluginMethod
+    public void aparelho(PluginCall call) {
+        JSObject r = new JSObject();
+        String marca = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();
+        if (!marca.isEmpty()) marca = marca.substring(0, 1).toUpperCase() + marca.substring(1);
+        r.put("marca", marca);
+        r.put("modelo", Build.MODEL == null ? "" : Build.MODEL.trim());
+        r.put("android", Build.VERSION.RELEASE == null ? "" : Build.VERSION.RELEASE);
+        r.put("sdk", Build.VERSION.SDK_INT);
+        call.resolve(r);
     }
 }

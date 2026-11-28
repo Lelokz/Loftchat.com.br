@@ -25,6 +25,7 @@ import { openMenu } from './components/context-menu/context-menu';
 import type { MenuExtras, MenuItem } from './components/context-menu/context-menu';
 import { RAPIDAS_CELULAR, abrirSeletorDeReacao, dadosDaMensagem, podeReagir, reagir } from './components/reacoes/reacoes';
 import { addReactionIcon } from './lib/icons';
+import { estaFixada, fixar, MAX_FIXADAS } from './lib/fixadas';
 import { DURACOES, reativar, silenciadoAte, silenciar, textoDoSilencio } from './lib/silencios';
 import type { Alvo } from './lib/silencios';
 import { showToast } from './components/toast/toast';
@@ -386,6 +387,19 @@ function dmRowItems(target: HTMLElement, actions: ContextMenuActions): MenuItem[
   if (uid === '') return [];
   return [
     ...(actions.markRead !== undefined ? [{ label: 'Marcar como lido', onSelect: () => actions.markRead!(`pv:${uid}`) }] : []),
+    // 0.14.0: fixar no topo da lista.
+    estaFixada(uid)
+      ? { label: 'Desafixar conversa', onSelect: () => void fixar(uid, false).catch(() => showToast('Não deu para desafixar. Tente de novo.')) }
+      : {
+          label: 'Fixar conversa',
+          onSelect: () =>
+            void fixar(uid, true).then(
+              (deu) => {
+                if (!deu) showToast(`Dá para fixar até ${MAX_FIXADAS} conversas. Desafixe uma antes.`);
+              },
+              () => showToast('Não deu para fixar. Tente de novo.'),
+            ),
+        },
     itemDeSilenciar(`p_${uid}`, 'conversa', target.querySelector('.home-column__dm-name')?.textContent ?? 'conversa'),
     ...(actions.openProfile !== undefined
       ? [{ label: 'Ver perfil', separatorBefore: true, onSelect: () => actions.openProfile!(uid, target) }]

@@ -221,7 +221,7 @@ test("a sessão sobrevive ao reload", async ({ page }) => {
   await page.reload();
 
   // Sem piscar o login: o app volta direto.
-  await expect(page.getByRole("button", { name: "Sair da conta" })).toBeVisible(
+  await expect(page.getByRole("button", { name: "Meu perfil" }).first()).toBeVisible(
     {
       timeout: 30_000,
     },
@@ -234,7 +234,13 @@ test("sair da conta devolve para a tela de login", async ({ page }) => {
   await page.goto("/");
   await signUpThroughUi(page, account);
 
-  await page.getByRole("button", { name: "Sair da conta" }).click();
+  // 0.14.0: sair não fica mais no canto de baixo — só nas Configurações, com confirmação.
+  await expect(page.locator(".session-footer").getByRole("button", { name: "Sair da conta" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Configurações", exact: true }).first().click();
+  await page.getByRole("dialog", { name: "Configurações" }).getByRole("button", { name: "Sair da conta" }).click();
+  const confirmar = page.getByRole("dialog", { name: "Sair da conta?" });
+  await expect(confirmar).toBeVisible();
+  await confirmar.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page.getByLabel("E-mail")).toBeVisible({ timeout: 30_000 });
 });
 

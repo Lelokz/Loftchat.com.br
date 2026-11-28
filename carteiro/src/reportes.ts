@@ -69,6 +69,8 @@ async function enviar(req: Request, env: Env): Promise<Response> {
     tipo: ap['tipo'] === 'celular' || ap['tipo'] === 'computador' ? ap['tipo'] : 'navegador',
     sistema: texto(ap['sistema'], 40),
     tela: texto(ap['tela'], 20),
+    // 0.14.0: marca + modelo do celular.
+    ...(texto(ap['modelo'], 60) === '' ? {} : { modelo: texto(ap['modelo'], 60) }),
   };
 
   // 5 por dia (dia de Brasília).

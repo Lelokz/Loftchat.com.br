@@ -215,6 +215,8 @@ test('no celular: a engrenagem abre a lista de seções, entra no Perfil, volta 
 
   // "Sair da conta" mora aqui no celular — e funciona.
   await tela.getByRole('button', { name: 'Sair da conta' }).click();
+  // 0.14.0: com confirmação.
+  await a.page.getByRole('dialog', { name: 'Sair da conta?' }).getByRole('button', { name: 'Sair', exact: true }).click();
   await expect(a.page.getByLabel('E-mail')).toBeVisible({ timeout: 30_000 });
   await expect(tela).toBeHidden();
 

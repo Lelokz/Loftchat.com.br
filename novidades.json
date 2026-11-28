@@ -1,5 +1,19 @@
 [
   {
+    "versao": "0.14.0",
+    "data": "2026-11-28",
+    "itens": [
+      "Fixar conversas: no privado, botão direito (ou toque longo) numa conversa → Fixar conversa. As fixadas ficam no topo (até 5).",
+      "Insígnias nas Configurações: dá para ver todas as suas e escolher as do cartão sem passar pelo perfil completo.",
+      "Ver a senha: o olhinho no campo de senha mostra o que você digitou.",
+      "Sair da conta agora fica só nas Configurações, e pede confirmação (o botão do canto era fácil de apertar sem querer).",
+      "Barras de rolagem escondidas: a tela rola do mesmo jeito. Quem quiser liga em Aparência → Barras de rolagem.",
+      "Busca de jogos muito melhor: os jogos famosos aparecem primeiro (\"cyberpunk\" traz o Cyberpunk 2077, \"gta\" traz o GTA V) e sem edições repetidas.",
+      "Reportar bug e \"Mandar informações da tela\" agora mandam a marca e o modelo do celular, para achar bug de aparelho específico.",
+      "Correções: o seu perfil aberto pelo canto de baixo não mostra mais cargos nem \"Membro desde\" do grupo; o X da tela de insígnias fecha no programa do PC; o \"+\" de cargos aparece para quem pode dar cargos."
+    ]
+  },
+  {
     "versao": "0.13.5",
     "data": "2026-11-28",
     "itens": [

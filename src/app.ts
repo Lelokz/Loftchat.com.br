@@ -9,6 +9,7 @@ import { menuIcon } from './lib/icons';
 import { definirPermissaoDeTranscrever } from './components/voz/transcricao';
 import { definirPermissaoDeReagir } from './components/reacoes/reacoes';
 import { abrirEncaminhar } from './components/encaminhar/encaminhar';
+import { ligarFixadas, ouvirFixadas } from './lib/fixadas';
 import { estaSilenciado, ligarSilencios, ouvirSilencios, reativar, silenciadoAte, textoDoSilencio } from './lib/silencios';
 import type { Alvo } from './lib/silencios';
 import { bellOffIcon } from './lib/icons';
@@ -118,7 +119,7 @@ import {
   unpinMessages,
 } from './lib/firestore';
 import { formatBytes, initials } from './lib/format';
-import { aoMudarVerComo, canLeaveGroup, isOwner, meuCastigo, OWNER_CANNOT_LEAVE, pode, vendoComoAgora, verComo } from './lib/permissions';
+import { aoMudarVerComo, canLeaveGroup, isOwner, meuCastigo, meuTopo, OWNER_CANNOT_LEAVE, pode, vendoComoAgora, verComo } from './lib/permissions';
 import { limitarComposer } from './components/chat/composer/composer';
 import { ligarModoLento, mudarModoLento } from './lib/firestore';
 import type { LimitesDoComposer } from './components/chat/composer/composer';
@@ -1307,7 +1308,6 @@ export function mountApp(
       },
       onCreateGroup: handleAddGroup,
       me,
-      onSignOut,
       onOpenSettings: () => handleOpenSettings(),
       cartao: isMobileLayout(),
       botoesDaJanela: botoesDaJanela(),
@@ -1320,7 +1320,7 @@ export function mountApp(
    * Configurações e sair. No celular o cartão continua na barra de cima.
    */
   function peDaColuna(faixa: HTMLElement | null): HTMLElement {
-    return el('div', { class: 'coluna-pe' }, [faixa, renderSessionFooter(me, onSignOut, () => handleOpenSettings())]);
+    return el('div', { class: 'coluna-pe' }, [faixa, renderSessionFooter(me, () => handleOpenSettings())]);
   }
 
   /**
@@ -3464,6 +3464,12 @@ export function mountApp(
     const uid = anchor.dataset['profileUid'] ?? '';
     if (uid === '') return;
     const state = store.getState();
+    /*
+     * 0.14.0: o "Meu perfil" do canto de baixo é o perfil do LOFT — sem
+     * cargos, "+" ou "Membro desde". Isso é só no cartão aberto de dentro do
+     * grupo (lista de membros, nome no chat…).
+     */
+    const doGrupo = anchor.closest('.session-footer') === null;
     const conhecido =
       uid === user.uid
         ? me
@@ -3510,13 +3516,13 @@ export function mountApp(
         }
       },
       onEditProfile: () => handleOpenSettings(),
-      onVerPerfil: () => abrirPerfilDe(uid, vinculo, conhecido, undefined, grupoDoPerfil(state, uid)),
+      onVerPerfil: () => abrirPerfilDe(uid, vinculo, conhecido, undefined, doGrupo ? grupoDoPerfil(state, uid) : undefined),
       ...(() => {
-        const extra = perfilNoServidor(state, uid);
+        const extra = doGrupo ? perfilNoServidor(state, uid) : null;
         return extra === null ? {} : { noServidor: extra };
       })(),
       ...(() => {
-        const fila = filaDoGrupoNoCartao(state, uid);
+        const fila = doGrupo ? filaDoGrupoNoCartao(state, uid) : null;
         return fila === null ? {} : { insigniasDoServidor: fila };
       })(),
     });
@@ -3603,14 +3609,24 @@ export function mountApp(
     if (group === undefined || membro === undefined) return null;
     const dono = isOwner(group, user.uid);
     const normais = state.cargos.filter((c) => c.todos !== true);
+    /*
+     * 0.14.0: o "+" (e o × das etiquetas) é de quem pode DAR CARGOS — o dono
+     * ou quem tem a permissão —, e só nos cargos abaixo do cargo mais alto
+     * dele (a mesma regra da aba Membros das configurações e do carteiro).
+     */
+    const ctx = ctxPerm(state);
+    const topo = meuTopo(ctx, user.uid);
+    const pessoaAcima = membro.id === group.ownerId ? !dono : !dono && membro.id !== user.uid && (membro.topo ?? 99999) <= topo;
+    const podeDar = posso(state, 'dar-cargos') && !pessoaAcima;
     const caixa = el('div', { class: 'perfil-servidor' });
-    if (normais.length > 0 || dono) {
+    if (normais.length > 0 && (podeDar || (membro.cargos ?? []).some((id) => normais.some((c) => c.id === id)))) {
       caixa.append(
         el('span', { class: 'cg-rotulo' }, ['Cargos']),
         chipsDeCargos({
           membro,
           cargos: normais,
-          podeEditar: dono,
+          podeEditar: podeDar,
+          travado: (c) => !dono && c.posicao <= topo,
           aoDar: (cargoId, dar) =>
             darCargo(group.id, uid, cargoId, dar).catch((e) => {
               showToast(textoDoErro(e, 'Não deu para mudar o cargo.'));
@@ -3795,6 +3811,9 @@ export function mountApp(
   // 0.11.0: o que eu silenciei — mudou, redesenha as bolinhas.
   const pararSilencios = ligarSilencios(user.uid);
   const pararOuvirSilencios = ouvirSilencios(() => bolinhasMudaram());
+  // 0.14.0: conversas fixadas — mudou, redesenha a lista do privado.
+  const pararFixadas = ligarFixadas(user.uid);
+  const pararOuvirFixadas = ouvirFixadas(() => bolinhasMudaram());
   const sincronizarNaoLidas = (state: AppState): void =>
     naoLidas.sincronizar(
       state.groups.map((g) => g.id),
@@ -3847,6 +3866,8 @@ export function mountApp(
       naoLidas.parar();
       pararSilencios();
       pararOuvirSilencios();
+      pararFixadas();
+      pararOuvirFixadas();
       pararFigurinhas();
       pararMeuJogo();
       pararOuvirJogando();

@@ -111,6 +111,7 @@ test('tema, cor, fonte e tamanho: prévia, desfazer, salvar e ao vivo no outro a
   // Sair da conta: a aparência dela não fica para a próxima pessoa.
   await pc.getByRole('button', { name: 'Configurações', exact: true }).click();
   await pc.getByRole('dialog', { name: 'Configurações' }).getByRole('button', { name: 'Sair da conta' }).click();
+  await pc.getByRole('dialog', { name: 'Sair da conta?' }).getByRole('button', { name: 'Sair', exact: true }).click();
   await expect(pc.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible({ timeout: 20_000 });
   expect(await tema(pc)).toBe('noite');
   expect(await varDaRaiz(pc, '--accent')).toBe('#7b3fe4');

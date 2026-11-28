@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { CARTEIRO } from './avisos';
+import { celularAtual } from './android';
 import { loftDesktop } from './desktop';
 import { subirArquivo } from './midia';
 import { LIMITE_DE_REPORTES_POR_DIA, lerReporte } from './reportes-comum';
@@ -18,6 +19,8 @@ export interface Aparelho {
   tipo: 'computador' | 'celular' | 'navegador';
   sistema: string;
   tela: string;
+  /** 0.14.0: marca + modelo do celular (só no app Android novo). */
+  modelo?: string;
 }
 
 /** O sistema pelo navegador ("Windows 11" não dá para separar do 10: o navegador diz igual). */
@@ -38,7 +41,14 @@ export function aparelhoAtual(): Aparelho {
   const tipo = Capacitor.isNativePlatform() ? 'celular' : loftDesktop() !== null ? 'computador' : 'navegador';
   const escala = window.devicePixelRatio || 1;
   const tela = tipo === 'celular' ? `${screen.width} × ${screen.height}` : `${Math.round(screen.width * escala)} × ${Math.round(screen.height * escala)}`;
-  return { versao: `Loftchat ${__VERSAO__}`, tipo, sistema: sistema(), tela };
+  const cel = celularAtual();
+  return {
+    versao: `Loftchat ${__VERSAO__}`,
+    tipo,
+    sistema: cel !== null && cel.android !== '' ? `Android ${cel.android}` : sistema(),
+    tela,
+    ...(cel === null ? {} : { modelo: cel.modelo }),
+  };
 }
 
 /** O "Tirar print agora" só existe no programa do PC (versão nova). */

@@ -946,7 +946,8 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['nome', 'quando', 'onde', 'versao', 'navegador',
              'telaW', 'telaH', 'janelaW', 'janelaH', 'densidade', 'letra', 'escuro', 'toque',
-             'margens', 'recursos'])
+             'margens', 'recursos', 'modelo'])
+        && (!('modelo' in request.resource.data) || (request.resource.data.modelo is string && request.resource.data.modelo.size() <= 80))
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 60
         && request.resource.data.quando is string && request.resource.data.quando.size() <= 40
         && request.resource.data.onde in ['android', 'pc', 'site']

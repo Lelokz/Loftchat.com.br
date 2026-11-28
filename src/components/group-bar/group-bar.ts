@@ -40,7 +40,6 @@ export interface GroupBarProps {
   onOpenHome: () => void;
   /** O "+": abre o menu Criar grupo / Entrar num grupo (16/11/2026). */
   onCreateGroup: (anchor: HTMLElement) => void;
-  onSignOut: () => void;
   onOpenSettings: () => void;
   /**
    * O meu cartão na barra de cima — só no celular. No PC ele mora no pé da
@@ -60,7 +59,7 @@ export interface GroupBarProps {
  * mesmo `session-footer` que antes morava no pé das colunas.
  */
 export function renderGroupBar(props: GroupBarProps): HTMLElement {
-  const { groups, activeGroupId, homeActive, me, onSelectGroup, onOpenHome, onCreateGroup, onSignOut, onOpenSettings } =
+  const { groups, activeGroupId, homeActive, me, onSelectGroup, onOpenHome, onCreateGroup, onOpenSettings } =
     props;
 
   const brand = el('span', { class: 'group-bar__brand' }, [
@@ -203,7 +202,7 @@ export function renderGroupBar(props: GroupBarProps): HTMLElement {
   return el('nav', { class: 'group-bar', 'aria-label': 'Grupos' }, [
     brand,
     lista,
-    props.cartao !== false && renderSessionFooter(me, onSignOut, onOpenSettings),
+    props.cartao !== false && renderSessionFooter(me, onOpenSettings),
     props.botoesDaJanela ?? null,
   ]);
 }

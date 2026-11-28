@@ -8,8 +8,11 @@ import type { User } from 'firebase/auth';
 
 import { auth } from '../../lib/firebase';
 import { avatarEl, el, iconEl } from '../../lib/dom';
-import { bugIcon, controllerIcon, sparkleIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
+import { bugIcon, controllerIcon, medalIcon, sparkleIcon, arrowLeftIcon, bellIcon, closeIcon, faceIcon, logoIcon, logoutIcon, micIcon, paletteIcon, peopleIcon, shieldIcon, windowIcon } from '../../lib/icons';
 import { renderJanelaSection, temSecaoJanela } from './janela-section';
+import { renderInsigniasSection } from './insignias-section';
+import type { SecaoDeInsignias } from './insignias-section';
+import { openConfirmDialog } from '../modal/dialogs';
 import { renderNotificacoesSection } from './notificacoes-section';
 import { renderJogosSection } from './jogos-section';
 import { blocoJogandoAgora, blocosDosJogos } from '../jogos/jogos-ui';
@@ -96,7 +99,7 @@ export interface SettingsOptions {
   criador?: boolean;
 }
 
-export type Secao = 'criador' | 'perfil' | 'jogos' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'bug' | 'sobre';
+export type Secao = 'criador' | 'perfil' | 'jogos' | 'insignias' | 'conta' | 'grupos' | 'aparencia' | 'voz' | 'notificacoes' | 'janela' | 'bug' | 'sobre';
 
 /** Os valores editáveis do Perfil — o "antes" e o "agora" da barra de salvar. */
 interface Rascunho {
@@ -274,9 +277,20 @@ export function openSettings(options: SettingsOptions): void {
     iconEl(logoutIcon(18)),
     el('span', {}, ['Sair da conta']),
   ]);
+  // 0.14.0: sair só por aqui, e com confirmação (ideia do Arthur).
   sair.addEventListener('click', () => {
-    fechar(true);
-    onSignOut();
+    openConfirmDialog({
+      title: 'Sair da conta?',
+      description: 'Você vai precisar do e-mail e da senha para entrar de novo neste aparelho.',
+      confirmLabel: 'Sair',
+      busyLabel: 'Saindo…',
+      failureMessage: 'Não deu para sair agora.',
+      onConfirm: async (ctrl) => {
+        ctrl.close();
+        fechar(true);
+        onSignOut();
+      },
+    });
   });
 
   // Qual versão está rodando (os detalhes ficam em Sobre o Loftchat).
@@ -292,6 +306,7 @@ export function openSettings(options: SettingsOptions): void {
     options.criador === true && itemDoMenu('criador', 'Criador', sparkleIcon(18)),
     itemDoMenu('perfil', 'Perfil', faceIcon(18)),
     itemDoMenu('jogos', 'Jogos', controllerIcon(18)),
+    itemDoMenu('insignias', 'Insígnias', medalIcon(18)),
     itemDoMenu('conta', 'Conta e segurança', shieldIcon(18)),
     itemDoMenu('grupos', 'Grupos', peopleIcon(18)),
     itemDoMenu('aparencia', 'Aparência', paletteIcon(18)),
@@ -943,6 +958,7 @@ export function openSettings(options: SettingsOptions): void {
   let secaoSobre: SobreSection | null = null;
   /** 0.13.0: a seção Reportar bug aberta (para o gravador e a lista ao sair). */
   let secaoBug: SecaoDeBug | null = null;
+  let secaoInsignias: SecaoDeInsignias | null = null;
 
   function mostrar(secao: Secao): void {
     secaoDeVoz?.parar();
@@ -951,6 +967,8 @@ export function openSettings(options: SettingsOptions): void {
     secaoSobre = null;
     secaoBug?.parar();
     secaoBug = null;
+    secaoInsignias?.parar();
+    secaoInsignias = null;
     secaoAtual = secao;
     for (const [qual, botao] of botoesDoMenu) {
       botao.classList.toggle('is-active', qual === secao);
@@ -978,6 +996,9 @@ export function openSettings(options: SettingsOptions): void {
         }),
       );
       desenharPrevia();
+    } else if (secao === 'insignias') {
+      secaoInsignias = renderInsigniasSection(user.uid);
+      conteudo.replaceChildren(...secaoInsignias.elementos);
     } else if (secao === 'grupos') {
       conteudo.replaceChildren(...secaoGrupos());
     } else if (secao === 'voz') {
@@ -1289,6 +1310,7 @@ export function openSettings(options: SettingsOptions): void {
     secaoSobre?.parar();
     secaoSobre = null;
     secaoBug?.parar();
+    secaoInsignias?.parar();
     secaoBug = null;
     // Saiu sem salvar (sair da conta fecha à força): a prévia não fica.
     previewAppearance(null);

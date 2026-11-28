@@ -41,7 +41,7 @@ export interface Reporte {
   texto: string;
   audio: { chave: string; duracaoMs: number } | null;
   anexos: Anexo[];
-  aparelho: { versao: string; tipo: string; sistema: string; tela: string };
+  aparelho: { versao: string; tipo: string; sistema: string; tela: string; modelo?: string };
   estado: EstadoDoReporte;
   confirmado: boolean;
   versaoConserto: string;
@@ -69,7 +69,7 @@ export function lerReporte(id: string, d: Record<string, unknown> | null | undef
       .map((x) => x as Record<string, unknown>)
       .filter((x) => typeof x?.['chave'] === 'string')
       .map((x) => ({ chave: x['chave'] as string, tipo: x['tipo'] === 'imagem' || x['tipo'] === 'video' ? x['tipo'] : 'arquivo', nome: s(x['nome']) })),
-    aparelho: { versao: s(ap['versao']), tipo: s(ap['tipo']), sistema: s(ap['sistema']), tela: s(ap['tela']) },
+    aparelho: { versao: s(ap['versao']), tipo: s(ap['tipo']), sistema: s(ap['sistema']), tela: s(ap['tela']), ...(s(ap['modelo']) === '' ? {} : { modelo: s(ap['modelo']) }) },
     estado: e === 'visto' || e === 'consertado' ? e : 'enviado',
     confirmado: d['confirmado'] === true,
     versaoConserto: s(d['versaoConserto']),

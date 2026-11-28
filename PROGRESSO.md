@@ -2,6 +2,31 @@
 
 Estado em 15/11/2026.
 
+## Arrumação (28/11/2026) — versão 0.14.0
+
+Plano em Arquivo/Loft-desktop/Plano do Loft - 0.14.0 em diante (28-11-2026).md.
+
+1. **Meu perfil do canto** (`app.ts` → `abrirCartao`): aberto pelo
+   `.session-footer`, o cartão não leva cargos, Membro desde nem as insígnias
+   do grupo. O "+"/× de cargos agora segue a permissão `dar-cargos` e a
+   hierarquia (`meuTopo`), igual à aba Membros e ao carteiro.
+2. **X do perfil completo** (insígnias): `lib/janela.css` põe `no-drag` em tudo
+   que abre por cima (dialog, menu, véu, `.pfc`, cartão, toast).
+3. **Busca de jogos** (`carteiro/src/jogos.ts`): duas perguntas à IGDB (busca de
+   texto com 50 + os famosos com o texto no nome/apelido), sem edições
+   (`version_parent`), sem jogo adulto (tema 42), ordenadas por `notaDoJogo`
+   (fama + nome igual/começando + apelido). Cache novo (`jogos2/`).
+4. **Marca e modelo do celular**: `PluginDaTela.aparelho()` (Build) →
+   `lib/android.ts` (`celularAtual`) → Reportar bug (`aparelho.modelo`) e
+   `infoDeTela.modelo` (regra nova).
+5. **Ver a senha**: olhinho no login/cadastro (um só estado para os dois campos).
+6. **Sair**: o botão do rodapé saiu; Configurações → Sair da conta confirma.
+7. **Barras de rolagem**: escondidas em tudo (`reset.css`, `:where` para não
+   ganhar dos componentes); `Appearance.scrollbars` liga finas na cor do Loft.
+8. **Insígnias nas Configurações** (`settings/insignias-section.ts`).
+9. **Fixar conversas** (`lib/fixadas.ts`, `userPrivate.conversasFixadas`, até 5).
+10. Teste: `tests/arrumacao-0140.spec.ts`.
+
 ## Patch de bugs reportados (28/11/2026) — versão 0.13.5
 
 Os 7 primeiros reportes do Reportar bug (Arquivo/Loft-desktop/reportes/baixados).

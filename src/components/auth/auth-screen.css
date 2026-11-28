@@ -209,3 +209,33 @@
   color: var(--accent-text);
   font-weight: inherit;
 }
+
+/* 0.14.0: o olhinho de ver a senha, dentro do campo, no canto direito. */
+.auth__senha {
+  position: relative;
+  display: grid;
+}
+
+.auth__senha > .auth__input {
+  padding-right: 44px;
+}
+
+.auth__olho {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 30px;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-muted);
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.auth__olho:hover,
+.auth__olho:focus-visible {
+  color: var(--text-primary);
+  background-color: var(--surface-hover);
+}

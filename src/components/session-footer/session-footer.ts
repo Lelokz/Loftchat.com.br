@@ -1,7 +1,7 @@
 import './session-footer.css';
 
 import { avatarEl, corDoCargo, el, iconEl } from '../../lib/dom';
-import { gearIcon, logoutIcon } from '../../lib/icons';
+import { gearIcon } from '../../lib/icons';
 import type { Member } from '../../types/models';
 import { showToast } from '../toast/toast';
 
@@ -16,18 +16,12 @@ import { showToast } from '../toast/toast';
  *
  * A engrenagem abre Configurações em tela inteira (proposta A, etapa 2).
  */
-export function renderSessionFooter(
-  member: Member,
-  onSignOut: () => void,
-  onOpenSettings: () => void,
-): HTMLElement {
-  const signOutButton = el('button', {
-    class: 'icon-button session-footer__signout',
-    type: 'button',
-    title: 'Sair da conta',
-  });
-  signOutButton.append(iconEl(logoutIcon(17)), el('span', { class: 'sr-only' }, ['Sair da conta']));
-  signOutButton.addEventListener('click', onSignOut);
+export function renderSessionFooter(member: Member, onOpenSettings: () => void): HTMLElement {
+  /*
+   * 0.14.0: o botão de SAIR DA CONTA saiu daqui (ficava do lado da
+   * engrenagem e era fácil apertar sem querer). Sair agora é só em
+   * Configurações → Sair da conta, com confirmação.
+   */
 
   /*
    * O MEU CARTÃO: nome de exibição grande, `@` pequeno embaixo. O `@` é o que
@@ -76,6 +70,5 @@ export function renderSessionFooter(
     meuPerfil,
     identidade,
     settingsButton,
-    signOutButton,
   ]);
 }

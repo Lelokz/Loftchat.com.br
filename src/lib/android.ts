@@ -24,6 +24,7 @@ export function ligarAndroid(): void {
   if (!Capacitor.isNativePlatform()) return;
   document.documentElement.classList.add('app-android');
   conferirTransmissaoDoAndroid();
+  lerCelular();
   /*
    * A BARRA DE CIMA DO SISTEMA: o app pede para escondê-la (MainActivity).
    * Se o celular obedeceu, o Loftchat vai até a borda de cima, sem folga
@@ -77,9 +78,33 @@ interface Tela {
   /** 0.10.0: print e gravação de tela saem pretos (FLAG_SECURE). */
   proteger(opcoes: { ligar: boolean }): Promise<void>;
   addListener(evento: 'escondida', ouvinte: () => void): Promise<{ remove: () => Promise<void> }>;
+  /** 0.14.0: marca e modelo (APK novo; o velho não tem o método). */
+  aparelho(): Promise<{ marca: string; modelo: string; android: string; sdk: number }>;
 }
 
 const tela = registerPlugin<Tela>('Tela');
+
+/** 0.14.0: "Motorola moto g54 5G · Android 14" — pego uma vez ao abrir o app. */
+let celularGuardado: { modelo: string; android: string } | null = null;
+
+export function lerCelular(): void {
+  if (!Capacitor.isNativePlatform()) return;
+  void tela
+    .aparelho()
+    .then((a) => {
+      const marca = a.marca.trim();
+      const modelo = a.modelo.trim();
+      // "Samsung SM-A546E", mas "motorola moto g54" não repete a marca.
+      const junto = modelo.toLowerCase().startsWith(marca.toLowerCase()) ? modelo : `${marca} ${modelo}`.trim();
+      if (junto !== '') celularGuardado = { modelo: junto.slice(0, 60), android: a.android };
+    })
+    .catch(() => undefined);
+}
+
+/** Marca + modelo e a versão do Android, se o app (APK novo) disse. */
+export function celularAtual(): { modelo: string; android: string } | null {
+  return celularGuardado;
+}
 
 /** O "Em chamada" do Android (etapa 10b): `android/.../PluginDaChamada.java`. */
 interface Chamada {

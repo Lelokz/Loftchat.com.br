@@ -71,24 +71,38 @@ hr {
   outline-offset: 2px;
 }
 
-/* Barras de rolagem discretas nas regiões que rolam. */
-.scroll-area {
+/*
+ * 0.14.0 BARRAS DE ROLAGEM: escondidas em TODO lugar (a barra do navegador
+ * destoava do Loft — ideia do Arthur). A roda do mouse, o touchpad e o dedo
+ * rolam do mesmo jeito. Quem quiser liga em Aparência → Barras de rolagem:
+ * aí elas aparecem finas, na cor do Loft, em todo lugar.
+ */
+:where(html:not([data-barras='sim'])) * {
+  scrollbar-width: none;
+}
+
+:where(html:not([data-barras='sim'])) *::-webkit-scrollbar {
+  display: none;
+}
+
+:where(html[data-barras='sim']) * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 
-.scroll-area::-webkit-scrollbar {
+:where(html[data-barras='sim']) *::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 
-.scroll-area::-webkit-scrollbar-thumb {
+:where(html[data-barras='sim']) *::-webkit-scrollbar-thumb {
   background-color: var(--border-strong);
   border: 3px solid transparent;
   background-clip: content-box;
   border-radius: var(--radius-full);
 }
 
-.scroll-area::-webkit-scrollbar-track {
+:where(html[data-barras='sim']) *::-webkit-scrollbar-track {
   background: transparent;
 }
 

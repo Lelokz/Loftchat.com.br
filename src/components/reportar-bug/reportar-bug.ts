@@ -393,7 +393,7 @@ export function renderReportarBug(uid: string, dialogo: HTMLElement): SecaoDeBug
     el('div', { class: 'rbg-vai__t' }, [icone('info', 16), 'Vai junto, para ajudar a achar o bug']),
     el('ul', {}, [
       item('Versão', ap.versao),
-      item('Aparelho', ap.tipo === 'computador' ? 'Computador' : ap.tipo === 'celular' ? 'Celular' : 'Navegador'),
+      item('Aparelho', ap.modelo ?? (ap.tipo === 'computador' ? 'Computador' : ap.tipo === 'celular' ? 'Celular' : 'Navegador')),
       item('Sistema', ap.sistema),
       item('Tela', ap.tela),
     ]),

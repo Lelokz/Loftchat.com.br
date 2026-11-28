@@ -1,7 +1,8 @@
 import './home-column.css';
 
 import { avatarEl, corDoCargo, el, iconEl } from '../../lib/dom';
-import { bellOffIcon, peopleIcon } from '../../lib/icons';
+import { bellOffIcon, peopleIcon, pinIcon } from '../../lib/icons';
+import { comFixadasNoTopo, estaFixada } from '../../lib/fixadas';
 import type { DmThread, MemberId, UserProfile } from '../../types/models';
 import { bolinha } from '../bolinha/bolinha';
 
@@ -96,8 +97,10 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
     ]);
   }
 
-  const rows = props.dmThreads.map((thread) => {
+  // 0.14.0: as fixadas no topo (na ordem em que foram fixadas).
+  const rows = comFixadasNoTopo(props.dmThreads, (t) => otherOf(t, props.me)).map((thread) => {
     const friendUid = otherOf(thread, props.me);
+    const fixada = estaFixada(friendUid);
     const profile = props.profiles.get(friendUid);
     const isActive = friendUid === props.activeDmUid;
     const naoLidas = props.naoLidas?.(friendUid) ?? 0;
@@ -106,7 +109,7 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
     const button = el(
       'button',
       {
-        class: `home-column__dm${isActive ? ' is-active' : ''}${naoLidas > 0 && !silenciado ? ' tem-nao-lidas' : ''}${silenciado ? ' is-silenciado' : ''}`,
+        class: `home-column__dm${isActive ? ' is-active' : ''}${fixada ? ' is-fixada' : ''}${naoLidas > 0 && !silenciado ? ' tem-nao-lidas' : ''}${silenciado ? ' is-silenciado' : ''}`,
         type: 'button',
         'aria-current': isActive ? 'true' : undefined,
         // 0.11.0: botão direito / toque longo → marcar como lido, silenciar, ver perfil.
@@ -121,6 +124,7 @@ function buildDmSection(props: HomeColumnProps): HTMLElement {
             thread.lastMessage.body === '' ? '—' : thread.lastMessage.body,
           ]),
         ]),
+        fixada && el('span', { class: 'home-column__fixada', title: 'Conversa fixada' }, [iconEl(pinIcon(14))]),
         silenciado && el('span', { class: 'silenciado-sino', title: 'Silenciado' }, [iconEl(bellOffIcon(15))]),
         bolinha(naoLidas, 'fim', silenciado),
       ],

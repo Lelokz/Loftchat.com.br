@@ -156,3 +156,11 @@
 .home-column__callbar {
   flex: none;
 }
+
+/* 0.14.0: o alfinete das conversas fixadas. */
+.home-column__fixada {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}

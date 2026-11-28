@@ -112,3 +112,13 @@ html.janela-maximizada .janela-bordas {
 .janela-borda--so { bottom: 0; left: 0; width: 10px; height: 10px; cursor: nesw-resize; }
 .janela-borda--no { top: 0; left: 0; width: 10px; height: 10px; cursor: nwse-resize; }
 .janela-borda--sl { bottom: 0; right: 0; width: 10px; height: 10px; cursor: nwse-resize; }
+
+/*
+ * 0.14.0: tudo que abre POR CIMA (perfil completo, janelas, menus, cartões,
+ * avisos) fica fora da área de arrastar. No Electron a área de arrastar
+ * ganha de qualquer coisa por cima dela — o X do perfil completo (insígnias)
+ * caía em cima da barra do grupo e não fechava.
+ */
+html.janela-propria :is([role='dialog'], [role='menu'], [role='alertdialog'], [aria-modal='true'], .pc-veu, .pfc, .person-popover, .toast, .context-menu) {
+  -webkit-app-region: no-drag;
+}

@@ -1,6 +1,7 @@
 import { addDoc, collection } from 'firebase/firestore';
 
 import { db } from './firebase';
+import { celularAtual } from './android';
 import { estadoDaAtualizacao } from './atualizacao';
 
 /**
@@ -30,6 +31,8 @@ export interface InfoDaTela {
   toque: boolean;
   margens: string;
   recursos: string;
+  /** 0.14.0: marca + modelo do celular (app Android novo). */
+  modelo?: string;
 }
 
 /** Quanto a letra do sistema aumentou: o Android multiplica o texto, não o resto. */
@@ -84,6 +87,10 @@ export function juntarInfoDaTela(nome: string): InfoDaTela {
     toque: window.matchMedia('(pointer: coarse)').matches,
     margens: medirMargens(),
     recursos: medirRecursos(),
+    ...(() => {
+      const cel = celularAtual();
+      return cel === null ? {} : { modelo: `${cel.modelo}${cel.android === '' ? '' : ` · Android ${cel.android}`}`.slice(0, 80) };
+    })(),
   };
 }
 

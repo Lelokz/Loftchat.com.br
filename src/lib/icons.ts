@@ -61,6 +61,10 @@ export const cameraOffIcon = (size?: number): string =>
 export const flipCameraIcon = (size?: number): string =>
   svg('<path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/>', size);
 
+/** Olho aberto: mostrar (a senha, 0.14.0). */
+export const eyeIcon = (size?: number): string =>
+  svg('<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>', size);
+
 /** Olho cortado: esconder (quem está sem câmera). */
 export const eyeOffIcon = (size?: number): string =>
   svg('<path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.6 3.3M6.6 7.6C4.3 9.2 3 12 3 12s4 6 9 6a8.7 8.7 0 0 0 4.3-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>', size);

@@ -89,6 +89,8 @@ export interface Appearance {
   panelFirst: PanelTab;
   /** Etapa 8b: o chat da sala de voz no painel da direita (ligado = aparece e carrega). */
   roomChat: boolean;
+  /** 0.14.0: barras de rolagem à vista (padrão: escondidas — rola com a roda, o touchpad ou o dedo). */
+  scrollbars: boolean;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -103,6 +105,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   panelTabs: [...PANEL_TABS],
   panelFirst: 'membros',
   roomChat: true,
+  scrollbars: false,
 };
 
 const HEX_RE = /^#[0-9a-f]{6}$/;
@@ -123,6 +126,7 @@ export function parseAppearance(raw: unknown): Appearance {
     density: DENSITIES.includes(r['density'] as Density) ? (r['density'] as Density) : 'confortavel',
     ...painel(r),
     roomChat: r['roomChat'] !== false,
+    scrollbars: r['scrollbars'] === true,
   };
 }
 
@@ -154,7 +158,8 @@ export function sameAppearance(a: Appearance, b: Appearance): boolean {
     a.panelHidden === b.panelHidden &&
     a.panelTabs.join() === b.panelTabs.join() &&
     a.panelFirst === b.panelFirst &&
-    a.roomChat === b.roomChat
+    a.roomChat === b.roomChat &&
+    a.scrollbars === b.scrollbars
   );
 }
 
@@ -259,6 +264,7 @@ export function applyAppearance(a: Appearance): void {
   marcar('meuLado', a.messageStyle === 'lista' ? 'direita' : a.mySide, 'direita');
   marcar('densidade', a.density, 'confortavel');
   marcar('painel', a.panelHidden ? 'escondido' : 'visivel', 'visivel');
+  marcar('barras', a.scrollbars ? 'sim' : 'nao', 'nao');
 }
 
 /** O que vai para o banco e para o aparelho: a aparência + a marca de que as abas já conhecem a Mídia. */

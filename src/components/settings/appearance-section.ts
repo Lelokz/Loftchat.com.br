@@ -331,6 +331,21 @@ function blocoDasMensagens(atual: Appearance, onChange: () => void): HTMLElement
         onChange();
       }),
     ]),
+    // 0.14.0: as barras de rolagem (ideia do Arthur): escondidas por padrão.
+    el('div', { class: 'settings__field' }, [
+      el('span', { class: 'settings__label' }, ['Barras de rolagem']),
+      opcoes(
+        'Barras de rolagem',
+        ['escondidas', 'visiveis'] as const,
+        { escondidas: 'Escondidas', visiveis: 'Mostrar' },
+        () => (atual.scrollbars ? 'visiveis' : 'escondidas'),
+        (id) => {
+          atual.scrollbars = id === 'visiveis';
+          onChange();
+        },
+      ),
+      el('p', { class: 'settings__help' }, ['A tela rola do mesmo jeito com a roda do mouse, o touchpad ou o dedo. Mostrar deixa as barras finas, na cor do Loft.']),
+    ]),
   ]);
 }
 

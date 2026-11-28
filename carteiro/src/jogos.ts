@@ -74,22 +74,82 @@ interface RespostaIgdb {
   game_type?: number | { id?: number };
   platforms?: { abbreviation?: string }[];
   external_games?: { external_game_source?: { name?: string } }[];
+  total_rating_count?: number;
+  hypes?: number;
+  alternative_names?: { name?: string }[];
+}
+
+const CAMPOS =
+  'fields name,cover.image_id,first_release_date,game_type,platforms.abbreviation,external_games.external_game_source.name,total_rating_count,hypes,alternative_names.name;';
+/** 0.14.0: sem edições (version_parent), sem pacotes/DLC e sem jogo adulto (tema 42). */
+const FILTRO = 'version_parent = null & themes != (42)';
+
+/** Letras e números, sem acento: "Grand Theft Auto V" → "grand theft auto v". */
+export function normalizar(t: string): string {
+  return t
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * 0.14.0: a NOTA de cada jogo para ordenar a busca. A busca de texto da IGDB
+ * não olha a fama do jogo ("cyberpunk" trazia jogos pequenos e não o 2077;
+ * "gta" sem o GTA V) — então junta: o quanto o jogo é conhecido (avaliações
+ * e expectativa), o nome igual ao digitado, o nome começando com o digitado,
+ * e o apelido (alternative_names: "GTA 5", "CP2077").
+ */
+export function notaDoJogo(g: Pick<RespostaIgdb, 'name' | 'total_rating_count' | 'hypes' | 'alternative_names'>, q: string): number {
+  const busca = normalizar(q);
+  const nome = normalizar(g.name);
+  const apelidos = (g.alternative_names ?? []).map((a) => normalizar(a.name ?? '')).filter((a) => a !== '');
+  const fama = (g.total_rating_count ?? 0) + (g.hypes ?? 0) / 2;
+  let nota = Math.log10(1 + fama) * 12;
+  if (nome === busca || apelidos.includes(busca)) nota += 30;
+  else if (nome.startsWith(`${busca} `) || nome.startsWith(busca)) nota += 10;
+  else if (apelidos.some((a) => a.startsWith(busca))) nota += 8;
+  const palavras = busca.split(' ').filter((p) => p !== '');
+  if (palavras.length > 0 && palavras.every((p) => nome.includes(p))) nota += 5;
+  return nota;
+}
+
+async function perguntarIgdb(env: EnvJogos, token: string, corpo: string): Promise<RespostaIgdb[]> {
+  const r = await fetch('https://api.igdb.com/v4/games', {
+    method: 'POST',
+    headers: { 'Client-ID': env.IGDB_ID!, authorization: `Bearer ${token}`, 'content-type': 'text/plain' },
+    body: corpo,
+  });
+  if (!r.ok) throw new Error(`IGDB ${r.status}`);
+  return (await r.json()) as RespostaIgdb[];
 }
 
 async function buscarNaIgdb(env: EnvJogos, q: string): Promise<Jogo[]> {
   const token = await tokenDaTwitch(env);
-  const limpo = q.replace(/["\\]/g, ' ');
-  const r = await fetch('https://api.igdb.com/v4/games', {
-    method: 'POST',
-    headers: { 'Client-ID': env.IGDB_ID!, authorization: `Bearer ${token}`, 'content-type': 'text/plain' },
-    body: `search "${limpo}"; fields name,cover.image_id,first_release_date,game_type,platforms.abbreviation,external_games.external_game_source.name; limit 15;`,
-  });
-  if (!r.ok) throw new Error(`IGDB ${r.status}`);
-  const lista = (await r.json()) as RespostaIgdb[];
-  const saida: Jogo[] = [];
-  for (const g of lista) {
+  const limpo = q.replace(/["\\*;]/g, ' ').trim();
+  // Duas perguntas juntas: a busca de texto (bastante, para ordenar aqui) e os
+  // FAMOSOS que têm o texto no nome ou no apelido, do mais avaliado para baixo.
+  const [porTexto, famosos] = await Promise.all([
+    perguntarIgdb(env, token, `search "${limpo}"; ${CAMPOS} where ${FILTRO}; limit 50;`),
+    perguntarIgdb(
+      env,
+      token,
+      `${CAMPOS} where (name ~ *"${limpo}"* | alternative_names.name ~ *"${limpo}"*) & ${FILTRO} & total_rating_count > 0; sort total_rating_count desc; limit 25;`,
+    ).catch(() => [] as RespostaIgdb[]),
+  ]);
+  const vistos = new Set<number>();
+  const todos: Array<{ g: RespostaIgdb; nota: number }> = [];
+  for (const g of [...porTexto, ...famosos]) {
+    if (vistos.has(g.id)) continue;
+    vistos.add(g.id);
     const tipo = typeof g.game_type === 'number' ? g.game_type : g.game_type?.id;
     if (tipo !== undefined && !TIPOS_BONS.has(tipo)) continue;
+    todos.push({ g, nota: notaDoJogo(g, q) });
+  }
+  todos.sort((a, b) => b.nota - a.nota);
+  const saida: Jogo[] = [];
+  for (const { g } of todos) {
     const lojas = new Set<string>();
     for (const e of g.external_games ?? []) {
       const nome = e.external_game_source?.name ?? '';
@@ -105,7 +165,7 @@ async function buscarNaIgdb(env: EnvJogos, q: string): Promise<Jogo[]> {
       ...(g.first_release_date ? { ano: new Date(g.first_release_date * 1000).getUTCFullYear() } : {}),
       ...(lojas.size > 0 ? { lojas: [...lojas].slice(0, 3).join(', ') } : {}),
     });
-    if (saida.length >= 8) break;
+    if (saida.length >= 10) break;
   }
   return saida;
 }
@@ -133,7 +193,7 @@ export async function buscarJogos(req: Request, env: EnvJogos): Promise<Response
   }
 
   const cache = (caches as unknown as { default: Cache }).default;
-  const chave = new Request(`https://cache.loftchat/jogos/${encodeURIComponent(q.toLowerCase())}`);
+  const chave = new Request(`https://cache.loftchat/jogos2/${encodeURIComponent(q.toLowerCase())}`);
   const guardada = await cache.match(chave).catch(() => undefined);
   if (guardada !== undefined) return json(await guardada.json());
 
